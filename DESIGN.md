@@ -9,12 +9,14 @@ Inspired by Stripe (auto-pagination, error hierarchy), Vercel AI SDK (streaming 
 ## It should feel like this
 
 ```ts
+import { createClient, directChat, MessageEffect } from "@photon-ai/advanced-imessage-kit";
+
 const im = createClient({ address: "127.0.0.1:50051", token: "..." });
 
 await im.messages.send(directChat("+1234567890"), "Hello!");
 ```
 
-That's it. One import, one line to connect, one line to send. Everything else is opt-in.
+One import, one line to connect, one line to send. Everything else is opt-in.
 
 ---
 
@@ -50,6 +52,10 @@ Never force Tier 3 complexity to do a Tier 1 task.
 
 **Every resource is disposable.** Client, streams, connections — all implement `Symbol.asyncDispose`. No resource leaks. `await using` just works.
 
+**Strict by default.** The codebase compiles under `strict: true`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `verbatimModuleSyntax`. Generated code must also pass strict. If a codegen tool can't produce strict-clean output, we use a different tool. We never weaken the tsconfig to accommodate generated code.
+
+**Nullable values are handled, not asserted.** Proto response fields come back as `T | undefined`. We use `unwrap(value, "fieldName")` — a typed guard that throws a clear error — instead of non-null assertions (`!`). No `as any`. No `as unknown as T`. If a cast is needed, the abstraction is wrong.
+
 ---
 
 ## Core Types
@@ -74,8 +80,8 @@ directChat("+1234567890")   // ChatGuid: "any;-;+1234567890"
 groupChat("chat123")        // ChatGuid: "any;+;chat123"
 
 parseChatGuid(guid)
-// → { type: "direct", address: string, raw: ChatGuid }
-// → { type: "group", identifier: string, raw: ChatGuid }
+// -> { type: "direct", address: string, raw: ChatGuid }
+// -> { type: "group", identifier: string, raw: ChatGuid }
 ```
 
 ### Enums as `as const` Objects
@@ -95,7 +101,7 @@ Runtime values + full autocomplete + type narrowing. No TS enums. Same for `Text
 
 ### `_raw` Escape Hatch
 
-Every domain type has `readonly _raw: GeneratedProtoType`. When the SDK doesn't surface a field you need, you don't wait for a release — you reach into the proto.
+Every domain type has `readonly _raw?: unknown`. When the SDK doesn't surface a field you need, you don't wait for a release — you reach into the proto.
 
 ---
 
@@ -236,11 +242,20 @@ Factory function returns an interface. The class is an implementation detail.
 
 ---
 
-## Proto is the Contract
+## Proto and Codegen
 
-`proto/photon/imessage/v1/*.proto` — committed, versioned. `src/generated/` — gitignored, regenerated via `bun run generate`. Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` bridges generated <-> public. Same Mapper pattern the server uses.
+`proto/photon/imessage/v1/*.proto` — committed, versioned, the contract. `src/generated/` — gitignored, regenerated via `bun run generate`.
 
-Generated types have `BigInt`, flat `Timestamp`, verbose names, no brands. We don't export them. We wrap them.
+We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-definitions`. ts-proto generates:
+- Native nice-grpc `ServiceDefinition` objects — no adapter layer
+- Typed `ServiceClient` interfaces where unary methods return `Promise<Response>` and streaming methods return `AsyncIterable<Response>` — no wrapper types
+- `oneof` fields as plain optional properties — just `if (proto.field)`, no discriminated `oneofKind` ceremony
+- `Date` for Timestamp fields — no manual conversion
+- Code that compiles under full strict mode
+
+The previous codegen (protobuf-ts) required an adapter to bridge its `ServiceType` to nice-grpc, produced `UnaryCall` wrapper types that needed destructuring, used `oneofKind` discriminated unions that broke under `strict: false`, and couldn't compile with `noUncheckedIndexedAccess`. We switched rather than weakening the tsconfig.
+
+Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` bridges generated types to public types. Same Mapper pattern the server uses.
 
 ### When the server changes
 
@@ -262,3 +277,6 @@ Generated types have `BigInt`, flat `Timestamp`, verbose names, no brands. We do
 - **No generated code in git** — proto files yes, generated output no
 - **No raw streams** — result objects with multiple consumption paths
 - **No forced complexity** — simple things are always simple
+- **No weakened tsconfig** — generated code must compile strict. Pick a different tool if it can't
+- **No non-null assertions** — `unwrap()` with a clear error message, not `!`
+- **No type casts at the transport boundary** — if the codegen needs `as any` to work with the gRPC library, it's the wrong codegen
