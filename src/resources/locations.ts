@@ -7,8 +7,8 @@
 
 import type { FindMyFriend } from "../types/locations.ts";
 import type { LocationEvent } from "../types/events.ts";
-import type { ILocationServiceClient } from "../transport/grpc-client.ts";
-import { mapFindMyFriend, timestampToDate } from "../transport/mapper.ts";
+import type { LocationServiceClient } from "../transport/grpc-client.ts";
+import { mapFindMyFriend } from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { FindMyEvent } from "../generated/photon/imessage/v1/location_service.ts";
@@ -18,9 +18,9 @@ import type { FindMyEvent } from "../generated/photon/imessage/v1/location_servi
 // ---------------------------------------------------------------------------
 
 export class LocationsResource {
-  private readonly _client: ILocationServiceClient;
+  private readonly _client: LocationServiceClient;
 
-  constructor(client: ILocationServiceClient) {
+  constructor(client: LocationServiceClient) {
     this._client = client;
   }
 
@@ -31,7 +31,7 @@ export class LocationsResource {
   /** Get the current list of Find My Friends with their last known locations. */
   async getFriends(): Promise<FindMyFriend[]> {
     try {
-      const { response } = await this._client.getFriends({});
+      const response = await this._client.getFriends({});
       return response.friends.map(mapFindMyFriend);
     } catch (error) {
       throw fromGrpcError(error);
@@ -41,7 +41,7 @@ export class LocationsResource {
   /** Force a refresh of friend locations and return the updated list. */
   async refreshFriends(): Promise<FindMyFriend[]> {
     try {
-      const { response } = await this._client.refreshFriends({});
+      const response = await this._client.refreshFriends({});
       return response.friends.map(mapFindMyFriend);
     } catch (error) {
       throw fromGrpcError(error);
@@ -54,18 +54,16 @@ export class LocationsResource {
 
   /** Subscribe to location update events. Returns a typed event stream. */
   subscribe(): TypedEventStream<LocationEvent> {
-    const rpcCall = this._client.subscribeLocationEvents({});
+    const rpcStream = this._client.subscribeLocationEvents({});
 
     async function* mapEvents(): AsyncGenerator<LocationEvent> {
       try {
-        for await (const proto of rpcCall.responses) {
-          const timestamp = proto.timestamp
-            ? timestampToDate(proto.timestamp)
-            : new Date();
+        for await (const proto of rpcStream) {
+          const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.payload.oneofKind !== "findMyLocationUpdated") continue;
+          if (proto.findMyLocationUpdated === undefined) continue;
 
-          const evt = (proto.payload as any).findMyLocationUpdated as FindMyEvent;
+          const evt: FindMyEvent = proto.findMyLocationUpdated;
 
           yield {
             type: "location.updated" as const,

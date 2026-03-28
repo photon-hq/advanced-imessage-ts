@@ -4,7 +4,7 @@
  * and Live Photo extraction.
  */
 
-import type { IAttachmentServiceClient } from "../transport/grpc-client.ts";
+import type { AttachmentServiceClient } from "../transport/grpc-client.ts";
 import { mapAttachmentInfo } from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
 
@@ -126,9 +126,9 @@ function createStreamedDownload(
 // ---------------------------------------------------------------------------
 
 export class AttachmentsResource {
-  private readonly _client: IAttachmentServiceClient;
+  private readonly _client: AttachmentServiceClient;
 
-  constructor(client: IAttachmentServiceClient) {
+  constructor(client: AttachmentServiceClient) {
     this._client = client;
   }
 
@@ -141,7 +141,7 @@ export class AttachmentsResource {
    */
   async get(guid: AttachmentGuid): Promise<AttachmentInfo> {
     try {
-      const { response } = await this._client.getAttachment({ guid });
+      const response = await this._client.getAttachment({ guid });
       return mapAttachmentInfo(response.attachment!);
     } catch (err) {
       throw fromGrpcError(err);
@@ -153,7 +153,7 @@ export class AttachmentsResource {
    */
   async count(): Promise<number> {
     try {
-      const { response } = await this._client.getAttachmentCount({});
+      const response = await this._client.getAttachmentCount({});
       return response.count;
     } catch (err) {
       throw fromGrpcError(err);
@@ -189,7 +189,7 @@ export class AttachmentsResource {
         data = new TextEncoder().encode(input.path);
       }
 
-      const { response } = await this._client.upload({
+      const response = await this._client.upload({
         fileName,
         mimeType,
         data,
@@ -212,8 +212,8 @@ export class AttachmentsResource {
    * streaming consumption and an `arrayBuffer()` method for buffered use.
    */
   download(guid: AttachmentGuid): StreamedDownload {
-    const rpcCall = this._client.download({ attachmentGuid: guid });
-    return createStreamedDownload(rpcCall.responses);
+    const rpcStream = this._client.download({ attachmentGuid: guid });
+    return createStreamedDownload(rpcStream);
   }
 
   /**
@@ -234,10 +234,10 @@ export class AttachmentsResource {
    * servers, useful when the local copy is missing or corrupted.
    */
   forceDownload(guid: AttachmentGuid): StreamedDownload {
-    const rpcCall = this._client.forceDownload({
+    const rpcStream = this._client.forceDownload({
       attachmentGuid: guid,
     });
-    return createStreamedDownload(rpcCall.responses);
+    return createStreamedDownload(rpcStream);
   }
 
   /**
@@ -247,9 +247,9 @@ export class AttachmentsResource {
    * Photo attachment.
    */
   getLivePhoto(guid: AttachmentGuid): StreamedDownload {
-    const rpcCall = this._client.getLivePhoto({
+    const rpcStream = this._client.getLivePhoto({
       attachmentGuid: guid,
     });
-    return createStreamedDownload(rpcCall.responses);
+    return createStreamedDownload(rpcStream);
   }
 }

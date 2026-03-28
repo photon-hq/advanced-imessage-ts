@@ -3,7 +3,7 @@
  * and verifies iMessage availability for phone numbers and email addresses.
  */
 
-import type { IAddressServiceClient } from "../transport/grpc-client.ts";
+import type { AddressServiceClient } from "../transport/grpc-client.ts";
 import { mapAddressInfo } from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
 
@@ -16,9 +16,9 @@ import { AvailabilityType } from "../generated/photon/imessage/v1/address_servic
 // ---------------------------------------------------------------------------
 
 export class AddressesResource {
-  private readonly _client: IAddressServiceClient;
+  private readonly _client: AddressServiceClient;
 
-  constructor(client: IAddressServiceClient) {
+  constructor(client: AddressServiceClient) {
     this._client = client;
   }
 
@@ -30,7 +30,7 @@ export class AddressesResource {
    */
   async get(address: string): Promise<AddressInfo> {
     try {
-      const { response } = await this._client.getAddress({ address });
+      const response = await this._client.getAddress({ address });
       return mapAddressInfo(response.address!);
     } catch (err) {
       throw fromGrpcError(err);
@@ -45,7 +45,7 @@ export class AddressesResource {
    */
   async getFocusStatus(address: string): Promise<boolean> {
     try {
-      const { response } = await this._client.getFocusStatus({ address });
+      const response = await this._client.getFocusStatus({ address });
       return response.isFocused;
     } catch (err) {
       throw fromGrpcError(err);
@@ -65,11 +65,11 @@ export class AddressesResource {
     type?: "iMessage",
   ): Promise<boolean> {
     try {
-      const { response } = await this._client.checkAvailability({
+      const response = await this._client.checkAvailability({
         address,
         type: type === "iMessage" || type === undefined
-          ? AvailabilityType.IMESSAGE
-          : AvailabilityType.UNSPECIFIED,
+          ? AvailabilityType.AVAILABILITY_TYPE_IMESSAGE
+          : AvailabilityType.AVAILABILITY_TYPE_UNSPECIFIED,
       });
       return response.available;
     } catch (err) {

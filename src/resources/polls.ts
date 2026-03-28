@@ -9,11 +9,10 @@ import type { ChatGuid, MessageGuid } from "../types/branded.ts";
 import type { CommandReceipt } from "../types/common.ts";
 import type { PollInfo } from "../types/polls.ts";
 import type { PollEvent } from "../types/events.ts";
-import type { IPollServiceClient } from "../transport/grpc-client.ts";
+import type { PollServiceClient } from "../transport/grpc-client.ts";
 import {
   mapPollInfo,
   mapMessage,
-  timestampToDate,
 } from "../transport/mapper.ts";
 import { messageGuid, chatGuid } from "../types/branded.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
@@ -25,9 +24,9 @@ import type { PollChangeEvent } from "../generated/photon/imessage/v1/poll_servi
 // ---------------------------------------------------------------------------
 
 export class PollsResource {
-  private readonly _client: IPollServiceClient;
+  private readonly _client: PollServiceClient;
 
-  constructor(client: IPollServiceClient) {
+  constructor(client: PollServiceClient) {
     this._client = client;
   }
 
@@ -42,7 +41,7 @@ export class PollsResource {
     options: string[],
   ): Promise<CommandReceipt> {
     try {
-      const { response } = await this._client.createPoll({
+      const response = await this._client.createPoll({
         chatGuid: chat,
         title,
         options,
@@ -60,7 +59,7 @@ export class PollsResource {
     optionIdentifier: string,
   ): Promise<CommandReceipt> {
     try {
-      const { response } = await this._client.vote({
+      const response = await this._client.vote({
         chatGuid: chat,
         pollMessageGuid: pollMessage,
         optionIdentifier,
@@ -77,7 +76,7 @@ export class PollsResource {
     pollMessage: MessageGuid,
   ): Promise<CommandReceipt> {
     try {
-      const { response } = await this._client.unvote({
+      const response = await this._client.unvote({
         chatGuid: chat,
         pollMessageGuid: pollMessage,
       });
@@ -94,7 +93,7 @@ export class PollsResource {
     optionText: string,
   ): Promise<CommandReceipt> {
     try {
-      const { response } = await this._client.addOption({
+      const response = await this._client.addOption({
         chatGuid: chat,
         pollMessageGuid: pollMessage,
         optionText,
@@ -112,7 +111,7 @@ export class PollsResource {
   /** Get poll info by the message GUID that contains the poll. */
   async get(messageGuidValue: MessageGuid): Promise<PollInfo> {
     try {
-      const { response } = await this._client.getPoll({
+      const response = await this._client.getPoll({
         messageGuid: messageGuidValue,
       });
       return mapPollInfo(response.poll!);
@@ -127,18 +126,16 @@ export class PollsResource {
 
   /** Subscribe to poll change events. Returns a typed event stream. */
   subscribe(): TypedEventStream<PollEvent> {
-    const rpcCall = this._client.subscribePollEvents({});
+    const rpcStream = this._client.subscribePollEvents({});
 
     async function* mapEvents(): AsyncGenerator<PollEvent> {
       try {
-        for await (const proto of rpcCall.responses) {
-          const timestamp = proto.timestamp
-            ? timestampToDate(proto.timestamp)
-            : new Date();
+        for await (const proto of rpcStream) {
+          const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.payload.oneofKind !== "pollChanged") continue;
+          if (proto.pollChanged === undefined) continue;
 
-          const evt = (proto.payload as any).pollChanged as PollChangeEvent;
+          const evt: PollChangeEvent = proto.pollChanged;
 
           yield {
             type: "poll.changed" as const,

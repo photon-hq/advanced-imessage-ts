@@ -4,12 +4,10 @@
  * subscription for iMessages.
  */
 
-import type { IMessageServiceClient } from "../transport/grpc-client.ts";
+import type { MessageServiceClient } from "../transport/grpc-client.ts";
 import {
   mapMessage,
   mapSortDirection,
-  dateToTimestamp,
-  timestampToDate,
 } from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { createPaginated } from "../streaming/paginated.ts";
@@ -105,9 +103,9 @@ function resolveReplyTo(
 // ---------------------------------------------------------------------------
 
 export class MessagesResource {
-  private readonly _client: IMessageServiceClient;
+  private readonly _client: MessageServiceClient;
 
-  constructor(client: IMessageServiceClient) {
+  constructor(client: MessageServiceClient) {
     this._client = client;
   }
 
@@ -152,7 +150,7 @@ export class MessagesResource {
     };
 
     try {
-      const { response } = await this._client.send(request);
+      const response = await this._client.send(request);
       return {
         guid: messageGuid(response.receipt!.guid),
         clientMessageId: response.receipt!.clientMessageId,
@@ -202,7 +200,7 @@ export class MessagesResource {
     };
 
     try {
-      const { response } = await this._client.send(request);
+      const response = await this._client.send(request);
       return {
         guid: messageGuid(response.receipt!.guid),
         clientMessageId: response.receipt!.clientMessageId,
@@ -239,7 +237,7 @@ export class MessagesResource {
     };
 
     try {
-      const { response } = await this._client.send(request);
+      const response = await this._client.send(request);
       return {
         guid: messageGuid(response.receipt!.guid),
         clientMessageId: response.receipt!.clientMessageId,
@@ -263,7 +261,7 @@ export class MessagesResource {
     options?: { partIndex?: number },
   ): Promise<CommandReceipt> {
     try {
-      const { response } = await this._client.sendReaction({
+      const response = await this._client.sendReaction({
         chatGuid: chat,
         messageGuid: message,
         reaction,
@@ -285,7 +283,7 @@ export class MessagesResource {
     options?: { partIndex?: number },
   ): Promise<CommandReceipt> {
     try {
-      const { response } = await this._client.sendReaction({
+      const response = await this._client.sendReaction({
         chatGuid: chat,
         messageGuid: message,
         reaction: "emoji",
@@ -310,7 +308,7 @@ export class MessagesResource {
     options?: { partIndex?: number },
   ): Promise<CommandReceipt> {
     try {
-      const { response } = await this._client.sendReaction({
+      const response = await this._client.sendReaction({
         chatGuid: chat,
         messageGuid: message,
         reaction: `-${reaction}`,
@@ -376,7 +374,7 @@ export class MessagesResource {
    */
   async get(guid: MessageGuid): Promise<Message> {
     try {
-      const { response } = await this._client.getMessage({ guid });
+      const response = await this._client.getMessage({ guid });
       return mapMessage(response.message!);
     } catch (err) {
       throw fromGrpcError(err);
@@ -393,17 +391,13 @@ export class MessagesResource {
     return createPaginated(
       async (offset, limit) => {
         try {
-          const { response } = await this._client.listMessages({
+          const response = await this._client.listMessages({
             chatGuid: options?.chatGuid as string | undefined,
-            before: options?.before
-              ? dateToTimestamp(options.before)
-              : undefined,
-            after: options?.after
-              ? dateToTimestamp(options.after)
-              : undefined,
+            before: options?.before,
+            after: options?.after,
             sort: options?.sort
               ? mapSortDirection(options.sort)
-              : ProtoSortDirection.UNSPECIFIED,
+              : ProtoSortDirection.SORT_DIRECTION_UNSPECIFIED,
             limit,
             offset,
             withChats: options?.withChats ?? false,
@@ -433,7 +427,7 @@ export class MessagesResource {
    */
   async stats(): Promise<MessageStats> {
     try {
-      const { response } = await this._client.getMessageStats({});
+      const response = await this._client.getMessageStats({});
       return {
         total: response.total,
         sent: response.sent,
@@ -474,7 +468,7 @@ export class MessagesResource {
     message: MessageGuid,
   ): Promise<EmbeddedMediaItem[]> {
     try {
-      const { response } = await this._client.getEmbeddedMedia({
+      const response = await this._client.getEmbeddedMedia({
         chatGuid: chat,
         messageGuid: message,
       });
@@ -505,19 +499,15 @@ export class MessagesResource {
   subscribe(
     type?: MessageEvent["type"],
   ): TypedEventStream<MessageEvent> {
-    const rpcCall = this._client.subscribeMessageEvents({});
+    const rpcStream = this._client.subscribeMessageEvents({});
 
     async function* mapEvents(): AsyncGenerator<MessageEvent> {
       try {
-        for await (const proto of rpcCall.responses) {
-          const timestamp = proto.timestamp
-            ? timestampToDate(proto.timestamp)
-            : new Date();
+        for await (const proto of rpcStream) {
+          const timestamp = proto.timestamp ?? new Date();
 
-          const { payload } = proto;
-
-          if (payload.oneofKind === "messageSent") {
-            const evt = (payload as any).messageSent as MessageSentEvent;
+          if (proto.messageSent !== undefined) {
+            const evt: MessageSentEvent = proto.messageSent;
             yield {
               type: "message.sent" as const,
               timestamp,
@@ -525,16 +515,16 @@ export class MessagesResource {
               clientMessageId: evt.clientMessageId,
               chatGuid: chatGuid(evt.chatGuid),
             };
-          } else if (payload.oneofKind === "messageReceived") {
-            const evt = (payload as any).messageReceived as MessageReceivedEvent;
+          } else if (proto.messageReceived !== undefined) {
+            const evt: MessageReceivedEvent = proto.messageReceived;
             yield {
               type: "message.received" as const,
               timestamp,
               message: mapMessage(evt.message!),
               chatGuid: chatGuid(evt.chatGuid),
             };
-          } else if (payload.oneofKind === "messageUpdated") {
-            const evt = (payload as any).messageUpdated as MessageUpdatedEvent;
+          } else if (proto.messageUpdated !== undefined) {
+            const evt: MessageUpdatedEvent = proto.messageUpdated;
             yield {
               type: "message.updated" as const,
               timestamp,
@@ -546,8 +536,8 @@ export class MessagesResource {
                 | "reaction",
               chatGuid: chatGuid(evt.chatGuid),
             };
-          } else if (payload.oneofKind === "messageSendError") {
-            const evt = (payload as any).messageSendError as MessageSendErrorEvent;
+          } else if (proto.messageSendError !== undefined) {
+            const evt: MessageSendErrorEvent = proto.messageSendError;
             yield {
               type: "message.sendError" as const,
               timestamp,

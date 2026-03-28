@@ -13,63 +13,43 @@ import {
   type Channel,
   ChannelCredentials,
 } from "nice-grpc";
-import type { IMessageServiceClient } from "../generated/photon/imessage/v1/message_service.client.ts";
-import type { IChatServiceClient } from "../generated/photon/imessage/v1/chat_service.client.ts";
-import type { IGroupServiceClient } from "../generated/photon/imessage/v1/group_service.client.ts";
-import type { IAttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.client.ts";
-import type { IAddressServiceClient } from "../generated/photon/imessage/v1/address_service.client.ts";
-import type { IPollServiceClient } from "../generated/photon/imessage/v1/poll_service.client.ts";
-import type { IScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.client.ts";
-import type { ILocationServiceClient } from "../generated/photon/imessage/v1/location_service.client.ts";
+import type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
+import type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
+import type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
+import type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
+import type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
+import type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
+import type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
+import type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
 
-// Generated protobuf-ts ServiceType instances (runtime descriptors)
-import { MessageService } from "../generated/photon/imessage/v1/message_service.ts";
-import { ChatService } from "../generated/photon/imessage/v1/chat_service.ts";
-import { GroupService } from "../generated/photon/imessage/v1/group_service.ts";
-import { AttachmentService } from "../generated/photon/imessage/v1/attachment_service.ts";
-import { AddressService } from "../generated/photon/imessage/v1/address_service.ts";
-import { PollService } from "../generated/photon/imessage/v1/poll_service.ts";
-import { ScheduledMessageService } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-import { LocationService } from "../generated/photon/imessage/v1/location_service.ts";
-
-// Adapter to convert protobuf-ts ServiceType -> nice-grpc ServiceDefinition
-import { fromProtobufTsService } from "./protobuf-ts-adapter.ts";
+// Generated ts-proto ServiceDefinition instances (runtime descriptors)
+import { MessageServiceDefinition } from "../generated/photon/imessage/v1/message_service.ts";
+import { ChatServiceDefinition } from "../generated/photon/imessage/v1/chat_service.ts";
+import { GroupServiceDefinition } from "../generated/photon/imessage/v1/group_service.ts";
+import { AttachmentServiceDefinition } from "../generated/photon/imessage/v1/attachment_service.ts";
+import { AddressServiceDefinition } from "../generated/photon/imessage/v1/address_service.ts";
+import { PollServiceDefinition } from "../generated/photon/imessage/v1/poll_service.ts";
+import { ScheduledMessageServiceDefinition } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
+import { LocationServiceDefinition } from "../generated/photon/imessage/v1/location_service.ts";
 
 // Middleware
 import { authMiddleware, idempotencyMiddleware } from "./metadata.ts";
 
 // ---------------------------------------------------------------------------
-// nice-grpc service definitions (converted from protobuf-ts)
-// ---------------------------------------------------------------------------
-
-const messageServiceDef = fromProtobufTsService(MessageService);
-const chatServiceDef = fromProtobufTsService(ChatService);
-const groupServiceDef = fromProtobufTsService(GroupService);
-const attachmentServiceDef = fromProtobufTsService(AttachmentService);
-const addressServiceDef = fromProtobufTsService(AddressService);
-const pollServiceDef = fromProtobufTsService(PollService);
-const scheduledMessageServiceDef = fromProtobufTsService(ScheduledMessageService);
-const locationServiceDef = fromProtobufTsService(LocationService);
-
-// ---------------------------------------------------------------------------
 // Client type aliases
 //
-// nice-grpc's `Client<T>` cannot resolve method names from a dynamically
-// built ServiceDefinition (via fromProtobufTsService). We re-export the
-// protobuf-ts generated interfaces which have the correct method signatures.
-// At runtime the nice-grpc client has these same methods — the cast in
-// createGrpcClients is safe.
+// Re-export with friendly names for resource classes. The ts-proto generated
+// client interfaces have correct method signatures for nice-grpc usage.
 // ---------------------------------------------------------------------------
 
-// Re-export with friendly names for resource classes
-export type { IMessageServiceClient } from "../generated/photon/imessage/v1/message_service.client.ts";
-export type { IChatServiceClient } from "../generated/photon/imessage/v1/chat_service.client.ts";
-export type { IGroupServiceClient } from "../generated/photon/imessage/v1/group_service.client.ts";
-export type { IAttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.client.ts";
-export type { IAddressServiceClient } from "../generated/photon/imessage/v1/address_service.client.ts";
-export type { IPollServiceClient } from "../generated/photon/imessage/v1/poll_service.client.ts";
-export type { IScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.client.ts";
-export type { ILocationServiceClient } from "../generated/photon/imessage/v1/location_service.client.ts";
+export type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
+export type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
+export type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
+export type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
+export type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
+export type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
+export type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
+export type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
 
 // ---------------------------------------------------------------------------
 // GrpcClients interface
@@ -82,14 +62,14 @@ export type { ILocationServiceClient } from "../generated/photon/imessage/v1/loc
  * the client's `AsyncDisposable` implementation).
  */
 export interface GrpcClients {
-  readonly messages: IMessageServiceClient;
-  readonly chats: IChatServiceClient;
-  readonly groups: IGroupServiceClient;
-  readonly attachments: IAttachmentServiceClient;
-  readonly addresses: IAddressServiceClient;
-  readonly polls: IPollServiceClient;
-  readonly scheduledMessages: IScheduledMessageServiceClient;
-  readonly locations: ILocationServiceClient;
+  readonly messages: MessageServiceClient;
+  readonly chats: ChatServiceClient;
+  readonly groups: GroupServiceClient;
+  readonly attachments: AttachmentServiceClient;
+  readonly addresses: AddressServiceClient;
+  readonly polls: PollServiceClient;
+  readonly scheduledMessages: ScheduledMessageServiceClient;
+  readonly locations: LocationServiceClient;
   readonly channel: Channel;
 }
 
@@ -158,17 +138,16 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
   }
 
   // --- Create clients ---
-  // Cast to protobuf-ts client interfaces. At runtime nice-grpc creates
-  // clients with the same method signatures — the cast is safe.
+  // ts-proto definitions are natively compatible with nice-grpc, no casts needed.
   return {
-    messages: factory.create(messageServiceDef, channel) as unknown as IMessageServiceClient,
-    chats: factory.create(chatServiceDef, channel) as unknown as IChatServiceClient,
-    groups: factory.create(groupServiceDef, channel) as unknown as IGroupServiceClient,
-    attachments: factory.create(attachmentServiceDef, channel) as unknown as IAttachmentServiceClient,
-    addresses: factory.create(addressServiceDef, channel) as unknown as IAddressServiceClient,
-    polls: factory.create(pollServiceDef, channel) as unknown as IPollServiceClient,
-    scheduledMessages: factory.create(scheduledMessageServiceDef, channel) as unknown as IScheduledMessageServiceClient,
-    locations: factory.create(locationServiceDef, channel) as unknown as ILocationServiceClient,
+    messages: factory.create(MessageServiceDefinition, channel),
+    chats: factory.create(ChatServiceDefinition, channel),
+    groups: factory.create(GroupServiceDefinition, channel),
+    attachments: factory.create(AttachmentServiceDefinition, channel),
+    addresses: factory.create(AddressServiceDefinition, channel),
+    polls: factory.create(PollServiceDefinition, channel),
+    scheduledMessages: factory.create(ScheduledMessageServiceDefinition, channel),
+    locations: factory.create(LocationServiceDefinition, channel),
     channel,
   };
 }

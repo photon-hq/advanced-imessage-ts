@@ -10,8 +10,8 @@ import type { ChatGuid } from "../types/branded.ts";
 import type { Chat } from "../types/chats.ts";
 import type { BackgroundInfo } from "../types/groups.ts";
 import type { GroupEvent, GroupChange } from "../types/events.ts";
-import type { IGroupServiceClient } from "../transport/grpc-client.ts";
-import { mapChat, timestampToDate } from "../transport/mapper.ts";
+import type { GroupServiceClient } from "../transport/grpc-client.ts";
+import { mapChat } from "../transport/mapper.ts";
 import { chatGuid } from "../types/branded.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
@@ -22,9 +22,9 @@ import type { GroupChangeEvent } from "../generated/photon/imessage/v1/group_ser
 // ---------------------------------------------------------------------------
 
 export class GroupsResource {
-  private readonly _client: IGroupServiceClient;
+  private readonly _client: GroupServiceClient;
 
-  constructor(client: IGroupServiceClient) {
+  constructor(client: GroupServiceClient) {
     this._client = client;
   }
 
@@ -35,7 +35,7 @@ export class GroupsResource {
   /** Rename a group chat. Returns the updated chat. */
   async setDisplayName(chat: ChatGuid, name: string): Promise<Chat> {
     try {
-      const { response } = await this._client.setDisplayName({
+      const response = await this._client.setDisplayName({
         chatGuid: chat,
         name,
       });
@@ -52,7 +52,7 @@ export class GroupsResource {
   /** Add a participant to a group chat by address. Returns the updated chat. */
   async addParticipant(chat: ChatGuid, address: string): Promise<Chat> {
     try {
-      const { response } = await this._client.addParticipant({
+      const response = await this._client.addParticipant({
         chatGuid: chat,
         address,
       });
@@ -65,7 +65,7 @@ export class GroupsResource {
   /** Remove a participant from a group chat by address. Returns the updated chat. */
   async removeParticipant(chat: ChatGuid, address: string): Promise<Chat> {
     try {
-      const { response } = await this._client.removeParticipant({
+      const response = await this._client.removeParticipant({
         chatGuid: chat,
         address,
       });
@@ -91,7 +91,7 @@ export class GroupsResource {
   /** Get the group chat icon as raw bytes, or `null` if none is set. */
   async getIcon(chat: ChatGuid): Promise<Uint8Array | null> {
     try {
-      const { response } = await this._client.getIcon({ chatGuid: chat });
+      const response = await this._client.getIcon({ chatGuid: chat });
       return response.data ?? null;
     } catch (error) {
       throw fromGrpcError(error);
@@ -117,7 +117,7 @@ export class GroupsResource {
     data: Uint8Array,
   ): Promise<BackgroundInfo> {
     try {
-      const { response } = await this._client.setBackground({
+      const response = await this._client.setBackground({
         chatGuid: chat,
         data,
       });
@@ -134,7 +134,7 @@ export class GroupsResource {
   /** Get the group chat background info, or `null` if none is set. */
   async getBackground(chat: ChatGuid): Promise<BackgroundInfo | null> {
     try {
-      const { response } = await this._client.getBackground({ chatGuid: chat });
+      const response = await this._client.getBackground({ chatGuid: chat });
       // If all fields are absent, consider it as no background.
       if (
         response.channelGuid === undefined &&
@@ -168,19 +168,17 @@ export class GroupsResource {
 
   /** Subscribe to group change events. Returns a typed event stream. */
   subscribe(): TypedEventStream<GroupEvent> {
-    const rpcCall = this._client.subscribeGroupEvents({});
+    const rpcStream = this._client.subscribeGroupEvents({});
 
     async function* mapEvents(): AsyncGenerator<GroupEvent> {
       try {
-        for await (const proto of rpcCall.responses) {
-          const timestamp = proto.timestamp
-            ? timestampToDate(proto.timestamp)
-            : new Date();
+        for await (const proto of rpcStream) {
+          const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.payload.oneofKind !== "groupChanged") continue;
+          if (proto.groupChanged === undefined) continue;
 
-          const evt = (proto.payload as any).groupChanged as GroupChangeEvent;
-          const change = mapGroupChange(evt.change);
+          const evt: GroupChangeEvent = proto.groupChanged;
+          const change = mapGroupChange(evt);
           if (!change) continue;
 
           yield {
@@ -204,37 +202,34 @@ export class GroupsResource {
 // ---------------------------------------------------------------------------
 
 /**
- * Map a proto GroupChangeEvent's `change` oneof to the SDK GroupChange
- * discriminated union. The `change` parameter is the raw oneof value from
- * the proto GroupChangeEvent.
+ * Map a proto GroupChangeEvent to the SDK GroupChange discriminated union.
+ *
+ * ts-proto represents oneof fields as optional properties on the message.
+ * We check each field to determine which change occurred.
  */
 function mapGroupChange(
-  change: {
-    oneofKind: string | undefined;
-    [key: string]: unknown;
-  },
+  evt: GroupChangeEvent,
 ): GroupChange | undefined {
-  switch (change.oneofKind) {
-    case "renamedTo":
-      return { type: "renamed", name: change.renamedTo as string };
-    case "participantAdded":
-      return { type: "participantAdded", address: change.participantAdded as string };
-    case "participantRemoved":
-      return {
-        type: "participantRemoved",
-        address: change.participantRemoved as string,
-      };
-    case "iconChanged":
-      return { type: "iconChanged" };
-    case "iconRemoved":
-      return { type: "iconRemoved" };
-    case "backgroundChanged":
-      return { type: "backgroundChanged" };
-    case "backgroundRemoved":
-      return { type: "backgroundRemoved" };
-    case undefined:
-      return undefined;
-    default:
-      return undefined;
+  if (evt.renamedTo !== undefined) {
+    return { type: "renamed", name: evt.renamedTo };
   }
+  if (evt.participantAdded !== undefined) {
+    return { type: "participantAdded", address: evt.participantAdded };
+  }
+  if (evt.participantRemoved !== undefined) {
+    return { type: "participantRemoved", address: evt.participantRemoved };
+  }
+  if (evt.iconChanged !== undefined) {
+    return { type: "iconChanged" };
+  }
+  if (evt.iconRemoved !== undefined) {
+    return { type: "iconRemoved" };
+  }
+  if (evt.backgroundChanged !== undefined) {
+    return { type: "backgroundChanged" };
+  }
+  if (evt.backgroundRemoved !== undefined) {
+    return { type: "backgroundRemoved" };
+  }
+  return undefined;
 }

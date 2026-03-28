@@ -13,8 +13,8 @@ import type {
   UpdateScheduledMessageOptions,
 } from "../types/scheduled-messages.ts";
 import type { ScheduleEvent } from "../types/events.ts";
-import type { IScheduledMessageServiceClient } from "../transport/grpc-client.ts";
-import { mapScheduledMessage, timestampToDate, dateToTimestamp } from "../transport/mapper.ts";
+import type { ScheduledMessageServiceClient } from "../transport/grpc-client.ts";
+import { mapScheduledMessage } from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 
@@ -28,9 +28,9 @@ import type { ScheduledMessageEvent } from "../generated/photon/imessage/v1/sche
 // ---------------------------------------------------------------------------
 
 export class ScheduledMessagesResource {
-  private readonly _client: IScheduledMessageServiceClient;
+  private readonly _client: ScheduledMessageServiceClient;
 
-  constructor(client: IScheduledMessageServiceClient) {
+  constructor(client: ScheduledMessageServiceClient) {
     this._client = client;
   }
 
@@ -49,10 +49,10 @@ export class ScheduledMessagesResource {
       const scheduleObj = options.schedule ?? { type: "once" as const };
       const scheduleBytes = new TextEncoder().encode(JSON.stringify(scheduleObj));
 
-      const { response } = await this._client.createScheduledMessage({
-        type: ProtoScheduledMessageType.SEND_MESSAGE,
+      const response = await this._client.createScheduledMessage({
+        type: ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_SEND_MESSAGE,
         payload: payloadBytes,
-        scheduledFor: dateToTimestamp(options.scheduledFor),
+        scheduledFor: options.scheduledFor,
         schedule: scheduleBytes,
       });
 
@@ -65,7 +65,7 @@ export class ScheduledMessagesResource {
   /** Get a scheduled message by its ID. */
   async get(id: ScheduledMessageId): Promise<ScheduledMessage> {
     try {
-      const { response } = await this._client.getScheduledMessage({ id });
+      const response = await this._client.getScheduledMessage({ id });
       return mapScheduledMessage(response.scheduledMessage!);
     } catch (error) {
       throw fromGrpcError(error);
@@ -75,7 +75,7 @@ export class ScheduledMessagesResource {
   /** List all scheduled messages. */
   async list(): Promise<ScheduledMessage[]> {
     try {
-      const { response } = await this._client.listScheduledMessages({});
+      const response = await this._client.listScheduledMessages({});
       return response.messages.map(mapScheduledMessage);
     } catch (error) {
       throw fromGrpcError(error);
@@ -98,13 +98,11 @@ export class ScheduledMessagesResource {
       const scheduleObj = options.schedule ?? { type: "once" as const };
       const scheduleBytes = new TextEncoder().encode(JSON.stringify(scheduleObj));
 
-      const { response } = await this._client.updateScheduledMessage({
+      const response = await this._client.updateScheduledMessage({
         id,
-        type: ProtoScheduledMessageType.SEND_MESSAGE,
+        type: ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_SEND_MESSAGE,
         payload: payloadBytes,
-        scheduledFor: options.scheduledFor
-          ? dateToTimestamp(options.scheduledFor)
-          : undefined,
+        scheduledFor: options.scheduledFor,
         schedule: scheduleBytes,
       });
 
@@ -139,7 +137,7 @@ export class ScheduledMessagesResource {
   /** Immediately execute a specific scheduled message. */
   async execute(id: ScheduledMessageId): Promise<ScheduledMessage> {
     try {
-      const { response } = await this._client.executeScheduledMessage({ id });
+      const response = await this._client.executeScheduledMessage({ id });
       return mapScheduledMessage(response.scheduledMessage!);
     } catch (error) {
       throw fromGrpcError(error);
@@ -149,7 +147,7 @@ export class ScheduledMessagesResource {
   /** Execute all scheduled messages that are due. */
   async executeDue(): Promise<ScheduledMessage[]> {
     try {
-      const { response } = await this._client.executeDueScheduledMessages({});
+      const response = await this._client.executeDueScheduledMessages({});
       return response.messages.map(mapScheduledMessage);
     } catch (error) {
       throw fromGrpcError(error);
@@ -162,18 +160,16 @@ export class ScheduledMessagesResource {
 
   /** Subscribe to scheduled message lifecycle events. Returns a typed event stream. */
   subscribe(): TypedEventStream<ScheduleEvent> {
-    const rpcCall = this._client.subscribeScheduleEvents({});
+    const rpcStream = this._client.subscribeScheduleEvents({});
 
     async function* mapEvents(): AsyncGenerator<ScheduleEvent> {
       try {
-        for await (const proto of rpcCall.responses) {
-          const timestamp = proto.timestamp
-            ? timestampToDate(proto.timestamp)
-            : new Date();
+        for await (const proto of rpcStream) {
+          const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.payload.oneofKind !== "scheduledMessageChanged") continue;
+          if (proto.scheduledMessageChanged === undefined) continue;
 
-          const evt = (proto.payload as any).scheduledMessageChanged as ScheduledMessageEvent;
+          const evt: ScheduledMessageEvent = proto.scheduledMessageChanged;
           if (!evt.scheduledMessage) continue;
 
           yield {

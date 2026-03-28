@@ -1,5 +1,5 @@
 {
-  "name": "advanced-imessage-ts",
+  "name": "@photon-ai/advanced-imessage-kit",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -13,7 +13,7 @@
   "engines": { "node": ">=18" },
   "scripts": {
     "generate": "PATH=./node_modules/.bin:$PATH buf generate",
-    "build": "bun run generate && tsup && tsc -p tsconfig.build.json",
+    "build": "bun run generate && tsup",
     "dev": "tsup --watch",
     "check": "tsc --noEmit",
     "lint": "biome check .",
@@ -24,16 +24,16 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.12.6",
-    "@protobuf-ts/runtime": "^2.9.6",
-    "@protobuf-ts/runtime-rpc": "^2.9.6",
+    "long": "^5.2.4",
     "nice-grpc": "^2.1.11",
-    "nice-grpc-common": "^2.0.2"
+    "nice-grpc-common": "^2.0.2",
+    "protobufjs": "^7.4.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.7",
     "@bufbuild/buf": "^1.50.0",
-    "@protobuf-ts/plugin": "^2.9.6",
     "@types/bun": "latest",
+    "ts-proto": "^2.6.1",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
     "ultracite": "7.3.2"

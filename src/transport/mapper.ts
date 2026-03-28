@@ -4,16 +4,15 @@
  *
  * Every generated proto type is imported with a `Proto` prefix to clearly
  * distinguish it from the handwritten SDK type of the same name.
+ *
+ * ts-proto generates `Date | undefined` for proto Timestamp fields and
+ * numeric enums with `FULL_PREFIX_NAME` naming, so the conversion helpers
+ * reflect that.
  */
 
 // ---------------------------------------------------------------------------
 // Generated proto imports
 // ---------------------------------------------------------------------------
-
-import type { Timestamp as ProtoTimestamp } from "../generated/google/protobuf/timestamp.ts";
-import {
-  Timestamp as ProtoTimestampType,
-} from "../generated/google/protobuf/timestamp.ts";
 
 import {
   type AddressInfo as ProtoAddressInfo,
@@ -80,26 +79,23 @@ import type { FindMyFriend } from "../types/locations.ts";
 // ---------------------------------------------------------------------------
 
 /**
- * Convert a proto Timestamp to a JavaScript `Date`.
+ * Convert a proto timestamp value to a JavaScript `Date`.
  *
- * Returns `undefined` if the input is `undefined`.
+ * With ts-proto, timestamp fields are already `Date | undefined`. This
+ * function is kept as a pass-through for call sites that rely on the
+ * non-undefined overload (e.g. `timestampToDate(proto.timestamp)`).
  */
-export function timestampToDate(ts: ProtoTimestamp): Date {
-  return ProtoTimestampType.toDate(ts);
+export function timestampToDate(ts: Date): Date {
+  return ts;
 }
 
 /**
- * Convert a JavaScript `Date` to a proto Timestamp.
+ * Convert a JavaScript `Date` to the proto timestamp representation.
+ *
+ * With ts-proto, timestamp fields accept `Date` directly.
  */
-export function dateToTimestamp(date: Date): ProtoTimestamp {
-  return ProtoTimestampType.fromDate(date);
-}
-
-/**
- * Safely convert an optional proto Timestamp to a Date.
- */
-function optionalTimestamp(ts: ProtoTimestamp | undefined): Date | undefined {
-  return ts ? timestampToDate(ts) : undefined;
+export function dateToTimestamp(date: Date): Date {
+  return date;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,15 +107,15 @@ function optionalTimestamp(ts: ProtoTimestamp | undefined): Date | undefined {
  */
 export function mapTransferState(proto: ProtoTransferState): TransferState {
   switch (proto) {
-    case ProtoTransferState.TRANSFERRING:
+    case ProtoTransferState.TRANSFER_STATE_TRANSFERRING:
       return "transferring";
-    case ProtoTransferState.FAILED:
+    case ProtoTransferState.TRANSFER_STATE_FAILED:
       return "failed";
-    case ProtoTransferState.FINISHED:
+    case ProtoTransferState.TRANSFER_STATE_FINISHED:
       return "finished";
-    case ProtoTransferState.PENDING:
+    case ProtoTransferState.TRANSFER_STATE_PENDING:
       return "pending";
-    case ProtoTransferState.UNSPECIFIED:
+    case ProtoTransferState.TRANSFER_STATE_UNSPECIFIED:
     default:
       return "pending";
   }
@@ -132,15 +128,15 @@ export function mapMessageItemType(
   proto: ProtoMessageItemType,
 ): MessageItemType {
   switch (proto) {
-    case ProtoMessageItemType.NORMAL:
+    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_NORMAL:
       return "normal";
-    case ProtoMessageItemType.GROUP_NAME_CHANGE:
+    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE:
       return "groupNameChange";
-    case ProtoMessageItemType.PARTICIPANT_CHANGE:
+    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE:
       return "participantChange";
-    case ProtoMessageItemType.LEFT_GROUP:
+    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_LEFT_GROUP:
       return "leftGroup";
-    case ProtoMessageItemType.UNSPECIFIED:
+    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_UNSPECIFIED:
     default:
       return "normal";
   }
@@ -153,15 +149,15 @@ function mapScheduledMessageStatus(
   proto: ProtoScheduledMessageStatus,
 ): ScheduledMessageStatus {
   switch (proto) {
-    case ProtoScheduledMessageStatus.PENDING:
+    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_PENDING:
       return "pending";
-    case ProtoScheduledMessageStatus.IN_PROGRESS:
+    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_IN_PROGRESS:
       return "inProgress";
-    case ProtoScheduledMessageStatus.COMPLETE:
+    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_COMPLETE:
       return "complete";
-    case ProtoScheduledMessageStatus.FAILED:
+    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_FAILED:
       return "failed";
-    case ProtoScheduledMessageStatus.UNSPECIFIED:
+    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_UNSPECIFIED:
     default:
       return "pending";
   }
@@ -172,9 +168,9 @@ function mapScheduledMessageStatus(
  */
 function mapScheduledMessageType(proto: ProtoScheduledMessageType): string {
   switch (proto) {
-    case ProtoScheduledMessageType.SEND_MESSAGE:
+    case ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_SEND_MESSAGE:
       return "sendMessage";
-    case ProtoScheduledMessageType.UNSPECIFIED:
+    case ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_UNSPECIFIED:
     default:
       return "unspecified";
   }
@@ -187,11 +183,11 @@ function mapLocationType(
   proto: ProtoFindMyLocationType,
 ): "live" | "shallow" {
   switch (proto) {
-    case ProtoFindMyLocationType.LIVE:
+    case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_LIVE:
       return "live";
-    case ProtoFindMyLocationType.SHALLOW:
+    case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_SHALLOW:
       return "shallow";
-    case ProtoFindMyLocationType.UNSPECIFIED:
+    case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_UNSPECIFIED:
     default:
       return "shallow";
   }
@@ -215,11 +211,11 @@ function mapChatServiceType(service: string): ChatServiceType {
 export function mapSortDirection(sdk: SortDirection): ProtoSortDirection {
   switch (sdk) {
     case "ascending":
-      return ProtoSortDirection.ASCENDING;
+      return ProtoSortDirection.SORT_DIRECTION_ASCENDING;
     case "descending":
-      return ProtoSortDirection.DESCENDING;
+      return ProtoSortDirection.SORT_DIRECTION_DESCENDING;
     default:
-      return ProtoSortDirection.UNSPECIFIED;
+      return ProtoSortDirection.SORT_DIRECTION_UNSPECIFIED;
   }
 }
 
@@ -266,6 +262,10 @@ export function mapAttachmentInfo(proto: ProtoAttachmentInfo): AttachmentInfo {
 
 /**
  * Map a proto `Message` to the SDK `Message`.
+ *
+ * ts-proto generates `Date | undefined` for all Timestamp fields, so we
+ * pass them through directly instead of converting from a proto Timestamp
+ * object.
  */
 export function mapMessage(proto: ProtoMessage): Message {
   return {
@@ -276,15 +276,13 @@ export function mapMessage(proto: ProtoMessage): Message {
     text: proto.text,
     subject: proto.subject,
 
-    // Timeline
-    dateCreated: proto.dateCreated
-      ? timestampToDate(proto.dateCreated)
-      : new Date(0),
-    dateRead: optionalTimestamp(proto.dateRead),
-    dateDelivered: optionalTimestamp(proto.dateDelivered),
-    dateEdited: optionalTimestamp(proto.dateEdited),
-    dateRetracted: optionalTimestamp(proto.dateRetracted),
-    datePlayed: optionalTimestamp(proto.datePlayed),
+    // Timeline -- ts-proto gives us Date | undefined directly
+    dateCreated: proto.dateCreated ?? new Date(0),
+    dateRead: proto.dateRead,
+    dateDelivered: proto.dateDelivered,
+    dateEdited: proto.dateEdited,
+    dateRetracted: proto.dateRetracted,
+    datePlayed: proto.datePlayed,
 
     // Sender
     sender: proto.sender ? mapAddressInfo(proto.sender) : undefined,
@@ -384,6 +382,8 @@ export function mapPollInfo(proto: ProtoPollInfo): PollInfo {
 
 /**
  * Map a proto `ScheduledMessage` to the SDK `ScheduledMessage`.
+ *
+ * ts-proto gives us `Date | undefined` for Timestamp fields.
  */
 export function mapScheduledMessage(
   proto: ProtoScheduledMessage,
@@ -392,21 +392,19 @@ export function mapScheduledMessage(
     id: scheduledMessageId(proto.id),
     type: mapScheduledMessageType(proto.type),
     payload: proto.payload,
-    scheduledFor: proto.scheduledFor
-      ? timestampToDate(proto.scheduledFor)
-      : new Date(0),
+    scheduledFor: proto.scheduledFor ?? new Date(0),
     schedule: proto.schedule,
     status: mapScheduledMessageStatus(proto.status),
     errorMessage: proto.errorMessage,
-    sentAt: optionalTimestamp(proto.sentAt),
-    createdAt: proto.createdAt
-      ? timestampToDate(proto.createdAt)
-      : new Date(0),
+    sentAt: proto.sentAt,
+    createdAt: proto.createdAt ?? new Date(0),
   };
 }
 
 /**
  * Map a proto `FindMyFriend` to the SDK `FindMyFriend`.
+ *
+ * ts-proto gives us `Date | undefined` for Timestamp fields.
  */
 export function mapFindMyFriend(proto: ProtoFindMyFriend): FindMyFriend {
   return {
@@ -415,11 +413,11 @@ export function mapFindMyFriend(proto: ProtoFindMyFriend): FindMyFriend {
     latitude: proto.latitude,
     longitude: proto.longitude,
     accuracy: proto.accuracy,
-    locationTimestamp: optionalTimestamp(proto.locationTimestamp),
+    locationTimestamp: proto.locationTimestamp,
     longAddress: proto.longAddress,
     shortAddress: proto.shortAddress,
     isLocatingInProgress: proto.isLocatingInProgress,
     locationType: mapLocationType(proto.locationType),
-    expiresAt: optionalTimestamp(proto.expiresAt),
+    expiresAt: proto.expiresAt,
   };
 }

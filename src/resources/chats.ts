@@ -4,12 +4,11 @@
  * and real-time event subscription.
  */
 
-import type { IChatServiceClient } from "../transport/grpc-client.ts";
+import type { ChatServiceClient } from "../transport/grpc-client.ts";
 import {
   mapChat,
   mapAddressInfo,
   mapMessage,
-  timestampToDate,
 } from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
@@ -31,9 +30,9 @@ import type {
 // ---------------------------------------------------------------------------
 
 export class ChatsResource {
-  private readonly _client: IChatServiceClient;
+  private readonly _client: ChatServiceClient;
 
-  constructor(client: IChatServiceClient) {
+  constructor(client: ChatServiceClient) {
     this._client = client;
   }
 
@@ -52,7 +51,7 @@ export class ChatsResource {
     options?: CreateChatOptions,
   ): Promise<{ chat: Chat; sendReceipt?: SendReceipt }> {
     try {
-      const { response } = await this._client.createChat({
+      const response = await this._client.createChat({
         addresses,
         message: options?.message,
         service: options?.service ?? "iMessage",
@@ -81,7 +80,7 @@ export class ChatsResource {
    */
   async get(guid: ChatGuid): Promise<Chat> {
     try {
-      const { response } = await this._client.getChat({ guid });
+      const response = await this._client.getChat({ guid });
       return mapChat(response.chat!);
     } catch (err) {
       throw fromGrpcError(err);
@@ -95,7 +94,7 @@ export class ChatsResource {
    */
   async count(options?: { includeArchived?: boolean }): Promise<number> {
     try {
-      const { response } = await this._client.getChatCount({
+      const response = await this._client.getChatCount({
         includeArchived: options?.includeArchived ?? false,
       });
       return response.count;
@@ -151,7 +150,7 @@ export class ChatsResource {
    */
   async canShareContactInfo(chat: ChatGuid): Promise<boolean> {
     try {
-      const { response } = await this._client.canShareContactInfo({
+      const response = await this._client.canShareContactInfo({
         chatGuid: chat,
       });
       return response.canShare;
@@ -206,7 +205,7 @@ export class ChatsResource {
    */
   async getParticipants(chat: ChatGuid): Promise<AddressInfo[]> {
     try {
-      const { response } = await this._client.getParticipants({
+      const response = await this._client.getParticipants({
         chatGuid: chat,
       });
       return response.participants.map(mapAddressInfo);
@@ -233,27 +232,23 @@ export class ChatsResource {
   subscribe(
     type?: ChatEvent["type"],
   ): TypedEventStream<ChatEvent> {
-    const rpcCall = this._client.subscribeChatEvents({});
+    const rpcStream = this._client.subscribeChatEvents({});
 
     async function* mapEvents(): AsyncGenerator<ChatEvent> {
       try {
-        for await (const proto of rpcCall.responses) {
-          const timestamp = proto.timestamp
-            ? timestampToDate(proto.timestamp)
-            : new Date();
+        for await (const proto of rpcStream) {
+          const timestamp = proto.timestamp ?? new Date();
 
-          const { payload } = proto;
-
-          if (payload.oneofKind === "chatReadStatusChanged") {
-            const evt = (payload as any).chatReadStatusChanged as ChatReadStatusEvent;
+          if (proto.chatReadStatusChanged !== undefined) {
+            const evt: ChatReadStatusEvent = proto.chatReadStatusChanged;
             yield {
               type: "chat.readStatusChanged" as const,
               timestamp,
               chatGuid: chatGuid(evt.chatGuid),
               isRead: evt.isRead,
             };
-          } else if (payload.oneofKind === "typingIndicator") {
-            const evt = (payload as any).typingIndicator as TypingEvent;
+          } else if (proto.typingIndicator !== undefined) {
+            const evt: TypingEvent = proto.typingIndicator;
             yield {
               type: "chat.typingIndicator" as const,
               timestamp,
