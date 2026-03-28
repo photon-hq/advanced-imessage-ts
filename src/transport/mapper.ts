@@ -14,65 +14,54 @@
 // Generated proto imports
 // ---------------------------------------------------------------------------
 
+import type { Chat as ProtoChat } from "../generated/photon/imessage/v1/chat_service.ts";
+import { SortDirection as ProtoSortDirection } from "../generated/photon/imessage/v1/common.ts";
+import {
+  type FindMyFriend as ProtoFindMyFriend,
+  FindMyLocationType as ProtoFindMyLocationType,
+} from "../generated/photon/imessage/v1/location_service.ts";
 import {
   type AddressInfo as ProtoAddressInfo,
   type AttachmentInfo as ProtoAttachmentInfo,
   type Message as ProtoMessage,
-  TransferState as ProtoTransferState,
   MessageItemType as ProtoMessageItemType,
+  TransferState as ProtoTransferState,
 } from "../generated/photon/imessage/v1/message_service.ts";
-
-import {
-  type Chat as ProtoChat,
-} from "../generated/photon/imessage/v1/chat_service.ts";
-
-import {
-  type PollInfo as ProtoPollInfo,
-  type PollOption as ProtoPollOption,
-  type PollVote as ProtoPollVote,
+import type {
+  PollInfo as ProtoPollInfo,
+  PollOption as ProtoPollOption,
+  PollVote as ProtoPollVote,
 } from "../generated/photon/imessage/v1/poll_service.ts";
-
 import {
   type ScheduledMessage as ProtoScheduledMessage,
   ScheduledMessageStatus as ProtoScheduledMessageStatus,
   ScheduledMessageType as ProtoScheduledMessageType,
 } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
 
-import {
-  type FindMyFriend as ProtoFindMyFriend,
-  FindMyLocationType as ProtoFindMyLocationType,
-} from "../generated/photon/imessage/v1/location_service.ts";
-
-import {
-  SortDirection as ProtoSortDirection,
-} from "../generated/photon/imessage/v1/common.ts";
-
 // ---------------------------------------------------------------------------
 // SDK type imports
 // ---------------------------------------------------------------------------
 
-import {
-  chatGuid,
-  messageGuid,
-  attachmentGuid,
-  scheduledMessageId,
-} from "../types/branded.ts";
-
-import type {
-  TransferState,
-  MessageItemType,
-  ChatServiceType,
-  ScheduledMessageStatus,
-  SortDirection,
-} from "../types/enums.ts";
-
-import type { Message } from "../types/messages.ts";
-import type { Chat } from "../types/chats.ts";
 import type { AddressInfo } from "../types/addresses.ts";
 import type { AttachmentInfo } from "../types/attachments.ts";
+import {
+  attachmentGuid,
+  chatGuid,
+  messageGuid,
+  scheduledMessageId,
+} from "../types/branded.ts";
+import type { Chat } from "../types/chats.ts";
+import type {
+  ChatServiceType,
+  MessageItemType,
+  ScheduledMessageStatus,
+  SortDirection,
+  TransferState,
+} from "../types/enums.ts";
+import type { FindMyFriend } from "../types/locations.ts";
+import type { Message } from "../types/messages.ts";
 import type { PollInfo, PollOption, PollVote } from "../types/polls.ts";
 import type { ScheduledMessage } from "../types/scheduled-messages.ts";
-import type { FindMyFriend } from "../types/locations.ts";
 
 // ---------------------------------------------------------------------------
 // Timestamp conversion
@@ -115,7 +104,6 @@ export function mapTransferState(proto: ProtoTransferState): TransferState {
       return "finished";
     case ProtoTransferState.TRANSFER_STATE_PENDING:
       return "pending";
-    case ProtoTransferState.TRANSFER_STATE_UNSPECIFIED:
     default:
       return "pending";
   }
@@ -125,7 +113,7 @@ export function mapTransferState(proto: ProtoTransferState): TransferState {
  * Map a proto `MessageItemType` enum value to the SDK string literal.
  */
 export function mapMessageItemType(
-  proto: ProtoMessageItemType,
+  proto: ProtoMessageItemType
 ): MessageItemType {
   switch (proto) {
     case ProtoMessageItemType.MESSAGE_ITEM_TYPE_NORMAL:
@@ -136,7 +124,6 @@ export function mapMessageItemType(
       return "participantChange";
     case ProtoMessageItemType.MESSAGE_ITEM_TYPE_LEFT_GROUP:
       return "leftGroup";
-    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_UNSPECIFIED:
     default:
       return "normal";
   }
@@ -146,7 +133,7 @@ export function mapMessageItemType(
  * Map a proto `ScheduledMessageStatus` enum value to the SDK string literal.
  */
 function mapScheduledMessageStatus(
-  proto: ProtoScheduledMessageStatus,
+  proto: ProtoScheduledMessageStatus
 ): ScheduledMessageStatus {
   switch (proto) {
     case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_PENDING:
@@ -157,7 +144,6 @@ function mapScheduledMessageStatus(
       return "complete";
     case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_FAILED:
       return "failed";
-    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_UNSPECIFIED:
     default:
       return "pending";
   }
@@ -170,7 +156,6 @@ function mapScheduledMessageType(proto: ProtoScheduledMessageType): string {
   switch (proto) {
     case ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_SEND_MESSAGE:
       return "sendMessage";
-    case ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_UNSPECIFIED:
     default:
       return "unspecified";
   }
@@ -179,15 +164,12 @@ function mapScheduledMessageType(proto: ProtoScheduledMessageType): string {
 /**
  * Map a proto `FindMyLocationType` enum value to the SDK string literal.
  */
-function mapLocationType(
-  proto: ProtoFindMyLocationType,
-): "live" | "shallow" {
+function mapLocationType(proto: ProtoFindMyLocationType): "live" | "shallow" {
   switch (proto) {
     case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_LIVE:
       return "live";
     case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_SHALLOW:
       return "shallow";
-    case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_UNSPECIFIED:
     default:
       return "shallow";
   }
@@ -197,7 +179,9 @@ function mapLocationType(
  * Map a proto service string to the SDK `ChatServiceType`.
  */
 function mapChatServiceType(service: string): ChatServiceType {
-  if (service === "SMS") return "SMS";
+  if (service === "SMS") {
+    return "SMS";
+  }
   return "iMessage";
 }
 
@@ -305,9 +289,7 @@ export function mapMessage(proto: ProtoMessage): Message {
       ? messageGuid(proto.associatedMessageGuid)
       : undefined,
     associatedMessageEmoji: proto.associatedMessageEmoji,
-    replyToGuid: proto.replyToGuid
-      ? messageGuid(proto.replyToGuid)
-      : undefined,
+    replyToGuid: proto.replyToGuid ? messageGuid(proto.replyToGuid) : undefined,
 
     // Rich content
     expressiveSendStyleId: proto.expressiveSendStyleId,
@@ -339,9 +321,7 @@ export function mapChat(proto: ProtoChat): Chat {
     isFiltered: proto.isFiltered,
     unreadCount: proto.unreadCount,
     participants: proto.participants.map(mapAddressInfo),
-    lastMessage: proto.lastMessage
-      ? mapMessage(proto.lastMessage)
-      : undefined,
+    lastMessage: proto.lastMessage ? mapMessage(proto.lastMessage) : undefined,
     _raw: proto,
   };
 }
@@ -386,7 +366,7 @@ export function mapPollInfo(proto: ProtoPollInfo): PollInfo {
  * ts-proto gives us `Date | undefined` for Timestamp fields.
  */
 export function mapScheduledMessage(
-  proto: ProtoScheduledMessage,
+  proto: ProtoScheduledMessage
 ): ScheduledMessage {
   return {
     id: scheduledMessageId(proto.id),

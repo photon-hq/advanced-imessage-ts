@@ -14,12 +14,12 @@
 export interface ReconnectOptions {
   /** Initial delay in milliseconds before the first retry. Default `1000`. */
   readonly initialDelay?: number;
+  /** Maximum number of consecutive reconnect attempts. Default `Infinity`. */
+  readonly maxAttempts?: number;
   /** Maximum delay in milliseconds between retries. Default `30000`. */
   readonly maxDelay?: number;
   /** Multiplier applied to the delay after each failed attempt. Default `2`. */
   readonly multiplier?: number;
-  /** Maximum number of consecutive reconnect attempts. Default `Infinity`. */
-  readonly maxAttempts?: number;
   /** Callback invoked before each reconnect attempt. */
   readonly onReconnect?: (attempt: number) => void;
 }
@@ -54,12 +54,12 @@ export interface ReconnectOptions {
  */
 export function withReconnect<T>(
   createStream: () => AsyncIterable<T>,
-  options?: ReconnectOptions,
+  options?: ReconnectOptions
 ): AsyncIterable<T> {
   const initialDelay = options?.initialDelay ?? 1000;
   const maxDelay = options?.maxDelay ?? 30_000;
   const multiplier = options?.multiplier ?? 2;
-  const maxAttempts = options?.maxAttempts ?? Infinity;
+  const maxAttempts = options?.maxAttempts ?? Number.POSITIVE_INFINITY;
   const onReconnect = options?.onReconnect;
 
   async function* reconnecting(): AsyncGenerator<T> {

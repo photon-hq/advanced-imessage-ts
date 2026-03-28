@@ -9,16 +9,16 @@
  * This builder powers Tier 3.
  */
 
+import type { MessageGuid } from "../types/branded.js";
+import type { MessageEffect, TextEffect } from "../types/effects.js";
 import type {
   ComposedMessage,
   MessagePart,
   TextFormatInput,
 } from "../types/messages.js";
-import type { MessageEffect, TextEffect } from "../types/effects.js";
-import type { MessageGuid } from "../types/branded.js";
 
 export class MessageBuilder {
-  private _parts: MessagePart[] = [];
+  private readonly _parts: MessagePart[] = [];
   private _effect?: MessageEffect;
   private _subject?: string;
   private _replyTo?: MessageGuid | { guid: MessageGuid; partIndex?: number };
@@ -106,14 +106,17 @@ export class MessageBuilder {
    */
   private lastTextPart(): MessagePart & { text: string } {
     for (let i = this._parts.length - 1; i >= 0; i--) {
-      const part = this._parts[i]!;
+      const part = this._parts[i];
+      if (part === undefined) {
+        continue;
+      }
       if (part.text != null) {
         return part as MessagePart & { text: string };
       }
     }
     throw new Error(
       "MessageBuilder: cannot apply formatting -- no text part exists. " +
-        "Add a text part with addText() or use MessageBuilder.text() first.",
+        "Add a text part with addText() or use MessageBuilder.text() first."
     );
   }
 
@@ -183,8 +186,7 @@ export class MessageBuilder {
    * @param partIndex - Optionally target a specific part of the parent message.
    */
   asReplyTo(guid: MessageGuid, partIndex?: number): this {
-    this._replyTo =
-      partIndex != null ? { guid, partIndex } : guid;
+    this._replyTo = partIndex == null ? guid : { guid, partIndex };
     return this;
   }
 
@@ -207,7 +209,7 @@ export class MessageBuilder {
     if (this._parts.length === 0) {
       throw new Error(
         "MessageBuilder: cannot build an empty message. " +
-          "Add at least one part with addText(), addMention(), or addAttachment().",
+          "Add at least one part with addText(), addMention(), or addAttachment()."
       );
     }
 

@@ -4,17 +4,16 @@
  * and Live Photo extraction.
  */
 
+import { fromGrpcError } from "../errors/error-handler.ts";
 import type { AttachmentServiceClient } from "../transport/grpc-client.ts";
 import { mapAttachmentInfo } from "../transport/mapper.ts";
-import { fromGrpcError } from "../errors/error-handler.ts";
-
-import type { AttachmentGuid } from "../types/branded.ts";
-import { attachmentGuid } from "../types/branded.ts";
 import type {
   AttachmentInfo,
   AttachmentInput,
   StreamedDownload,
 } from "../types/attachments.ts";
+import type { AttachmentGuid } from "../types/branded.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,14 +29,14 @@ function createStreamedDownload(
     data: Uint8Array;
     totalBytes: number;
     offset: number;
-  }>,
+  }>
 ): StreamedDownload {
   // We use a two-phase approach: the first chunk tells us totalBytes, then
   // we pipe everything (including the first chunk) through a ReadableStream.
 
   let totalBytesResolved = 0;
   let totalBytesResolve: ((bytes: number) => void) | undefined;
-  const totalBytesPromise = new Promise<number>((resolve) => {
+  new Promise<number>((resolve) => {
     totalBytesResolve = resolve;
   });
 
@@ -96,7 +95,9 @@ function createStreamedDownload(
       try {
         for (;;) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            break;
+          }
           chunks.push(value);
         }
       } finally {
@@ -142,7 +143,7 @@ export class AttachmentsResource {
   async get(guid: AttachmentGuid): Promise<AttachmentInfo> {
     try {
       const response = await this._client.getAttachment({ guid });
-      return mapAttachmentInfo(response.attachment!);
+      return mapAttachmentInfo(unwrap(response.attachment, "attachment"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -195,7 +196,7 @@ export class AttachmentsResource {
         data,
       });
 
-      return mapAttachmentInfo(response.attachment!);
+      return mapAttachmentInfo(unwrap(response.attachment, "attachment"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -224,7 +225,7 @@ export class AttachmentsResource {
    */
   async downloadBuffer(guid: AttachmentGuid): Promise<Uint8Array> {
     const dl = this.download(guid);
-    return dl.arrayBuffer();
+    return await dl.arrayBuffer();
   }
 
   /**

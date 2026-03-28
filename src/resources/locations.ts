@@ -5,13 +5,13 @@
  * retrieving friend locations and subscribing to location update events.
  */
 
-import type { FindMyFriend } from "../types/locations.ts";
-import type { LocationEvent } from "../types/events.ts";
+import { fromGrpcError } from "../errors/error-handler.ts";
+import type { FindMyEvent } from "../generated/photon/imessage/v1/location_service.ts";
+import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { LocationServiceClient } from "../transport/grpc-client.ts";
 import { mapFindMyFriend } from "../transport/mapper.ts";
-import { fromGrpcError } from "../errors/error-handler.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-import type { FindMyEvent } from "../generated/photon/imessage/v1/location_service.ts";
+import type { LocationEvent } from "../types/events.ts";
+import type { FindMyFriend } from "../types/locations.ts";
 
 // ---------------------------------------------------------------------------
 // Resource
@@ -61,7 +61,9 @@ export class LocationsResource {
         for await (const proto of rpcStream) {
           const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.findMyLocationUpdated === undefined) continue;
+          if (proto.findMyLocationUpdated === undefined) {
+            continue;
+          }
 
           const evt: FindMyEvent = proto.findMyLocationUpdated;
 

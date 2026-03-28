@@ -14,24 +14,24 @@ import type { ScheduledMessageStatus } from "./enums.js";
 
 /** A message that has been scheduled for future delivery. */
 export interface ScheduledMessage {
-  /** Server-assigned numeric identifier. */
-  readonly id: ScheduledMessageId;
-  /** The type of scheduled action (e.g. "sendMessage"). */
-  readonly type: string;
-  /** Opaque payload bytes describing what to send. */
-  readonly payload: Uint8Array;
-  /** When the message is scheduled to be sent. */
-  readonly scheduledFor: Date;
-  /** Opaque schedule bytes describing recurrence rules. */
-  readonly schedule: Uint8Array;
-  /** Current lifecycle status. */
-  readonly status: ScheduledMessageStatus;
-  /** Error description if `status` is `"failed"`. */
-  readonly errorMessage?: string;
-  /** When the message was actually sent, if it has been. */
-  readonly sentAt?: Date;
   /** When this scheduled message record was created. */
   readonly createdAt: Date;
+  /** Error description if `status` is `"failed"`. */
+  readonly errorMessage?: string;
+  /** Server-assigned numeric identifier. */
+  readonly id: ScheduledMessageId;
+  /** Opaque payload bytes describing what to send. */
+  readonly payload: Uint8Array;
+  /** Opaque schedule bytes describing recurrence rules. */
+  readonly schedule: Uint8Array;
+  /** When the message is scheduled to be sent. */
+  readonly scheduledFor: Date;
+  /** When the message was actually sent, if it has been. */
+  readonly sentAt?: Date;
+  /** Current lifecycle status. */
+  readonly status: ScheduledMessageStatus;
+  /** The type of scheduled action (e.g. "sendMessage"). */
+  readonly type: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,14 +42,14 @@ export interface ScheduledMessage {
 export interface CreateScheduledMessageOptions {
   /** The chat to send the message to. */
   readonly chat: ChatGuid;
-  /** The text content of the message. */
-  readonly text: string;
-  /** When to send the message. */
-  readonly scheduledFor: Date;
   /** Optional recurrence schedule. Defaults to a one-time send. */
   readonly schedule?:
     | { readonly type: "once" }
     | { readonly type: "recurring"; readonly intervalSeconds: number };
+  /** When to send the message. */
+  readonly scheduledFor: Date;
+  /** The text content of the message. */
+  readonly text: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,12 +60,12 @@ export interface CreateScheduledMessageOptions {
 export interface UpdateScheduledMessageOptions {
   /** The chat to send the message to. */
   readonly chat?: ChatGuid;
-  /** The text content of the message. */
-  readonly text?: string;
-  /** When to send the message. */
-  readonly scheduledFor?: Date;
   /** Optional recurrence schedule. */
   readonly schedule?:
     | { readonly type: "once" }
     | { readonly type: "recurring"; readonly intervalSeconds: number };
+  /** When to send the message. */
+  readonly scheduledFor?: Date;
+  /** The text content of the message. */
+  readonly text?: string;
 }

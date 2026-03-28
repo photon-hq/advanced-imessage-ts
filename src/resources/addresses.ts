@@ -3,13 +3,12 @@
  * and verifies iMessage availability for phone numbers and email addresses.
  */
 
+import { fromGrpcError } from "../errors/error-handler.ts";
+import { AvailabilityType } from "../generated/photon/imessage/v1/address_service.ts";
 import type { AddressServiceClient } from "../transport/grpc-client.ts";
 import { mapAddressInfo } from "../transport/mapper.ts";
-import { fromGrpcError } from "../errors/error-handler.ts";
-
 import type { AddressInfo } from "../types/addresses.ts";
-
-import { AvailabilityType } from "../generated/photon/imessage/v1/address_service.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // AddressesResource
@@ -31,7 +30,7 @@ export class AddressesResource {
   async get(address: string): Promise<AddressInfo> {
     try {
       const response = await this._client.getAddress({ address });
-      return mapAddressInfo(response.address!);
+      return mapAddressInfo(unwrap(response.address, "address"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -62,14 +61,15 @@ export class AddressesResource {
    */
   async checkAvailability(
     address: string,
-    type?: "iMessage",
+    type?: "iMessage"
   ): Promise<boolean> {
     try {
       const response = await this._client.checkAvailability({
         address,
-        type: type === "iMessage" || type === undefined
-          ? AvailabilityType.AVAILABILITY_TYPE_IMESSAGE
-          : AvailabilityType.AVAILABILITY_TYPE_UNSPECIFIED,
+        type:
+          type === "iMessage" || type === undefined
+            ? AvailabilityType.AVAILABILITY_TYPE_IMESSAGE
+            : AvailabilityType.AVAILABILITY_TYPE_UNSPECIFIED,
       });
       return response.available;
     } catch (err) {

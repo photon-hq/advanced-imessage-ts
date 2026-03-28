@@ -13,12 +13,12 @@ import { IMessageError } from "../errors/imessage-error.ts";
 
 /** Configuration for the retry behaviour. */
 export interface RetryOptions {
-  /** Maximum number of retry attempts (not including the initial call). */
-  readonly maxRetries: number;
   /** Base delay in milliseconds before the first retry. */
   readonly baseDelayMs: number;
   /** Maximum delay in milliseconds between retries. */
   readonly maxDelayMs: number;
+  /** Maximum number of retry attempts (not including the initial call). */
+  readonly maxRetries: number;
   /** Abort signal to cancel pending retries. */
   readonly signal?: AbortSignal;
 }
@@ -27,7 +27,7 @@ export interface RetryOptions {
 export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
   maxRetries: 3,
   baseDelayMs: 200,
-  maxDelayMs: 5_000,
+  maxDelayMs: 5000,
 };
 
 // ---------------------------------------------------------------------------
@@ -45,7 +45,7 @@ export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
  */
 export async function withRetry<T>(
   fn: () => Promise<T>,
-  options: RetryOptions = DEFAULT_RETRY_OPTIONS,
+  options: RetryOptions = DEFAULT_RETRY_OPTIONS
 ): Promise<T> {
   let lastError: unknown;
 
@@ -56,8 +56,7 @@ export async function withRetry<T>(
       lastError = error;
 
       // Only retry IMessageError instances that are explicitly retryable.
-      const isRetryable =
-        error instanceof IMessageError && error.retryable;
+      const isRetryable = error instanceof IMessageError && error.retryable;
 
       if (!isRetryable || attempt >= options.maxRetries) {
         throw error;
@@ -104,7 +103,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
         clearTimeout(timer);
         resolve();
       },
-      { once: true },
+      { once: true }
     );
   });
 }

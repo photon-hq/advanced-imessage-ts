@@ -11,10 +11,10 @@
 
 /** Metadata about a group chat's custom background image. */
 export interface BackgroundInfo {
+  /** Server-assigned background identifier. */
+  readonly backgroundId?: string;
   /** Channel-level GUID for the background, if applicable. */
   readonly channelGuid?: string;
   /** URL of the background image. */
   readonly imageUrl?: string;
-  /** Server-assigned background identifier. */
-  readonly backgroundId?: string;
 }

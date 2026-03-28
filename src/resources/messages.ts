@@ -4,46 +4,42 @@
  * subscription for iMessages.
  */
 
-import type { MessageServiceClient } from "../transport/grpc-client.ts";
-import {
-  mapMessage,
-  mapSortDirection,
-} from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { createPaginated } from "../streaming/paginated.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-
-import type { ChatGuid, MessageGuid } from "../types/branded.ts";
-import { messageGuid } from "../types/branded.ts";
-import { chatGuid } from "../types/branded.ts";
-import type { Paginated, SendReceipt, CommandReceipt } from "../types/common.ts";
+import { SortDirection as ProtoSortDirection } from "../generated/photon/imessage/v1/common.ts";
 import type {
-  Message,
-  SendOptions,
-  MessagePart,
+  MessageReceivedEvent,
+  MessageSendErrorEvent,
+  MessageSentEvent,
+  MessageUpdatedEvent,
+  MessagePart as ProtoMessagePart,
+  StickerPlacement as ProtoStickerPlacement,
+  TextFormat as ProtoTextFormat,
+  SendRequest,
+} from "../generated/photon/imessage/v1/message_service.ts";
+import { TypedEventStream } from "../streaming/event-stream.ts";
+import { createPaginated } from "../streaming/paginated.ts";
+import type { MessageServiceClient } from "../transport/grpc-client.ts";
+import { mapMessage, mapSortDirection } from "../transport/mapper.ts";
+import type { ChatGuid, MessageGuid } from "../types/branded.ts";
+import { chatGuid, messageGuid } from "../types/branded.ts";
+import type {
+  CommandReceipt,
+  Paginated,
+  SendReceipt,
+} from "../types/common.ts";
+import type { MessageEvent } from "../types/events.ts";
+import type {
   ComposedMessage,
-  MessageListOptions,
-  MessageStats,
   EmbeddedMediaItem,
+  Message,
+  MessageListOptions,
+  MessagePart,
+  MessageStats,
+  SendOptions,
   TextFormatInput,
 } from "../types/messages.ts";
 import type { Reaction } from "../types/reactions.ts";
-import type { MessageEvent } from "../types/events.ts";
-
-import type {
-  SendRequest,
-  TextFormat as ProtoTextFormat,
-  MessagePart as ProtoMessagePart,
-  StickerPlacement as ProtoStickerPlacement,
-  MessageSentEvent,
-  MessageReceivedEvent,
-  MessageUpdatedEvent,
-  MessageSendErrorEvent,
-} from "../generated/photon/imessage/v1/message_service.ts";
-
-import {
-  SortDirection as ProtoSortDirection,
-} from "../generated/photon/imessage/v1/common.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,9 +49,11 @@ import {
  * Convert SDK TextFormatInput[] to proto TextFormat[].
  */
 function toProtoFormatting(
-  formatting: readonly TextFormatInput[] | undefined,
+  formatting: readonly TextFormatInput[] | undefined
 ): ProtoTextFormat[] {
-  if (!formatting) return [];
+  if (!formatting) {
+    return [];
+  }
   return formatting.map((f) => ({
     type: f.type,
     start: f.start,
@@ -68,7 +66,7 @@ function toProtoFormatting(
  * Convert SDK MessagePart[] to proto MessagePart[].
  */
 function toProtoMessageParts(
-  parts: readonly MessagePart[],
+  parts: readonly MessagePart[]
 ): ProtoMessagePart[] {
   return parts.map((p) => ({
     text: p.text,
@@ -84,9 +82,11 @@ function toProtoMessageParts(
  * Resolve the replyTo option into proto fields (selectedMessageGuid + partIndex).
  */
 function resolveReplyTo(
-  replyTo: SendOptions["replyTo"],
+  replyTo: SendOptions["replyTo"]
 ): { selectedMessageGuid: string; partIndex: number } | undefined {
-  if (!replyTo) return undefined;
+  if (!replyTo) {
+    return undefined;
+  }
 
   if (typeof replyTo === "string") {
     return { selectedMessageGuid: replyTo, partIndex: 0 };
@@ -119,7 +119,7 @@ export class MessagesResource {
   async send(
     chat: ChatGuid,
     text: string,
-    options?: SendOptions,
+    options?: SendOptions
   ): Promise<SendReceipt> {
     const reply = resolveReplyTo(options?.replyTo);
 
@@ -133,7 +133,7 @@ export class MessagesResource {
       richLink: options?.richLink ?? false,
       attachmentGuid: options?.attachment as string | undefined,
       isAudioMessage: options?.audioMessage ?? false,
-      isSticker: options?.sticker ? true : false,
+      isSticker: Boolean(options?.sticker),
       stickerPlacement: options?.sticker?.placement
         ? ({
             x: options.sticker.placement.x,
@@ -142,7 +142,9 @@ export class MessagesResource {
             rotation: options.sticker.placement.rotation,
           } satisfies ProtoStickerPlacement)
         : undefined,
-      selectedMessageGuid: reply?.selectedMessageGuid ?? options?.sticker?.target as string | undefined,
+      selectedMessageGuid:
+        reply?.selectedMessageGuid ??
+        (options?.sticker?.target as string | undefined),
       partIndex: reply?.partIndex ?? 0,
       service: options?.service,
       parts: [],
@@ -151,9 +153,10 @@ export class MessagesResource {
 
     try {
       const response = await this._client.send(request);
+      const receipt = unwrap(response.receipt, "receipt");
       return {
-        guid: messageGuid(response.receipt!.guid),
-        clientMessageId: response.receipt!.clientMessageId,
+        guid: messageGuid(receipt.guid),
+        clientMessageId: receipt.clientMessageId,
       };
     } catch (err) {
       throw fromGrpcError(err);
@@ -170,7 +173,7 @@ export class MessagesResource {
   async sendMultipart(
     chat: ChatGuid,
     parts: MessagePart[],
-    options?: Omit<SendOptions, "formatting">,
+    options?: Omit<SendOptions, "formatting">
   ): Promise<SendReceipt> {
     const reply = resolveReplyTo(options?.replyTo);
 
@@ -183,7 +186,7 @@ export class MessagesResource {
       richLink: options?.richLink ?? false,
       attachmentGuid: options?.attachment as string | undefined,
       isAudioMessage: options?.audioMessage ?? false,
-      isSticker: options?.sticker ? true : false,
+      isSticker: Boolean(options?.sticker),
       stickerPlacement: options?.sticker?.placement
         ? ({
             x: options.sticker.placement.x,
@@ -192,7 +195,9 @@ export class MessagesResource {
             rotation: options.sticker.placement.rotation,
           } satisfies ProtoStickerPlacement)
         : undefined,
-      selectedMessageGuid: reply?.selectedMessageGuid ?? options?.sticker?.target as string | undefined,
+      selectedMessageGuid:
+        reply?.selectedMessageGuid ??
+        (options?.sticker?.target as string | undefined),
       partIndex: reply?.partIndex ?? 0,
       service: options?.service,
       parts: toProtoMessageParts(parts),
@@ -201,9 +206,10 @@ export class MessagesResource {
 
     try {
       const response = await this._client.send(request);
+      const receipt = unwrap(response.receipt, "receipt");
       return {
-        guid: messageGuid(response.receipt!.guid),
-        clientMessageId: response.receipt!.clientMessageId,
+        guid: messageGuid(receipt.guid),
+        clientMessageId: receipt.clientMessageId,
       };
     } catch (err) {
       throw fromGrpcError(err);
@@ -217,7 +223,7 @@ export class MessagesResource {
    */
   async sendComposed(
     chat: ChatGuid,
-    message: ComposedMessage,
+    message: ComposedMessage
   ): Promise<SendReceipt> {
     const reply = resolveReplyTo(message.replyTo);
 
@@ -238,9 +244,10 @@ export class MessagesResource {
 
     try {
       const response = await this._client.send(request);
+      const receipt = unwrap(response.receipt, "receipt");
       return {
-        guid: messageGuid(response.receipt!.guid),
-        clientMessageId: response.receipt!.clientMessageId,
+        guid: messageGuid(receipt.guid),
+        clientMessageId: receipt.clientMessageId,
       };
     } catch (err) {
       throw fromGrpcError(err);
@@ -258,7 +265,7 @@ export class MessagesResource {
     chat: ChatGuid,
     message: MessageGuid,
     reaction: Reaction,
-    options?: { partIndex?: number },
+    options?: { partIndex?: number }
   ): Promise<CommandReceipt> {
     try {
       const response = await this._client.sendReaction({
@@ -267,7 +274,7 @@ export class MessagesResource {
         reaction,
         partIndex: options?.partIndex ?? 0,
       });
-      return { guid: messageGuid(response.receipt!.guid) };
+      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -280,7 +287,7 @@ export class MessagesResource {
     chat: ChatGuid,
     message: MessageGuid,
     emoji: string,
-    options?: { partIndex?: number },
+    options?: { partIndex?: number }
   ): Promise<CommandReceipt> {
     try {
       const response = await this._client.sendReaction({
@@ -290,7 +297,7 @@ export class MessagesResource {
         partIndex: options?.partIndex ?? 0,
         emoji,
       });
-      return { guid: messageGuid(response.receipt!.guid) };
+      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -305,7 +312,7 @@ export class MessagesResource {
     chat: ChatGuid,
     message: MessageGuid,
     reaction: Reaction,
-    options?: { partIndex?: number },
+    options?: { partIndex?: number }
   ): Promise<CommandReceipt> {
     try {
       const response = await this._client.sendReaction({
@@ -314,7 +321,7 @@ export class MessagesResource {
         reaction: `-${reaction}`,
         partIndex: options?.partIndex ?? 0,
       });
-      return { guid: messageGuid(response.receipt!.guid) };
+      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -331,7 +338,7 @@ export class MessagesResource {
     chat: ChatGuid,
     message: MessageGuid,
     newText: string,
-    options?: { backwardCompatText?: string; partIndex?: number },
+    options?: { backwardCompatText?: string; partIndex?: number }
   ): Promise<void> {
     try {
       await this._client.editMessage({
@@ -352,7 +359,7 @@ export class MessagesResource {
   async unsend(
     chat: ChatGuid,
     message: MessageGuid,
-    options?: { partIndex?: number },
+    options?: { partIndex?: number }
   ): Promise<void> {
     try {
       await this._client.unsendMessage({
@@ -375,7 +382,7 @@ export class MessagesResource {
   async get(guid: MessageGuid): Promise<Message> {
     try {
       const response = await this._client.getMessage({ guid });
-      return mapMessage(response.message!);
+      return mapMessage(unwrap(response.message, "message"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -418,7 +425,7 @@ export class MessagesResource {
           throw fromGrpcError(err);
         }
       },
-      { limit: options?.limit, offset: options?.offset },
+      { limit: options?.limit, offset: options?.offset }
     );
   }
 
@@ -445,10 +452,7 @@ export class MessagesResource {
   /**
    * Notify the sender that their silenced message has been seen.
    */
-  async notifySilenced(
-    chat: ChatGuid,
-    message: MessageGuid,
-  ): Promise<void> {
+  async notifySilenced(chat: ChatGuid, message: MessageGuid): Promise<void> {
     try {
       await this._client.notifySilenced({
         chatGuid: chat,
@@ -465,7 +469,7 @@ export class MessagesResource {
    */
   async getEmbeddedMedia(
     chat: ChatGuid,
-    message: MessageGuid,
+    message: MessageGuid
   ): Promise<EmbeddedMediaItem[]> {
     try {
       const response = await this._client.getEmbeddedMedia({
@@ -494,11 +498,9 @@ export class MessagesResource {
    * narrowed to only that event type.
    */
   subscribe<T extends MessageEvent["type"]>(
-    type: T,
+    type: T
   ): TypedEventStream<Extract<MessageEvent, { type: T }>>;
-  subscribe(
-    type?: MessageEvent["type"],
-  ): TypedEventStream<MessageEvent> {
+  subscribe(type?: MessageEvent["type"]): TypedEventStream<MessageEvent> {
     const rpcStream = this._client.subscribeMessageEvents({});
 
     async function* mapEvents(): AsyncGenerator<MessageEvent> {
@@ -511,7 +513,7 @@ export class MessagesResource {
             yield {
               type: "message.sent" as const,
               timestamp,
-              message: mapMessage(evt.message!),
+              message: mapMessage(unwrap(evt.message, "message")),
               clientMessageId: evt.clientMessageId,
               chatGuid: chatGuid(evt.chatGuid),
             };
@@ -520,7 +522,7 @@ export class MessagesResource {
             yield {
               type: "message.received" as const,
               timestamp,
-              message: mapMessage(evt.message!),
+              message: mapMessage(unwrap(evt.message, "message")),
               chatGuid: chatGuid(evt.chatGuid),
             };
           } else if (proto.messageUpdated !== undefined) {
@@ -528,7 +530,7 @@ export class MessagesResource {
             yield {
               type: "message.updated" as const,
               timestamp,
-              message: mapMessage(evt.message!),
+              message: mapMessage(unwrap(evt.message, "message")),
               updateType: evt.updateType as
                 | "edited"
                 | "unsent"
@@ -559,7 +561,7 @@ export class MessagesResource {
     if (type) {
       return stream.filter(
         (e): e is Extract<MessageEvent, { type: typeof type }> =>
-          e.type === type,
+          e.type === type
       );
     }
 

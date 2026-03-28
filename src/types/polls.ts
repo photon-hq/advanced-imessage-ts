@@ -13,12 +13,12 @@ import type { ChatGuid, MessageGuid } from "./branded.js";
 
 /** A single option within a poll. */
 export interface PollOption {
-  /** The display text for this option. */
-  readonly text: string;
-  /** Server-assigned identifier for this option. */
-  readonly optionIdentifier?: string;
   /** Address of the participant who created this option. */
   readonly creatorHandle?: string;
+  /** Server-assigned identifier for this option. */
+  readonly optionIdentifier?: string;
+  /** The display text for this option. */
+  readonly text: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -39,14 +39,14 @@ export interface PollVote {
 
 /** A poll attached to a message in a chat. */
 export interface PollInfo {
-  /** The GUID of the message that contains this poll. */
-  readonly messageGuid: MessageGuid;
   /** The GUID of the chat the poll belongs to. */
   readonly chatGuid: ChatGuid;
-  /** The poll's title / question. */
-  readonly title: string;
+  /** The GUID of the message that contains this poll. */
+  readonly messageGuid: MessageGuid;
   /** The available options to vote on. */
   readonly options: readonly PollOption[];
+  /** The poll's title / question. */
+  readonly title: string;
   /** Votes that have been cast so far. */
   readonly votes: readonly PollVote[];
 }

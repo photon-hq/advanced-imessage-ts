@@ -6,22 +6,20 @@
  * message lifecycle events.
  */
 
-import type { ScheduledMessageId } from "../types/branded.ts";
-import type {
-  ScheduledMessage,
-  CreateScheduledMessageOptions,
-  UpdateScheduledMessageOptions,
-} from "../types/scheduled-messages.ts";
-import type { ScheduleEvent } from "../types/events.ts";
+import { fromGrpcError } from "../errors/error-handler.ts";
+import type { ScheduledMessageEvent } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
+import { ScheduledMessageType as ProtoScheduledMessageType } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
+import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ScheduledMessageServiceClient } from "../transport/grpc-client.ts";
 import { mapScheduledMessage } from "../transport/mapper.ts";
-import { fromGrpcError } from "../errors/error-handler.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-
-import {
-  ScheduledMessageType as ProtoScheduledMessageType,
-} from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-import type { ScheduledMessageEvent } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
+import type { ScheduledMessageId } from "../types/branded.ts";
+import type { ScheduleEvent } from "../types/events.ts";
+import type {
+  CreateScheduledMessageOptions,
+  ScheduledMessage,
+  UpdateScheduledMessageOptions,
+} from "../types/scheduled-messages.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // Resource
@@ -39,7 +37,9 @@ export class ScheduledMessagesResource {
   // -------------------------------------------------------------------------
 
   /** Schedule a new message for future delivery. */
-  async create(options: CreateScheduledMessageOptions): Promise<ScheduledMessage> {
+  async create(
+    options: CreateScheduledMessageOptions
+  ): Promise<ScheduledMessage> {
     try {
       // Encode the payload as JSON bytes containing the send request info.
       const payloadObj = { chat: options.chat, text: options.text };
@@ -47,7 +47,9 @@ export class ScheduledMessagesResource {
 
       // Encode the schedule as JSON bytes.
       const scheduleObj = options.schedule ?? { type: "once" as const };
-      const scheduleBytes = new TextEncoder().encode(JSON.stringify(scheduleObj));
+      const scheduleBytes = new TextEncoder().encode(
+        JSON.stringify(scheduleObj)
+      );
 
       const response = await this._client.createScheduledMessage({
         type: ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_SEND_MESSAGE,
@@ -56,7 +58,9 @@ export class ScheduledMessagesResource {
         schedule: scheduleBytes,
       });
 
-      return mapScheduledMessage(response.scheduledMessage!);
+      return mapScheduledMessage(
+        unwrap(response.scheduledMessage, "scheduledMessage")
+      );
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -66,7 +70,9 @@ export class ScheduledMessagesResource {
   async get(id: ScheduledMessageId): Promise<ScheduledMessage> {
     try {
       const response = await this._client.getScheduledMessage({ id });
-      return mapScheduledMessage(response.scheduledMessage!);
+      return mapScheduledMessage(
+        unwrap(response.scheduledMessage, "scheduledMessage")
+      );
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -85,18 +91,24 @@ export class ScheduledMessagesResource {
   /** Update an existing scheduled message. */
   async update(
     id: ScheduledMessageId,
-    options: UpdateScheduledMessageOptions,
+    options: UpdateScheduledMessageOptions
   ): Promise<ScheduledMessage> {
     try {
       // Build payload bytes from the update options, if text/chat are provided.
       const payloadObj: Record<string, unknown> = {};
-      if (options.chat !== undefined) payloadObj.chat = options.chat;
-      if (options.text !== undefined) payloadObj.text = options.text;
+      if (options.chat !== undefined) {
+        payloadObj.chat = options.chat;
+      }
+      if (options.text !== undefined) {
+        payloadObj.text = options.text;
+      }
       const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
 
       // Build schedule bytes from the update options, if schedule is provided.
       const scheduleObj = options.schedule ?? { type: "once" as const };
-      const scheduleBytes = new TextEncoder().encode(JSON.stringify(scheduleObj));
+      const scheduleBytes = new TextEncoder().encode(
+        JSON.stringify(scheduleObj)
+      );
 
       const response = await this._client.updateScheduledMessage({
         id,
@@ -106,7 +118,9 @@ export class ScheduledMessagesResource {
         schedule: scheduleBytes,
       });
 
-      return mapScheduledMessage(response.scheduledMessage!);
+      return mapScheduledMessage(
+        unwrap(response.scheduledMessage, "scheduledMessage")
+      );
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -138,7 +152,9 @@ export class ScheduledMessagesResource {
   async execute(id: ScheduledMessageId): Promise<ScheduledMessage> {
     try {
       const response = await this._client.executeScheduledMessage({ id });
-      return mapScheduledMessage(response.scheduledMessage!);
+      return mapScheduledMessage(
+        unwrap(response.scheduledMessage, "scheduledMessage")
+      );
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -167,10 +183,14 @@ export class ScheduledMessagesResource {
         for await (const proto of rpcStream) {
           const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.scheduledMessageChanged === undefined) continue;
+          if (proto.scheduledMessageChanged === undefined) {
+            continue;
+          }
 
           const evt: ScheduledMessageEvent = proto.scheduledMessageChanged;
-          if (!evt.scheduledMessage) continue;
+          if (!evt.scheduledMessage) {
+            continue;
+          }
 
           yield {
             type: "schedule.changed" as const,
@@ -196,7 +216,7 @@ export class ScheduledMessagesResource {
  * Map a proto schedule action string to the SDK ScheduleEvent action literal.
  */
 function mapScheduleAction(
-  action: string,
+  action: string
 ): "created" | "updated" | "deleted" | "sent" | "failed" {
   switch (action) {
     case "created":

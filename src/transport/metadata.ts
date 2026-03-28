@@ -5,7 +5,11 @@
  * metadata headers before forwarding to the next handler.
  */
 
-import { Metadata, type CallOptions, type ClientMiddleware } from "nice-grpc-common";
+import {
+  type CallOptions,
+  type ClientMiddleware,
+  Metadata,
+} from "nice-grpc-common";
 import { generateIdempotencyKey } from "../utils/idempotency.ts";
 
 // ---------------------------------------------------------------------------
@@ -20,11 +24,10 @@ import { generateIdempotencyKey } from "../utils/idempotency.ts";
  * resolves a fresh token on each call (useful for rotating credentials).
  */
 export function authMiddleware(
-  token: string | (() => Promise<string>),
+  token: string | (() => Promise<string>)
 ): ClientMiddleware {
   return async function* authMw(call, options) {
-    const resolvedToken =
-      typeof token === "function" ? await token() : token;
+    const resolvedToken = typeof token === "function" ? await token() : token;
 
     const metadata = Metadata(options.metadata);
     metadata.set("authorization", `Bearer ${resolvedToken}`);

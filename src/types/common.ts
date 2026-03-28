@@ -10,8 +10,8 @@ import type { MessageGuid } from "./branded.js";
 
 /** Returned after sending a message. */
 export interface SendReceipt {
-  readonly guid: MessageGuid;
   readonly clientMessageId?: string;
+  readonly guid: MessageGuid;
 }
 
 /** Returned after a command that operates on an existing message. */
@@ -67,10 +67,10 @@ export interface Paginated<T>
 
 /** Options for automatic retry with exponential back-off. */
 export interface RetryOptions {
-  /** Maximum number of attempts (including the initial call). */
-  readonly maxAttempts?: number;
   /** Initial delay in milliseconds before the first retry. */
   readonly initialDelay?: number;
+  /** Maximum number of attempts (including the initial call). */
+  readonly maxAttempts?: number;
   /** Maximum delay in milliseconds between retries. */
   readonly maxDelay?: number;
 }

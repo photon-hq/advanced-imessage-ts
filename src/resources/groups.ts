@@ -6,16 +6,17 @@
  * Also exposes a `subscribe()` method for streaming group change events.
  */
 
-import type { ChatGuid } from "../types/branded.ts";
-import type { Chat } from "../types/chats.ts";
-import type { BackgroundInfo } from "../types/groups.ts";
-import type { GroupEvent, GroupChange } from "../types/events.ts";
+import { fromGrpcError } from "../errors/error-handler.ts";
+import type { GroupChangeEvent } from "../generated/photon/imessage/v1/group_service.ts";
+import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { GroupServiceClient } from "../transport/grpc-client.ts";
 import { mapChat } from "../transport/mapper.ts";
+import type { ChatGuid } from "../types/branded.ts";
 import { chatGuid } from "../types/branded.ts";
-import { fromGrpcError } from "../errors/error-handler.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-import type { GroupChangeEvent } from "../generated/photon/imessage/v1/group_service.ts";
+import type { Chat } from "../types/chats.ts";
+import type { GroupChange, GroupEvent } from "../types/events.ts";
+import type { BackgroundInfo } from "../types/groups.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // Resource
@@ -39,7 +40,7 @@ export class GroupsResource {
         chatGuid: chat,
         name,
       });
-      return mapChat(response.chat!);
+      return mapChat(unwrap(response.chat, "chat"));
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -56,7 +57,7 @@ export class GroupsResource {
         chatGuid: chat,
         address,
       });
-      return mapChat(response.chat!);
+      return mapChat(unwrap(response.chat, "chat"));
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -69,7 +70,7 @@ export class GroupsResource {
         chatGuid: chat,
         address,
       });
-      return mapChat(response.chat!);
+      return mapChat(unwrap(response.chat, "chat"));
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -114,7 +115,7 @@ export class GroupsResource {
   /** Set the group chat background from raw image bytes. */
   async setBackground(
     chat: ChatGuid,
-    data: Uint8Array,
+    data: Uint8Array
   ): Promise<BackgroundInfo> {
     try {
       const response = await this._client.setBackground({
@@ -175,11 +176,15 @@ export class GroupsResource {
         for await (const proto of rpcStream) {
           const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.groupChanged === undefined) continue;
+          if (proto.groupChanged === undefined) {
+            continue;
+          }
 
           const evt: GroupChangeEvent = proto.groupChanged;
           const change = mapGroupChange(evt);
-          if (!change) continue;
+          if (!change) {
+            continue;
+          }
 
           yield {
             type: "group.changed" as const,
@@ -207,9 +212,7 @@ export class GroupsResource {
  * ts-proto represents oneof fields as optional properties on the message.
  * We check each field to determine which change occurred.
  */
-function mapGroupChange(
-  evt: GroupChangeEvent,
-): GroupChange | undefined {
+function mapGroupChange(evt: GroupChangeEvent): GroupChange | undefined {
   if (evt.renamedTo !== undefined) {
     return { type: "renamed", name: evt.renamedTo };
   }

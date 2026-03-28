@@ -29,8 +29,11 @@ export interface PaginatedOptions {
  */
 export type PageFetcher<T> = (
   offset: number,
-  limit: number,
-) => Promise<{ data: T[]; meta: { total: number; offset: number; limit: number } }>;
+  limit: number
+) => Promise<{
+  data: T[];
+  meta: { total: number; offset: number; limit: number };
+}>;
 
 // ---------------------------------------------------------------------------
 // Implementation
@@ -51,6 +54,7 @@ class PaginatedImpl<T> implements Paginated<T> {
   // PromiseLike -- `await paginated` fetches the first page
   // -------------------------------------------------------------------------
 
+  // biome-ignore lint/suspicious/noThenProperty: intentional PromiseLike implementation
   then<TResult1 = PaginatedPage<T>, TResult2 = never>(
     onfulfilled?:
       | ((value: PaginatedPage<T>) => TResult1 | PromiseLike<TResult1>)
@@ -59,7 +63,7 @@ class PaginatedImpl<T> implements Paginated<T> {
     onrejected?:
       | ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
       | null
-      | undefined,
+      | undefined
   ): Promise<TResult1 | TResult2> {
     return this._fetchFirstPage().then(onfulfilled, onrejected);
   }
@@ -77,12 +81,14 @@ class PaginatedImpl<T> implements Paginated<T> {
   // -------------------------------------------------------------------------
 
   async toArray(options?: { readonly limit?: number }): Promise<T[]> {
-    const cap = options?.limit ?? Infinity;
+    const cap = options?.limit ?? Number.POSITIVE_INFINITY;
     const items: T[] = [];
 
     for await (const item of this) {
       items.push(item);
-      if (items.length >= cap) break;
+      if (items.length >= cap) {
+        break;
+      }
     }
 
     return items;
@@ -153,7 +159,7 @@ class PaginatedImpl<T> implements Paginated<T> {
  */
 export function createPaginated<T>(
   fetchPage: PageFetcher<T>,
-  options?: PaginatedOptions,
+  options?: PaginatedOptions
 ): Paginated<T> {
   return new PaginatedImpl<T>(fetchPage, options ?? {});
 }

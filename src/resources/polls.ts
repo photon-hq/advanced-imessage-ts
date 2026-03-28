@@ -5,19 +5,17 @@
  * polls, casting votes, adding options, and subscribing to poll events.
  */
 
-import type { ChatGuid, MessageGuid } from "../types/branded.ts";
-import type { CommandReceipt } from "../types/common.ts";
-import type { PollInfo } from "../types/polls.ts";
-import type { PollEvent } from "../types/events.ts";
-import type { PollServiceClient } from "../transport/grpc-client.ts";
-import {
-  mapPollInfo,
-  mapMessage,
-} from "../transport/mapper.ts";
-import { messageGuid, chatGuid } from "../types/branded.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { PollChangeEvent } from "../generated/photon/imessage/v1/poll_service.ts";
+import { TypedEventStream } from "../streaming/event-stream.ts";
+import type { PollServiceClient } from "../transport/grpc-client.ts";
+import { mapMessage, mapPollInfo } from "../transport/mapper.ts";
+import type { ChatGuid, MessageGuid } from "../types/branded.ts";
+import { chatGuid, messageGuid } from "../types/branded.ts";
+import type { CommandReceipt } from "../types/common.ts";
+import type { PollEvent } from "../types/events.ts";
+import type { PollInfo } from "../types/polls.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // Resource
@@ -38,7 +36,7 @@ export class PollsResource {
   async create(
     chat: ChatGuid,
     title: string,
-    options: string[],
+    options: string[]
   ): Promise<CommandReceipt> {
     try {
       const response = await this._client.createPoll({
@@ -46,7 +44,7 @@ export class PollsResource {
         title,
         options,
       });
-      return { guid: messageGuid(response.receipt!.guid) };
+      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -56,7 +54,7 @@ export class PollsResource {
   async vote(
     chat: ChatGuid,
     pollMessage: MessageGuid,
-    optionIdentifier: string,
+    optionIdentifier: string
   ): Promise<CommandReceipt> {
     try {
       const response = await this._client.vote({
@@ -64,7 +62,7 @@ export class PollsResource {
         pollMessageGuid: pollMessage,
         optionIdentifier,
       });
-      return { guid: messageGuid(response.receipt!.guid) };
+      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -73,14 +71,14 @@ export class PollsResource {
   /** Remove your vote from a poll. */
   async unvote(
     chat: ChatGuid,
-    pollMessage: MessageGuid,
+    pollMessage: MessageGuid
   ): Promise<CommandReceipt> {
     try {
       const response = await this._client.unvote({
         chatGuid: chat,
         pollMessageGuid: pollMessage,
       });
-      return { guid: messageGuid(response.receipt!.guid) };
+      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -90,7 +88,7 @@ export class PollsResource {
   async addOption(
     chat: ChatGuid,
     pollMessage: MessageGuid,
-    optionText: string,
+    optionText: string
   ): Promise<CommandReceipt> {
     try {
       const response = await this._client.addOption({
@@ -98,7 +96,7 @@ export class PollsResource {
         pollMessageGuid: pollMessage,
         optionText,
       });
-      return { guid: messageGuid(response.receipt!.guid) };
+      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -114,7 +112,7 @@ export class PollsResource {
       const response = await this._client.getPoll({
         messageGuid: messageGuidValue,
       });
-      return mapPollInfo(response.poll!);
+      return mapPollInfo(unwrap(response.poll, "poll"));
     } catch (error) {
       throw fromGrpcError(error);
     }
@@ -133,7 +131,9 @@ export class PollsResource {
         for await (const proto of rpcStream) {
           const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.pollChanged === undefined) continue;
+          if (proto.pollChanged === undefined) {
+            continue;
+          }
 
           const evt: PollChangeEvent = proto.pollChanged;
 
@@ -141,7 +141,7 @@ export class PollsResource {
             type: "poll.changed" as const,
             chatGuid: chatGuid(evt.chatGuid),
             pollMessageGuid: messageGuid(evt.pollMessageGuid),
-            message: mapMessage(evt.message!),
+            message: mapMessage(unwrap(evt.message, "message")),
             action: mapPollAction(evt.action),
             timestamp,
           };
@@ -163,7 +163,7 @@ export class PollsResource {
  * Map a proto poll action string to the SDK PollEvent action literal.
  */
 function mapPollAction(
-  action: string,
+  action: string
 ): "created" | "voted" | "unvoted" | "optionAdded" {
   switch (action) {
     case "created":

@@ -4,26 +4,21 @@
  * and real-time event subscription.
  */
 
-import type { ChatServiceClient } from "../transport/grpc-client.ts";
-import {
-  mapChat,
-  mapAddressInfo,
-  mapMessage,
-} from "../transport/mapper.ts";
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-
-import type { ChatGuid } from "../types/branded.ts";
-import { chatGuid } from "../types/branded.ts";
-import { messageGuid } from "../types/branded.ts";
-import type { SendReceipt } from "../types/common.ts";
-import type { Chat, CreateChatOptions } from "../types/chats.ts";
-import type { AddressInfo } from "../types/addresses.ts";
-import type { ChatEvent } from "../types/events.ts";
 import type {
   ChatReadStatusEvent,
   TypingEvent,
 } from "../generated/photon/imessage/v1/chat_service.ts";
+import { TypedEventStream } from "../streaming/event-stream.ts";
+import type { ChatServiceClient } from "../transport/grpc-client.ts";
+import { mapAddressInfo, mapChat } from "../transport/mapper.ts";
+import type { AddressInfo } from "../types/addresses.ts";
+import type { ChatGuid } from "../types/branded.ts";
+import { chatGuid, messageGuid } from "../types/branded.ts";
+import type { Chat, CreateChatOptions } from "../types/chats.ts";
+import type { SendReceipt } from "../types/common.ts";
+import type { ChatEvent } from "../types/events.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // ChatsResource
@@ -48,7 +43,7 @@ export class ChatsResource {
    */
   async create(
     addresses: string[],
-    options?: CreateChatOptions,
+    options?: CreateChatOptions
   ): Promise<{ chat: Chat; sendReceipt?: SendReceipt }> {
     try {
       const response = await this._client.createChat({
@@ -60,7 +55,7 @@ export class ChatsResource {
         clientMessageId: options?.clientMessageId,
       });
 
-      const chat = mapChat(response.chat!);
+      const chat = mapChat(unwrap(response.chat, "chat"));
 
       const sendReceipt = response.sendReceipt
         ? {
@@ -81,7 +76,7 @@ export class ChatsResource {
   async get(guid: ChatGuid): Promise<Chat> {
     try {
       const response = await this._client.getChat({ guid });
-      return mapChat(response.chat!);
+      return mapChat(unwrap(response.chat, "chat"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -227,11 +222,9 @@ export class ChatsResource {
    * narrowed to only that event type.
    */
   subscribe<T extends ChatEvent["type"]>(
-    type: T,
+    type: T
   ): TypedEventStream<Extract<ChatEvent, { type: T }>>;
-  subscribe(
-    type?: ChatEvent["type"],
-  ): TypedEventStream<ChatEvent> {
+  subscribe(type?: ChatEvent["type"]): TypedEventStream<ChatEvent> {
     const rpcStream = this._client.subscribeChatEvents({});
 
     async function* mapEvents(): AsyncGenerator<ChatEvent> {
@@ -268,8 +261,7 @@ export class ChatsResource {
 
     if (type) {
       return stream.filter(
-        (e): e is Extract<ChatEvent, { type: typeof type }> =>
-          e.type === type,
+        (e): e is Extract<ChatEvent, { type: typeof type }> => e.type === type
       );
     }
 

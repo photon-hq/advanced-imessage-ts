@@ -70,7 +70,9 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
       try {
         for (;;) {
           const result = await iter.next();
-          if (result.done || stopped) break;
+          if (result.done || stopped) {
+            break;
+          }
           await callback(result.value);
         }
       } finally {
@@ -82,11 +84,11 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
     // Fire-and-forget; errors are silently swallowed since there is no
     // caller to propagate to. In production the caller wraps the callback
     // with their own error handling.
-    void run();
+    run();
 
     return () => {
       stopped = true;
-      void this.close();
+      this.close();
     };
   }
 
@@ -129,10 +131,14 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
     async function* taken(): AsyncGenerator<T> {
       let remaining = count;
       for await (const event of parent) {
-        if (remaining <= 0) break;
+        if (remaining <= 0) {
+          break;
+        }
         yield event;
         remaining--;
-        if (remaining <= 0) break;
+        if (remaining <= 0) {
+          break;
+        }
       }
     }
     return new TypedEventStream<T>(taken(), () => parent.close());
@@ -144,7 +150,9 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
 
   /** Signal the stream is done. Interrupts any pending iteration. */
   async close(): Promise<void> {
-    if (this._closed) return;
+    if (this._closed) {
+      return;
+    }
     this._closed = true;
 
     // Wake up any pending `next()` call so it can see the closed flag.
@@ -176,7 +184,7 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
       throw new Error(
         "TypedEventStream already has a consumer. " +
           "Each stream instance supports only one consumer. " +
-          "Use .filter() / .map() / .take() to derive a new stream before consuming.",
+          "Use .filter() / .map() / .take() to derive a new stream before consuming."
       );
     }
     this._consumed = true;
@@ -195,17 +203,16 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
         // `.close()` can interrupt a blocked `next()`.
         const nextPromise = iterator.next();
 
-        const result = await Promise.race([
-          nextPromise,
-          this._cancelPromise(),
-        ]);
+        const result = await Promise.race([nextPromise, this._cancelPromise()]);
 
         if (result === undefined || this._closed) {
           // Cancelled -- break out of the loop.
           break;
         }
 
-        if (result.done) break;
+        if (result.done) {
+          break;
+        }
         yield result.value;
       }
     } finally {
@@ -219,7 +226,9 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
    * If the stream is already closed, resolves immediately.
    */
   private _cancelPromise(): Promise<undefined> {
-    if (this._closed) return Promise.resolve(undefined);
+    if (this._closed) {
+      return Promise.resolve(undefined);
+    }
     return new Promise<undefined>((resolve) => {
       this._cancelResolve = () => resolve(undefined);
     });

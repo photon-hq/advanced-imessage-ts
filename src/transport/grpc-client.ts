@@ -8,29 +8,28 @@
  */
 
 import {
-  createChannel,
-  createClientFactory,
   type Channel,
   ChannelCredentials,
+  createChannel,
+  createClientFactory,
 } from "nice-grpc";
-import type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
-import type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
-import type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
-import type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
 import type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
-import type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
-import type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
+import { AddressServiceDefinition } from "../generated/photon/imessage/v1/address_service.ts";
+import type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
+import { AttachmentServiceDefinition } from "../generated/photon/imessage/v1/attachment_service.ts";
+import type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
+import { ChatServiceDefinition } from "../generated/photon/imessage/v1/chat_service.ts";
+import type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
+import { GroupServiceDefinition } from "../generated/photon/imessage/v1/group_service.ts";
 import type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
-
+import { LocationServiceDefinition } from "../generated/photon/imessage/v1/location_service.ts";
+import type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
 // Generated ts-proto ServiceDefinition instances (runtime descriptors)
 import { MessageServiceDefinition } from "../generated/photon/imessage/v1/message_service.ts";
-import { ChatServiceDefinition } from "../generated/photon/imessage/v1/chat_service.ts";
-import { GroupServiceDefinition } from "../generated/photon/imessage/v1/group_service.ts";
-import { AttachmentServiceDefinition } from "../generated/photon/imessage/v1/attachment_service.ts";
-import { AddressServiceDefinition } from "../generated/photon/imessage/v1/address_service.ts";
+import type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
 import { PollServiceDefinition } from "../generated/photon/imessage/v1/poll_service.ts";
+import type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
 import { ScheduledMessageServiceDefinition } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-import { LocationServiceDefinition } from "../generated/photon/imessage/v1/location_service.ts";
 
 // Middleware
 import { authMiddleware, idempotencyMiddleware } from "./metadata.ts";
@@ -42,14 +41,14 @@ import { authMiddleware, idempotencyMiddleware } from "./metadata.ts";
 // client interfaces have correct method signatures for nice-grpc usage.
 // ---------------------------------------------------------------------------
 
-export type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
+export type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
+export type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
 export type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
 export type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
-export type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
-export type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
+export type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
+export type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
 export type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
 export type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-export type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
 
 // ---------------------------------------------------------------------------
 // GrpcClients interface
@@ -62,15 +61,15 @@ export type { LocationServiceClient } from "../generated/photon/imessage/v1/loca
  * the client's `AsyncDisposable` implementation).
  */
 export interface GrpcClients {
-  readonly messages: MessageServiceClient;
+  readonly addresses: AddressServiceClient;
+  readonly attachments: AttachmentServiceClient;
+  readonly channel: Channel;
   readonly chats: ChatServiceClient;
   readonly groups: GroupServiceClient;
-  readonly attachments: AttachmentServiceClient;
-  readonly addresses: AddressServiceClient;
+  readonly locations: LocationServiceClient;
+  readonly messages: MessageServiceClient;
   readonly polls: PollServiceClient;
   readonly scheduledMessages: ScheduledMessageServiceClient;
-  readonly locations: LocationServiceClient;
-  readonly channel: Channel;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +81,11 @@ export interface GrpcClientOptions {
   /** Server address, e.g. `"127.0.0.1:50051"`. */
   address: string;
   /**
+   * Whether to automatically attach an `x-idempotency-key` header to
+   * mutating RPC calls. Defaults to `false`.
+   */
+  autoIdempotency?: boolean;
+  /**
    * Whether to use TLS. If `true`, the channel uses SSL credentials.
    * Defaults to `false` (insecure).
    */
@@ -91,11 +95,6 @@ export interface GrpcClientOptions {
    * function that resolves a fresh token on each call.
    */
   token?: string | (() => Promise<string>);
-  /**
-   * Whether to automatically attach an `x-idempotency-key` header to
-   * mutating RPC calls. Defaults to `false`.
-   */
-  autoIdempotency?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +145,10 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
     attachments: factory.create(AttachmentServiceDefinition, channel),
     addresses: factory.create(AddressServiceDefinition, channel),
     polls: factory.create(PollServiceDefinition, channel),
-    scheduledMessages: factory.create(ScheduledMessageServiceDefinition, channel),
+    scheduledMessages: factory.create(
+      ScheduledMessageServiceDefinition,
+      channel
+    ),
     locations: factory.create(LocationServiceDefinition, channel),
     channel,
   };

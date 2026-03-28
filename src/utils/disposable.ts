@@ -16,7 +16,7 @@
  * ```
  */
 export function toAsyncDisposable(
-  cleanup: () => Promise<void>,
+  cleanup: () => Promise<void>
 ): AsyncDisposable {
   return {
     [Symbol.asyncDispose]: cleanup,
