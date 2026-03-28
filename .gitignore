@@ -5,9 +5,6 @@ node_modules
 dist
 *.tgz
 
-# generated proto types — regenerate with `bun run generate`
-src/generated
-
 # code coverage
 coverage
 *.lcov

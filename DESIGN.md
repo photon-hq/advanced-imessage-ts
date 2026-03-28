@@ -244,7 +244,7 @@ Factory function returns an interface. The class is an implementation detail.
 
 ## Proto and Codegen
 
-`proto/photon/imessage/v1/*.proto` — committed, versioned, the contract. `src/generated/` — gitignored, regenerated via `bun run generate`.
+`proto/photon/imessage/v1/*.proto` — committed, versioned, the contract. `src/generated/` — also committed. Both are checked in so the repo is clone-and-build with no codegen step required.
 
 We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-definitions`. ts-proto generates:
 - Native nice-grpc `ServiceDefinition` objects — no adapter layer
@@ -274,7 +274,7 @@ Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` 
 - **No query builders** — options objects for reads, builders only for writes
 - **No getter booleans on errors** — class hierarchy with `instanceof`
 - **No Bun-only APIs** in library code — Web standards only
-- **No generated code in git** — proto files yes, generated output no
+- **Generated code is committed** — clone-and-build, no codegen step. Proto changes show their TypeScript impact in the diff
 - **No raw streams** — result objects with multiple consumption paths
 - **No forced complexity** — simple things are always simple
 - **No weakened tsconfig** — generated code must compile strict. Pick a different tool if it can't
