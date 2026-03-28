@@ -1,0 +1,114 @@
+syntax = "proto3";
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/message_service.proto";
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service PollService {
+  rpc CreatePoll(CreatePollRequest) returns (CreatePollResponse);
+  rpc Vote(VoteRequest) returns (VoteResponse);
+  rpc Unvote(UnvoteRequest) returns (UnvoteResponse);
+  rpc AddOption(AddOptionRequest) returns (AddOptionResponse);
+  rpc GetPoll(GetPollRequest) returns (GetPollResponse);
+  rpc SubscribePollEvents(SubscribePollEventsRequest) returns (stream SubscribePollEventsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+message PollOption {
+  string text = 1;
+  optional string option_identifier = 2;
+  optional string creator_handle = 3;
+}
+
+message PollVote {
+  string option_identifier = 1;
+  optional string participant_address = 2;
+}
+
+message PollInfo {
+  string message_guid = 1;
+  string chat_guid = 2;
+  string title = 3;
+  repeated PollOption options = 4;
+  repeated PollVote votes = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response messages
+// ---------------------------------------------------------------------------
+
+message CreatePollRequest {
+  string chat_guid = 1;
+  string title = 2;
+  repeated string options = 3;
+}
+
+message CreatePollResponse {
+  MessageCommandReceipt receipt = 1;
+}
+
+message VoteRequest {
+  string chat_guid = 1;
+  string poll_message_guid = 2;
+  string option_identifier = 3;
+}
+
+message VoteResponse {
+  MessageCommandReceipt receipt = 1;
+}
+
+message UnvoteRequest {
+  string chat_guid = 1;
+  string poll_message_guid = 2;
+}
+
+message UnvoteResponse {
+  MessageCommandReceipt receipt = 1;
+}
+
+message AddOptionRequest {
+  string chat_guid = 1;
+  string poll_message_guid = 2;
+  string option_text = 3;
+}
+
+message AddOptionResponse {
+  MessageCommandReceipt receipt = 1;
+}
+
+message GetPollRequest {
+  string message_guid = 1;
+}
+
+message GetPollResponse {
+  PollInfo poll = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Event streaming
+// ---------------------------------------------------------------------------
+
+message SubscribePollEventsRequest {}
+
+message SubscribePollEventsResponse {
+  google.protobuf.Timestamp timestamp = 1;
+  oneof payload {
+    PollChangeEvent poll_changed = 10;
+  }
+}
+
+message PollChangeEvent {
+  string chat_guid = 1;
+  string poll_message_guid = 2;
+  Message message = 3;
+  string action = 4;
+}

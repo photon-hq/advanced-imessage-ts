@@ -1,0 +1,134 @@
+syntax = "proto3";
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/chat_service.proto";
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service GroupService {
+  rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
+  rpc AddParticipant(AddParticipantRequest) returns (AddParticipantResponse);
+  rpc RemoveParticipant(RemoveParticipantRequest) returns (RemoveParticipantResponse);
+  rpc SetIcon(SetIconRequest) returns (SetIconResponse);
+  rpc GetIcon(GetIconRequest) returns (GetIconResponse);
+  rpc RemoveIcon(RemoveIconRequest) returns (RemoveIconResponse);
+  rpc SetBackground(SetBackgroundRequest) returns (SetBackgroundResponse);
+  rpc GetBackground(GetBackgroundRequest) returns (GetBackgroundResponse);
+  rpc RemoveBackground(RemoveBackgroundRequest) returns (RemoveBackgroundResponse);
+  rpc SubscribeGroupEvents(SubscribeGroupEventsRequest) returns (stream SubscribeGroupEventsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response messages
+// ---------------------------------------------------------------------------
+
+message SetDisplayNameRequest {
+  string chat_guid = 1;
+  string name = 2;
+}
+
+message SetDisplayNameResponse {
+  Chat chat = 1;
+}
+
+message AddParticipantRequest {
+  string chat_guid = 1;
+  string address = 2;
+}
+
+message AddParticipantResponse {
+  Chat chat = 1;
+}
+
+message RemoveParticipantRequest {
+  string chat_guid = 1;
+  string address = 2;
+}
+
+message RemoveParticipantResponse {
+  Chat chat = 1;
+}
+
+message SetIconRequest {
+  string chat_guid = 1;
+  bytes data = 2;
+}
+
+message SetIconResponse {}
+
+message GetIconRequest {
+  string chat_guid = 1;
+}
+
+message GetIconResponse {
+  optional bytes data = 1;
+}
+
+message RemoveIconRequest {
+  string chat_guid = 1;
+}
+
+message RemoveIconResponse {}
+
+message SetBackgroundRequest {
+  string chat_guid = 1;
+  bytes data = 2;
+}
+
+message SetBackgroundResponse {
+  optional string channel_guid = 1;
+  optional string image_url = 2;
+  optional string background_id = 3;
+}
+
+message GetBackgroundRequest {
+  string chat_guid = 1;
+}
+
+message GetBackgroundResponse {
+  optional string channel_guid = 1;
+  optional string image_url = 2;
+  optional string background_id = 3;
+}
+
+message RemoveBackgroundRequest {
+  string chat_guid = 1;
+}
+
+message RemoveBackgroundResponse {}
+
+// ---------------------------------------------------------------------------
+// Event streaming
+// ---------------------------------------------------------------------------
+
+message SubscribeGroupEventsRequest {}
+
+message SubscribeGroupEventsResponse {
+  google.protobuf.Timestamp timestamp = 1;
+  oneof payload {
+    GroupChangeEvent group_changed = 10;
+  }
+}
+
+message IconChanged {}
+message IconRemoved {}
+message BackgroundChanged {}
+message BackgroundRemoved {}
+
+message GroupChangeEvent {
+  string chat_guid = 1;
+  oneof change {
+    string renamed_to = 10;
+    string participant_added = 11;
+    string participant_removed = 12;
+    IconChanged icon_changed = 13;
+    IconRemoved icon_removed = 14;
+    BackgroundChanged background_changed = 15;
+    BackgroundRemoved background_removed = 16;
+  }
+}

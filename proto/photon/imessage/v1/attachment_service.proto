@@ -1,0 +1,77 @@
+syntax = "proto3";
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+import "photon/imessage/v1/message_service.proto";
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service AttachmentService {
+  rpc GetAttachment(GetAttachmentRequest) returns (GetAttachmentResponse);
+  rpc GetAttachmentCount(GetAttachmentCountRequest) returns (GetAttachmentCountResponse);
+  rpc Upload(UploadRequest) returns (UploadResponse);
+  rpc Download(DownloadRequest) returns (stream DownloadResponse);
+  rpc GetLivePhoto(GetLivePhotoRequest) returns (stream GetLivePhotoResponse);
+  rpc ForceDownload(ForceDownloadRequest) returns (stream ForceDownloadResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response messages
+// ---------------------------------------------------------------------------
+
+message GetAttachmentRequest {
+  string guid = 1;
+}
+
+message GetAttachmentResponse {
+  AttachmentInfo attachment = 1;
+}
+
+message GetAttachmentCountRequest {}
+
+message GetAttachmentCountResponse {
+  int64 count = 1;
+}
+
+message UploadRequest {
+  string file_name = 1;
+  string mime_type = 2;
+  bytes data = 3;
+}
+
+message UploadResponse {
+  AttachmentInfo attachment = 1;
+}
+
+message DownloadRequest {
+  string attachment_guid = 1;
+}
+
+message DownloadResponse {
+  bytes data = 1;
+  int64 total_bytes = 2;
+  int64 offset = 3;
+}
+
+message GetLivePhotoRequest {
+  string attachment_guid = 1;
+}
+
+message GetLivePhotoResponse {
+  bytes data = 1;
+  int64 total_bytes = 2;
+  int64 offset = 3;
+}
+
+message ForceDownloadRequest {
+  string attachment_guid = 1;
+}
+
+message ForceDownloadResponse {
+  bytes data = 1;
+  int64 total_bytes = 2;
+  int64 offset = 3;
+}

@@ -1,0 +1,9 @@
+version: v2
+plugins:
+  - local: protoc-gen-ts
+    out: src/generated
+    opt:
+      - long_type_number
+      - generate_dependencies
+      - server_generic
+      - client_generic

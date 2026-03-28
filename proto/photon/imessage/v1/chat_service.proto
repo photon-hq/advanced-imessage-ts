@@ -1,0 +1,156 @@
+syntax = "proto3";
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/message_service.proto";
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service ChatService {
+  rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
+  rpc GetChat(GetChatRequest) returns (GetChatResponse);
+  rpc GetChatCount(GetChatCountRequest) returns (GetChatCountResponse);
+  rpc DeleteChat(DeleteChatRequest) returns (DeleteChatResponse);
+  rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
+  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
+  rpc CanShareContactInfo(CanShareContactInfoRequest) returns (CanShareContactInfoResponse);
+  rpc ShareContactInfo(ShareContactInfoRequest) returns (ShareContactInfoResponse);
+  rpc StartTyping(StartTypingRequest) returns (StartTypingResponse);
+  rpc StopTyping(StopTypingRequest) returns (StopTypingResponse);
+  rpc GetParticipants(GetParticipantsRequest) returns (GetParticipantsResponse);
+  rpc SubscribeChatEvents(SubscribeChatEventsRequest) returns (stream SubscribeChatEventsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+message Chat {
+  string guid = 1;
+  optional string chat_identifier = 2;
+  optional string group_id = 3;
+  optional string display_name = 4;
+  bool is_group = 5;
+  string service = 6;
+  bool is_archived = 7;
+  bool is_filtered = 8;
+  optional int32 unread_count = 9;
+  repeated AddressInfo participants = 10;
+  optional Message last_message = 11;
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response messages
+// ---------------------------------------------------------------------------
+
+message CreateChatRequest {
+  repeated string addresses = 1;
+  optional string message = 2;
+  string service = 3;
+  optional bytes attributed_body = 4;
+  optional string effect_id = 5;
+  optional string subject = 6;
+  optional string client_message_id = 7;
+}
+
+message CreateChatResponse {
+  Chat chat = 1;
+  optional MessageSendReceipt send_receipt = 2;
+}
+
+message GetChatRequest {
+  string guid = 1;
+}
+
+message GetChatResponse {
+  Chat chat = 1;
+}
+
+message GetChatCountRequest {
+  bool include_archived = 1;
+}
+
+message GetChatCountResponse {
+  int64 count = 1;
+}
+
+message DeleteChatRequest {
+  string guid = 1;
+}
+
+message DeleteChatResponse {}
+
+message LeaveChatRequest {
+  string guid = 1;
+}
+
+message LeaveChatResponse {}
+
+message MarkReadRequest {
+  string chat_guid = 1;
+}
+
+message MarkReadResponse {}
+
+message CanShareContactInfoRequest {
+  string chat_guid = 1;
+}
+
+message CanShareContactInfoResponse {
+  bool can_share = 1;
+}
+
+message ShareContactInfoRequest {
+  string chat_guid = 1;
+}
+
+message ShareContactInfoResponse {}
+
+message StartTypingRequest {
+  string chat_guid = 1;
+}
+
+message StartTypingResponse {}
+
+message StopTypingRequest {
+  string chat_guid = 1;
+}
+
+message StopTypingResponse {}
+
+message GetParticipantsRequest {
+  string chat_guid = 1;
+}
+
+message GetParticipantsResponse {
+  repeated AddressInfo participants = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Event streaming
+// ---------------------------------------------------------------------------
+
+message SubscribeChatEventsRequest {}
+
+message SubscribeChatEventsResponse {
+  google.protobuf.Timestamp timestamp = 1;
+  oneof payload {
+    ChatReadStatusEvent chat_read_status_changed = 10;
+    TypingEvent typing_indicator = 11;
+  }
+}
+
+message ChatReadStatusEvent {
+  string chat_guid = 1;
+  bool is_read = 2;
+}
+
+message TypingEvent {
+  string chat_guid = 1;
+  bool is_typing = 2;
+  optional string display_name = 3;
+}

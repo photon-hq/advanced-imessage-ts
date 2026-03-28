@@ -1,0 +1,329 @@
+syntax = "proto3";
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/common.proto";
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service MessageService {
+  rpc Send(SendRequest) returns (SendResponse);
+  rpc SendReaction(SendReactionRequest) returns (SendReactionResponse);
+  rpc EditMessage(EditMessageRequest) returns (EditMessageResponse);
+  rpc UnsendMessage(UnsendMessageRequest) returns (UnsendMessageResponse);
+  rpc NotifySilenced(NotifySilencedRequest) returns (NotifySilencedResponse);
+  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
+  rpc GetEmbeddedMedia(GetEmbeddedMediaRequest) returns (GetEmbeddedMediaResponse);
+  rpc GetMessageStats(GetMessageStatsRequest) returns (GetMessageStatsResponse);
+  rpc SubscribeMessageEvents(SubscribeMessageEventsRequest) returns (stream SubscribeMessageEventsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+message AddressInfo {
+  string address = 1;
+  optional string uncanonicalized_id = 2;
+  string service = 3; // "iMessage" | "SMS"
+  optional string country = 4;
+}
+
+message AttachmentInfo {
+  string guid = 1;
+  optional string original_guid = 2;
+  string file_name = 3;
+  string mime_type = 4;
+  string uti = 5;
+  int64 total_bytes = 6;
+  TransferState transfer_state = 7;
+  bool is_outgoing = 8;
+  bool hide_attachment = 9;
+  bool is_sticker = 10;
+  optional int32 width = 11;
+  optional int32 height = 12;
+  bool has_live_photo = 13;
+}
+
+enum TransferState {
+  TRANSFER_STATE_UNSPECIFIED = 0;
+  TRANSFER_STATE_TRANSFERRING = 1;
+  TRANSFER_STATE_FAILED = 2;
+  // 3, 4 reserved by Apple
+  TRANSFER_STATE_FINISHED = 5;
+  TRANSFER_STATE_PENDING = 6;
+}
+
+enum MessageItemType {
+  MESSAGE_ITEM_TYPE_UNSPECIFIED = 0;
+  MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE = 1;
+  MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE = 2;
+  MESSAGE_ITEM_TYPE_LEFT_GROUP = 3;
+  MESSAGE_ITEM_TYPE_NORMAL = 4;
+}
+
+message MessageSendReceipt {
+  string guid = 1;
+  optional string client_message_id = 2;
+}
+
+message MessageCommandReceipt {
+  string guid = 1;
+}
+
+message Message {
+  string guid = 1;
+  optional string client_message_id = 2;
+
+  // Content
+  optional string text = 3;
+  optional bytes attributed_body = 4;
+  optional string subject = 5;
+
+  // Timeline
+  google.protobuf.Timestamp date_created = 10;
+  optional google.protobuf.Timestamp date_read = 11;
+  optional google.protobuf.Timestamp date_delivered = 12;
+  optional google.protobuf.Timestamp date_edited = 13;
+  optional google.protobuf.Timestamp date_retracted = 14;
+  optional google.protobuf.Timestamp date_played = 15;
+
+  // Sender
+  optional AddressInfo sender = 20;
+  bool is_from_me = 21;
+  optional string country = 22;
+
+  // Delivery status
+  bool is_sent = 30;
+  bool is_delivered = 31;
+  bool is_delivered_quietly = 32;
+  bool did_notify_recipient = 33;
+  int32 send_error_code = 34;
+
+  // Flags
+  bool is_audio_message = 40;
+  bool is_auto_reply = 41;
+  bool is_system_message = 42;
+  bool is_forward = 43;
+  bool is_delayed = 44;
+  bool is_spam = 45;
+  bool has_dd_results = 46;
+  bool is_archived = 47;
+  bool is_service_message = 48;
+  bool is_corrupt = 49;
+  bool is_expirable = 50;
+  optional int32 share_status = 51;
+  optional int32 share_direction = 52;
+
+  // Type
+  MessageItemType item_type = 60;
+  optional string group_title = 61;
+  optional int32 group_action_type = 62;
+
+  // Association / tapback
+  optional string associated_message_guid = 70;
+  optional string associated_message_type = 71;
+  optional string thread_originator_guid = 72;
+  optional string thread_originator_part = 73;
+  optional string reply_to_guid = 74;
+  optional string destination_caller_id = 75;
+  optional string associated_message_emoji = 76;
+
+  // Rich content
+  optional string balloon_bundle_id = 80;
+  optional string expressive_send_style_id = 81;
+  optional bytes payload_data = 82;
+  optional bytes message_summary_info = 83;
+  optional int32 part_count = 84;
+  optional string cache_roomnames = 85;
+  optional google.protobuf.Timestamp time_expressive_send_played = 86;
+
+  // Relations
+  repeated AttachmentInfo attachments = 90;
+  repeated string chat_guids = 91;
+
+  // Runtime
+  optional int32 latency_ms = 95;
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response messages
+// ---------------------------------------------------------------------------
+
+message StickerPlacement {
+  double x = 1;
+  double y = 2;
+  optional double scale = 3;
+  optional double rotation = 4;
+}
+
+message MessagePart {
+  optional string text = 1;
+  optional string attachment_path = 2;
+  optional string attachment_name = 3;
+  reserved 4;
+  optional string mention = 5;
+  optional int32 part_index = 6;
+  repeated TextFormat formatting = 7;
+}
+
+message TextFormat {
+  string type = 1;
+  int32 start = 2;
+  int32 length = 3;
+  optional string effect_name = 4;
+}
+
+message SendRequest {
+  string chat_guid = 1;
+  optional string client_message_id = 2;
+  optional string message = 3;
+  optional bytes attributed_body = 4;
+  optional string subject = 5;
+  optional string effect_id = 6;
+  bool dd_scan = 7;
+  bool rich_link = 8;
+  optional string attachment_path = 9;
+  optional string attachment_name = 10;
+  optional string attachment_guid = 11;
+  bool is_audio_message = 12;
+  bool is_sticker = 13;
+  optional StickerPlacement sticker_placement = 14;
+  repeated MessagePart parts = 15;
+  optional string selected_message_guid = 16;
+  int32 part_index = 17;
+  optional string service = 18;
+  repeated TextFormat formatting = 19;
+}
+
+message SendResponse {
+  MessageSendReceipt receipt = 1;
+}
+
+message SendReactionRequest {
+  string chat_guid = 1;
+  string message_guid = 2;
+  string reaction = 3;
+  int32 part_index = 4;
+  optional string emoji = 5;
+}
+
+message SendReactionResponse {
+  MessageCommandReceipt receipt = 1;
+}
+
+message EditMessageRequest {
+  string chat_guid = 1;
+  string message_guid = 2;
+  string new_text = 3;
+  optional string backward_compat_text = 4;
+  int32 part_index = 5;
+}
+
+message UnsendMessageRequest {
+  string chat_guid = 1;
+  string message_guid = 2;
+  int32 part_index = 3;
+}
+
+message EditMessageResponse {}
+
+message UnsendMessageResponse {}
+
+message NotifySilencedRequest {
+  string chat_guid = 1;
+  string message_guid = 2;
+}
+
+message NotifySilencedResponse {}
+
+message GetMessageRequest {
+  string guid = 1;
+}
+
+message GetMessageResponse {
+  Message message = 1;
+}
+
+message ListMessagesRequest {
+  optional string chat_guid = 1;
+  optional google.protobuf.Timestamp before = 2;
+  optional google.protobuf.Timestamp after = 3;
+  SortDirection sort = 4;
+  optional int32 limit = 5;
+  int32 offset = 6;
+  bool with_chats = 7;
+  bool with_attachments = 8;
+}
+
+message ListMessagesResponse {
+  repeated Message messages = 1;
+  PaginatedMeta meta = 2;
+}
+
+message GetEmbeddedMediaRequest {
+  string chat_guid = 1;
+  string message_guid = 2;
+}
+
+message EmbeddedMediaItem {
+  bytes data = 1;
+  string mime_type = 2;
+}
+
+message GetEmbeddedMediaResponse {
+  repeated EmbeddedMediaItem items = 1;
+}
+
+message GetMessageStatsRequest {}
+
+message GetMessageStatsResponse {
+  int64 total = 1;
+  int64 sent = 2;
+  int64 received = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Event streaming
+// ---------------------------------------------------------------------------
+
+message SubscribeMessageEventsRequest {}
+
+message SubscribeMessageEventsResponse {
+  google.protobuf.Timestamp timestamp = 1;
+  oneof payload {
+    MessageSentEvent message_sent = 10;
+    MessageReceivedEvent message_received = 11;
+    MessageUpdatedEvent message_updated = 12;
+    MessageSendErrorEvent message_send_error = 13;
+  }
+}
+
+message MessageSentEvent {
+  Message message = 1;
+  optional string client_message_id = 2;
+  string chat_guid = 3;
+}
+
+message MessageReceivedEvent {
+  Message message = 1;
+  string chat_guid = 2;
+}
+
+message MessageUpdatedEvent {
+  Message message = 1;
+  string update_type = 2;
+  string chat_guid = 3;
+}
+
+message MessageSendErrorEvent {
+  string chat_guid = 1;
+  optional string client_message_id = 2;
+  string error_code = 3;
+  string error_message = 4;
+}

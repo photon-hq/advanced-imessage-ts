@@ -1,0 +1,32 @@
+# dependencies
+node_modules
+
+# output
+dist
+*.tgz
+
+# generated proto types — regenerate with `bun run generate`
+src/generated
+
+# code coverage
+coverage
+*.lcov
+
+# logs
+logs
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# dotenv
+.env
+.env.*.local
+.env.local
+
+# caches
+.eslintcache
+.cache
+*.tsbuildinfo
+
+# IDE
+.idea
+.DS_Store

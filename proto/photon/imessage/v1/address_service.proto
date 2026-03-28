@@ -1,0 +1,54 @@
+syntax = "proto3";
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+import "photon/imessage/v1/message_service.proto";
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service AddressService {
+  rpc GetAddress(GetAddressRequest) returns (GetAddressResponse);
+  rpc GetFocusStatus(GetFocusStatusRequest) returns (GetFocusStatusResponse);
+  rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+enum AvailabilityType {
+  AVAILABILITY_TYPE_UNSPECIFIED = 0;
+  AVAILABILITY_TYPE_IMESSAGE = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response messages
+// ---------------------------------------------------------------------------
+
+message GetAddressRequest {
+  string address = 1;
+}
+
+message GetAddressResponse {
+  AddressInfo address = 1;
+}
+
+message GetFocusStatusRequest {
+  string address = 1;
+}
+
+message GetFocusStatusResponse {
+  bool is_focused = 1;
+}
+
+message CheckAvailabilityRequest {
+  string address = 1;
+  AvailabilityType type = 2;
+}
+
+message CheckAvailabilityResponse {
+  bool available = 1;
+}

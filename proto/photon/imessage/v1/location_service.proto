@@ -1,0 +1,73 @@
+syntax = "proto3";
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+import "google/protobuf/timestamp.proto";
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service LocationService {
+  rpc GetFriends(GetFriendsRequest) returns (GetFriendsResponse);
+  rpc RefreshFriends(RefreshFriendsRequest) returns (RefreshFriendsResponse);
+  rpc SubscribeLocationEvents(SubscribeLocationEventsRequest) returns (stream SubscribeLocationEventsResponse);
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+enum FindMyLocationType {
+  FIND_MY_LOCATION_TYPE_UNSPECIFIED = 0;
+  FIND_MY_LOCATION_TYPE_LIVE = 1;
+  FIND_MY_LOCATION_TYPE_SHALLOW = 2;
+}
+
+message FindMyFriend {
+  string id = 1;
+  optional string name = 2;
+  optional double latitude = 3;
+  optional double longitude = 4;
+  optional double accuracy = 5;
+  optional google.protobuf.Timestamp location_timestamp = 6;
+  optional string long_address = 7;
+  optional string short_address = 8;
+  bool is_locating_in_progress = 9;
+  FindMyLocationType location_type = 10;
+  optional google.protobuf.Timestamp expires_at = 11;
+}
+
+// ---------------------------------------------------------------------------
+// Request / Response messages
+// ---------------------------------------------------------------------------
+
+message GetFriendsRequest {}
+
+message GetFriendsResponse {
+  repeated FindMyFriend friends = 1;
+}
+
+message RefreshFriendsRequest {}
+
+message RefreshFriendsResponse {
+  repeated FindMyFriend friends = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Event streaming
+// ---------------------------------------------------------------------------
+
+message SubscribeLocationEventsRequest {}
+
+message SubscribeLocationEventsResponse {
+  google.protobuf.Timestamp timestamp = 1;
+  oneof payload {
+    FindMyEvent find_my_location_updated = 10;
+  }
+}
+
+message FindMyEvent {
+  repeated FindMyFriend friends = 1;
+}
