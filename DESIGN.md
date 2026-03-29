@@ -9,7 +9,7 @@ Inspired by Stripe (auto-pagination, error hierarchy), Vercel AI SDK (streaming 
 ## It should feel like this
 
 ```ts
-import { createClient, directChat, MessageEffect } from "@photon-ai/advanced-imessage-kit";
+import { createClient, directChat, MessageEffect } from "@photon-ai/advanced-imessage";
 
 const im = createClient({ address: "127.0.0.1:50051", token: "..." });
 

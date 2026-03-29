@@ -1,4 +1,4 @@
-# @photon-ai/advanced-imessage-kit
+# @photon-ai/advanced-imessage
 
 To install dependencies:
 

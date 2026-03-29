@@ -1,7 +1,7 @@
 ---
 name: typescript-sdk-dx
 description: >-
-  TypeScript SDK design patterns for @photon-ai/advanced-imessage-kit.
+  TypeScript SDK design patterns for @photon-ai/advanced-imessage.
   Use when writing or modifying SDK code: types, resources, transport,
   streaming, errors, builders, or the public API surface. Covers branded
   types, progressive disclosure, auto-pagination, error hierarchies,
