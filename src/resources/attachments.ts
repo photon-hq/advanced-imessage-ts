@@ -10,6 +10,7 @@ import { mapAttachmentInfo } from "../transport/mapper.ts";
 import type {
   AttachmentInfo,
   AttachmentInput,
+  LivePhotoInput,
   StreamedDownload,
 } from "../types/attachments.ts";
 import type { AttachmentGuid } from "../types/branded.ts";
@@ -164,6 +165,28 @@ export class AttachmentsResource {
   // -------------------------------------------------------------------------
   // Upload
   // -------------------------------------------------------------------------
+
+  /**
+   * Upload a Live Photo (paired image + video) in a single atomic request.
+   *
+   * The server writes the video as a `.mov` companion file next to the
+   * image, so `getLivePhoto()` and `hasLivePhoto` work automatically.
+   * Returns the image attachment with `hasLivePhoto: true`.
+   */
+  async uploadLivePhoto(input: LivePhotoInput): Promise<AttachmentInfo> {
+    try {
+      const response = await this._client.upload({
+        fileName: input.image.fileName,
+        mimeType: input.image.mimeType,
+        data: input.image.data,
+        livePhotoVideo: input.video.data,
+      });
+
+      return mapAttachmentInfo(unwrap(response.attachment, "attachment"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
 
   /**
    * Upload an attachment to the server.
