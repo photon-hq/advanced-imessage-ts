@@ -57,13 +57,6 @@ export interface GetChatCountResponse {
   count: number;
 }
 
-export interface DeleteChatRequest {
-  guid: string;
-}
-
-export interface DeleteChatResponse {
-}
-
 export interface LeaveChatRequest {
   guid: string;
 }
@@ -76,14 +69,6 @@ export interface MarkReadRequest {
 }
 
 export interface MarkReadResponse {
-}
-
-export interface CanShareContactInfoRequest {
-  chatGuid: string;
-}
-
-export interface CanShareContactInfoResponse {
-  canShare: boolean;
 }
 
 export interface ShareContactInfoRequest {
@@ -120,8 +105,14 @@ export interface SubscribeChatEventsRequest {
 
 export interface SubscribeChatEventsResponse {
   timestamp: Date | undefined;
+  chatCreated?: ChatLifecycleEvent | undefined;
+  chatLeft?: ChatLifecycleEvent | undefined;
   chatReadStatusChanged?: ChatReadStatusEvent | undefined;
   typingIndicator?: TypingEvent | undefined;
+}
+
+export interface ChatLifecycleEvent {
+  chatGuid: string;
 }
 
 export interface ChatReadStatusEvent {
@@ -901,107 +892,6 @@ export const GetChatCountResponse: MessageFns<GetChatCountResponse> = {
   },
 };
 
-function createBaseDeleteChatRequest(): DeleteChatRequest {
-  return { guid: "" };
-}
-
-export const DeleteChatRequest: MessageFns<DeleteChatRequest> = {
-  encode(message: DeleteChatRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): DeleteChatRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseDeleteChatRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.guid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): DeleteChatRequest {
-    return { guid: isSet(object.guid) ? globalThis.String(object.guid) : "" };
-  },
-
-  toJSON(message: DeleteChatRequest): unknown {
-    const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<DeleteChatRequest>): DeleteChatRequest {
-    return DeleteChatRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<DeleteChatRequest>): DeleteChatRequest {
-    const message = createBaseDeleteChatRequest();
-    message.guid = object.guid ?? "";
-    return message;
-  },
-};
-
-function createBaseDeleteChatResponse(): DeleteChatResponse {
-  return {};
-}
-
-export const DeleteChatResponse: MessageFns<DeleteChatResponse> = {
-  encode(_: DeleteChatResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): DeleteChatResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseDeleteChatResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): DeleteChatResponse {
-    return {};
-  },
-
-  toJSON(_: DeleteChatResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<DeleteChatResponse>): DeleteChatResponse {
-    return DeleteChatResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<DeleteChatResponse>): DeleteChatResponse {
-    const message = createBaseDeleteChatResponse();
-    return message;
-  },
-};
-
 function createBaseLeaveChatRequest(): LeaveChatRequest {
   return { guid: "" };
 }
@@ -1206,134 +1096,6 @@ export const MarkReadResponse: MessageFns<MarkReadResponse> = {
   },
   fromPartial(_: DeepPartial<MarkReadResponse>): MarkReadResponse {
     const message = createBaseMarkReadResponse();
-    return message;
-  },
-};
-
-function createBaseCanShareContactInfoRequest(): CanShareContactInfoRequest {
-  return { chatGuid: "" };
-}
-
-export const CanShareContactInfoRequest: MessageFns<CanShareContactInfoRequest> = {
-  encode(message: CanShareContactInfoRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): CanShareContactInfoRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCanShareContactInfoRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): CanShareContactInfoRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: CanShareContactInfoRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<CanShareContactInfoRequest>): CanShareContactInfoRequest {
-    return CanShareContactInfoRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<CanShareContactInfoRequest>): CanShareContactInfoRequest {
-    const message = createBaseCanShareContactInfoRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseCanShareContactInfoResponse(): CanShareContactInfoResponse {
-  return { canShare: false };
-}
-
-export const CanShareContactInfoResponse: MessageFns<CanShareContactInfoResponse> = {
-  encode(message: CanShareContactInfoResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.canShare !== false) {
-      writer.uint32(8).bool(message.canShare);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): CanShareContactInfoResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCanShareContactInfoResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 8) {
-            break;
-          }
-
-          message.canShare = reader.bool();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): CanShareContactInfoResponse {
-    return {
-      canShare: isSet(object.canShare)
-        ? globalThis.Boolean(object.canShare)
-        : isSet(object.can_share)
-        ? globalThis.Boolean(object.can_share)
-        : false,
-    };
-  },
-
-  toJSON(message: CanShareContactInfoResponse): unknown {
-    const obj: any = {};
-    if (message.canShare !== false) {
-      obj.canShare = message.canShare;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<CanShareContactInfoResponse>): CanShareContactInfoResponse {
-    return CanShareContactInfoResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<CanShareContactInfoResponse>): CanShareContactInfoResponse {
-    const message = createBaseCanShareContactInfoResponse();
-    message.canShare = object.canShare ?? false;
     return message;
   },
 };
@@ -1829,13 +1591,25 @@ export const SubscribeChatEventsRequest: MessageFns<SubscribeChatEventsRequest> 
 };
 
 function createBaseSubscribeChatEventsResponse(): SubscribeChatEventsResponse {
-  return { timestamp: undefined, chatReadStatusChanged: undefined, typingIndicator: undefined };
+  return {
+    timestamp: undefined,
+    chatCreated: undefined,
+    chatLeft: undefined,
+    chatReadStatusChanged: undefined,
+    typingIndicator: undefined,
+  };
 }
 
 export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse> = {
   encode(message: SubscribeChatEventsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.timestamp !== undefined) {
       Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(10).fork()).join();
+    }
+    if (message.chatCreated !== undefined) {
+      ChatLifecycleEvent.encode(message.chatCreated, writer.uint32(98).fork()).join();
+    }
+    if (message.chatLeft !== undefined) {
+      ChatLifecycleEvent.encode(message.chatLeft, writer.uint32(114).fork()).join();
     }
     if (message.chatReadStatusChanged !== undefined) {
       ChatReadStatusEvent.encode(message.chatReadStatusChanged, writer.uint32(82).fork()).join();
@@ -1859,6 +1633,22 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
           }
 
           message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.chatCreated = ChatLifecycleEvent.decode(reader, reader.uint32());
+          continue;
+        }
+        case 14: {
+          if (tag !== 114) {
+            break;
+          }
+
+          message.chatLeft = ChatLifecycleEvent.decode(reader, reader.uint32());
           continue;
         }
         case 10: {
@@ -1889,6 +1679,16 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
   fromJSON(object: any): SubscribeChatEventsResponse {
     return {
       timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
+      chatCreated: isSet(object.chatCreated)
+        ? ChatLifecycleEvent.fromJSON(object.chatCreated)
+        : isSet(object.chat_created)
+        ? ChatLifecycleEvent.fromJSON(object.chat_created)
+        : undefined,
+      chatLeft: isSet(object.chatLeft)
+        ? ChatLifecycleEvent.fromJSON(object.chatLeft)
+        : isSet(object.chat_left)
+        ? ChatLifecycleEvent.fromJSON(object.chat_left)
+        : undefined,
       chatReadStatusChanged: isSet(object.chatReadStatusChanged)
         ? ChatReadStatusEvent.fromJSON(object.chatReadStatusChanged)
         : isSet(object.chat_read_status_changed)
@@ -1907,6 +1707,12 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
     if (message.timestamp !== undefined) {
       obj.timestamp = message.timestamp.toISOString();
     }
+    if (message.chatCreated !== undefined) {
+      obj.chatCreated = ChatLifecycleEvent.toJSON(message.chatCreated);
+    }
+    if (message.chatLeft !== undefined) {
+      obj.chatLeft = ChatLifecycleEvent.toJSON(message.chatLeft);
+    }
     if (message.chatReadStatusChanged !== undefined) {
       obj.chatReadStatusChanged = ChatReadStatusEvent.toJSON(message.chatReadStatusChanged);
     }
@@ -1922,6 +1728,12 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
   fromPartial(object: DeepPartial<SubscribeChatEventsResponse>): SubscribeChatEventsResponse {
     const message = createBaseSubscribeChatEventsResponse();
     message.timestamp = object.timestamp ?? undefined;
+    message.chatCreated = (object.chatCreated !== undefined && object.chatCreated !== null)
+      ? ChatLifecycleEvent.fromPartial(object.chatCreated)
+      : undefined;
+    message.chatLeft = (object.chatLeft !== undefined && object.chatLeft !== null)
+      ? ChatLifecycleEvent.fromPartial(object.chatLeft)
+      : undefined;
     message.chatReadStatusChanged =
       (object.chatReadStatusChanged !== undefined && object.chatReadStatusChanged !== null)
         ? ChatReadStatusEvent.fromPartial(object.chatReadStatusChanged)
@@ -1929,6 +1741,70 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
     message.typingIndicator = (object.typingIndicator !== undefined && object.typingIndicator !== null)
       ? TypingEvent.fromPartial(object.typingIndicator)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseChatLifecycleEvent(): ChatLifecycleEvent {
+  return { chatGuid: "" };
+}
+
+export const ChatLifecycleEvent: MessageFns<ChatLifecycleEvent> = {
+  encode(message: ChatLifecycleEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ChatLifecycleEvent {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseChatLifecycleEvent();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ChatLifecycleEvent {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+    };
+  },
+
+  toJSON(message: ChatLifecycleEvent): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ChatLifecycleEvent>): ChatLifecycleEvent {
+    return ChatLifecycleEvent.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ChatLifecycleEvent>): ChatLifecycleEvent {
+    const message = createBaseChatLifecycleEvent();
+    message.chatGuid = object.chatGuid ?? "";
     return message;
   },
 };
@@ -2150,14 +2026,6 @@ export const ChatServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    deleteChat: {
-      name: "DeleteChat",
-      requestType: DeleteChatRequest as typeof DeleteChatRequest,
-      requestStream: false,
-      responseType: DeleteChatResponse as typeof DeleteChatResponse,
-      responseStream: false,
-      options: {},
-    },
     leaveChat: {
       name: "LeaveChat",
       requestType: LeaveChatRequest as typeof LeaveChatRequest,
@@ -2171,14 +2039,6 @@ export const ChatServiceDefinition = {
       requestType: MarkReadRequest as typeof MarkReadRequest,
       requestStream: false,
       responseType: MarkReadResponse as typeof MarkReadResponse,
-      responseStream: false,
-      options: {},
-    },
-    canShareContactInfo: {
-      name: "CanShareContactInfo",
-      requestType: CanShareContactInfoRequest as typeof CanShareContactInfoRequest,
-      requestStream: false,
-      responseType: CanShareContactInfoResponse as typeof CanShareContactInfoResponse,
       responseStream: false,
       options: {},
     },
@@ -2235,16 +2095,8 @@ export interface ChatServiceImplementation<CallContextExt = {}> {
     request: GetChatCountRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetChatCountResponse>>;
-  deleteChat(
-    request: DeleteChatRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<DeleteChatResponse>>;
   leaveChat(request: LeaveChatRequest, context: CallContext & CallContextExt): Promise<DeepPartial<LeaveChatResponse>>;
   markRead(request: MarkReadRequest, context: CallContext & CallContextExt): Promise<DeepPartial<MarkReadResponse>>;
-  canShareContactInfo(
-    request: CanShareContactInfoRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<CanShareContactInfoResponse>>;
   shareContactInfo(
     request: ShareContactInfoRequest,
     context: CallContext & CallContextExt,
@@ -2277,16 +2129,8 @@ export interface ChatServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<GetChatCountRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetChatCountResponse>;
-  deleteChat(
-    request: DeepPartial<DeleteChatRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<DeleteChatResponse>;
   leaveChat(request: DeepPartial<LeaveChatRequest>, options?: CallOptions & CallOptionsExt): Promise<LeaveChatResponse>;
   markRead(request: DeepPartial<MarkReadRequest>, options?: CallOptions & CallOptionsExt): Promise<MarkReadResponse>;
-  canShareContactInfo(
-    request: DeepPartial<CanShareContactInfoRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<CanShareContactInfoResponse>;
   shareContactInfo(
     request: DeepPartial<ShareContactInfoRequest>,
     options?: CallOptions & CallOptionsExt,

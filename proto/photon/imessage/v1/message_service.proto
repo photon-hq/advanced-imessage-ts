@@ -55,6 +55,7 @@ enum TransferState {
   TRANSFER_STATE_TRANSFERRING = 1;
   TRANSFER_STATE_FAILED = 2;
   // 3, 4 reserved by Apple
+  reserved 3, 4;
   TRANSFER_STATE_FINISHED = 5;
   TRANSFER_STATE_PENDING = 6;
 }
