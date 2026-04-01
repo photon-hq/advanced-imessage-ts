@@ -35,37 +35,63 @@ export interface ScheduledMessage {
 }
 
 // ---------------------------------------------------------------------------
+// ScheduledMessagePayload
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload fields for a scheduled send-message action.
+ *
+ * Mirrors the server's `ScheduledPayloadDTO` JSON schema. `chat` and
+ * `projectId` are always required by the server.
+ */
+export interface ScheduledMessagePayload {
+  readonly attachmentName?: string;
+  readonly attachmentPath?: string;
+  readonly chat: ChatGuid;
+  readonly clientMessageId?: string;
+  readonly effectId?: string;
+  readonly projectId: string;
+  readonly service?: string;
+  readonly subject?: string;
+  readonly text?: string;
+}
+
+// ---------------------------------------------------------------------------
 // CreateScheduledMessageOptions
 // ---------------------------------------------------------------------------
 
 /** Parameters for scheduling a new message. */
-export interface CreateScheduledMessageOptions {
-  /** The chat to send the message to. */
-  readonly chat: ChatGuid;
+export interface CreateScheduledMessageOptions extends ScheduledMessagePayload {
   /** Optional recurrence schedule. Defaults to a one-time send. */
   readonly schedule?:
     | { readonly type: "once" }
     | { readonly type: "recurring"; readonly intervalSeconds: number };
   /** When to send the message. */
   readonly scheduledFor: Date;
-  /** The text content of the message. */
-  readonly text: string;
 }
 
 // ---------------------------------------------------------------------------
 // UpdateScheduledMessageOptions
 // ---------------------------------------------------------------------------
 
-/** Parameters for updating an existing scheduled message. All fields are optional. */
+/**
+ * Parameters for updating an existing scheduled message.
+ *
+ * All payload fields are optional — the SDK fetches the current message and
+ * merges your changes before sending the full replacement to the server.
+ */
 export interface UpdateScheduledMessageOptions {
-  /** The chat to send the message to. */
+  readonly attachmentName?: string;
+  readonly attachmentPath?: string;
   readonly chat?: ChatGuid;
-  /** Optional recurrence schedule. */
+  readonly clientMessageId?: string;
+  readonly effectId?: string;
+  readonly projectId?: string;
   readonly schedule?:
     | { readonly type: "once" }
     | { readonly type: "recurring"; readonly intervalSeconds: number };
-  /** When to send the message. */
   readonly scheduledFor?: Date;
-  /** The text content of the message. */
+  readonly service?: string;
+  readonly subject?: string;
   readonly text?: string;
 }

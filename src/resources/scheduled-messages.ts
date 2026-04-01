@@ -12,14 +12,76 @@ import { ScheduledMessageType as ProtoScheduledMessageType } from "../generated/
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ScheduledMessageServiceClient } from "../transport/grpc-client.ts";
 import { mapScheduledMessage } from "../transport/mapper.ts";
-import type { ScheduledMessageId } from "../types/branded.ts";
+import type { ChatGuid, ScheduledMessageId } from "../types/branded.ts";
+import { chatGuid } from "../types/branded.ts";
 import type { ScheduleEvent } from "../types/events.ts";
 import type {
   CreateScheduledMessageOptions,
   ScheduledMessage,
+  ScheduledMessagePayload,
   UpdateScheduledMessageOptions,
 } from "../types/scheduled-messages.ts";
 import { unwrap } from "../utils/unwrap.ts";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Encode a `ScheduledMessagePayload` to the JSON bytes the server expects.
+ *
+ * Field names are mapped from SDK conventions to the server's
+ * `ScheduledPayloadDTO` schema (e.g. `chat` → `chatGuid`,
+ * `text` → `message`).
+ */
+function encodePayload(payload: ScheduledMessagePayload): Uint8Array {
+  const obj: Record<string, unknown> = {
+    chatGuid: payload.chat,
+    projectId: payload.projectId,
+  };
+  if (payload.text !== undefined) {
+    obj.message = payload.text;
+  }
+  if (payload.service !== undefined) {
+    obj.service = payload.service;
+  }
+  if (payload.subject !== undefined) {
+    obj.subject = payload.subject;
+  }
+  if (payload.effectId !== undefined) {
+    obj.effectId = payload.effectId;
+  }
+  if (payload.clientMessageId !== undefined) {
+    obj.clientMessageId = payload.clientMessageId;
+  }
+  if (payload.attachmentPath !== undefined) {
+    obj.attachmentPath = payload.attachmentPath;
+  }
+  if (payload.attachmentName !== undefined) {
+    obj.attachmentName = payload.attachmentName;
+  }
+  return new TextEncoder().encode(JSON.stringify(obj));
+}
+
+/**
+ * Decode server payload bytes back into SDK field names.
+ *
+ * Used by `update()` to merge existing payload with user-provided changes.
+ */
+function decodePayload(bytes: Uint8Array): ScheduledMessagePayload {
+  const obj = JSON.parse(new TextDecoder().decode(bytes));
+  return {
+    chat: chatGuid(obj.chatGuid ?? ""),
+    projectId: obj.projectId ?? "",
+    text: obj.message,
+    service: obj.service,
+    subject: obj.subject,
+    effectId: obj.effectId,
+    clientMessageId: obj.clientMessageId,
+    attachmentPath: obj.attachmentPath,
+    attachmentName: obj.attachmentName,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Resource
@@ -41,11 +103,8 @@ export class ScheduledMessagesResource {
     options: CreateScheduledMessageOptions
   ): Promise<ScheduledMessage> {
     try {
-      // Encode the payload as JSON bytes containing the send request info.
-      const payloadObj = { chat: options.chat, text: options.text };
-      const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
+      const payloadBytes = encodePayload(options);
 
-      // Encode the schedule as JSON bytes.
       const scheduleObj = options.schedule ?? { type: "once" as const };
       const scheduleBytes = new TextEncoder().encode(
         JSON.stringify(scheduleObj)
@@ -88,33 +147,59 @@ export class ScheduledMessagesResource {
     }
   }
 
-  /** Update an existing scheduled message. */
+  /**
+   * Update an existing scheduled message.
+   *
+   * The server requires a complete payload on every update. This method
+   * automatically fetches the current message, merges your changes into
+   * its existing payload, and sends the full replacement.
+   */
   async update(
     id: ScheduledMessageId,
     options: UpdateScheduledMessageOptions
   ): Promise<ScheduledMessage> {
     try {
-      // Build payload bytes from the update options, if text/chat are provided.
-      const payloadObj: Record<string, unknown> = {};
-      if (options.chat !== undefined) {
-        payloadObj.chat = options.chat;
-      }
-      if (options.text !== undefined) {
-        payloadObj.text = options.text;
-      }
-      const payloadBytes = new TextEncoder().encode(JSON.stringify(payloadObj));
+      // Fetch current message to use as base for merge.
+      const current = await this.get(id);
+      const existing = decodePayload(current.payload);
 
-      // Build schedule bytes from the update options, if schedule is provided.
-      const scheduleObj = options.schedule ?? { type: "once" as const };
-      const scheduleBytes = new TextEncoder().encode(
-        JSON.stringify(scheduleObj)
-      );
+      // Merge: user-provided values override existing ones.
+      const merged: ScheduledMessagePayload = {
+        chat: (options.chat as ChatGuid) ?? existing.chat,
+        projectId: options.projectId ?? existing.projectId,
+        text: options.text === undefined ? existing.text : options.text,
+        service:
+          options.service === undefined ? existing.service : options.service,
+        subject:
+          options.subject === undefined ? existing.subject : options.subject,
+        effectId:
+          options.effectId === undefined ? existing.effectId : options.effectId,
+        clientMessageId:
+          options.clientMessageId === undefined
+            ? existing.clientMessageId
+            : options.clientMessageId,
+        attachmentPath:
+          options.attachmentPath === undefined
+            ? existing.attachmentPath
+            : options.attachmentPath,
+        attachmentName:
+          options.attachmentName === undefined
+            ? existing.attachmentName
+            : options.attachmentName,
+      };
+
+      const payloadBytes = encodePayload(merged);
+
+      // Use updated schedule if provided, otherwise preserve existing.
+      const scheduleBytes = options.schedule
+        ? new TextEncoder().encode(JSON.stringify(options.schedule))
+        : current.schedule;
 
       const response = await this._client.updateScheduledMessage({
         id,
         type: ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_SEND_MESSAGE,
         payload: payloadBytes,
-        scheduledFor: options.scheduledFor,
+        scheduledFor: options.scheduledFor ?? current.scheduledFor,
         schedule: scheduleBytes,
       });
 
