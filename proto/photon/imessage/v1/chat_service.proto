@@ -14,10 +14,8 @@ service ChatService {
   rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
   rpc GetChat(GetChatRequest) returns (GetChatResponse);
   rpc GetChatCount(GetChatCountRequest) returns (GetChatCountResponse);
-  rpc DeleteChat(DeleteChatRequest) returns (DeleteChatResponse);
   rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
   rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
-  rpc CanShareContactInfo(CanShareContactInfoRequest) returns (CanShareContactInfoResponse);
   rpc ShareContactInfo(ShareContactInfoRequest) returns (ShareContactInfoResponse);
   rpc StartTyping(StartTypingRequest) returns (StartTypingResponse);
   rpc StopTyping(StopTypingRequest) returns (StopTypingResponse);
@@ -78,12 +76,6 @@ message GetChatCountResponse {
   int64 count = 1;
 }
 
-message DeleteChatRequest {
-  string guid = 1;
-}
-
-message DeleteChatResponse {}
-
 message LeaveChatRequest {
   string guid = 1;
 }
@@ -95,14 +87,6 @@ message MarkReadRequest {
 }
 
 message MarkReadResponse {}
-
-message CanShareContactInfoRequest {
-  string chat_guid = 1;
-}
-
-message CanShareContactInfoResponse {
-  bool can_share = 1;
-}
 
 message ShareContactInfoRequest {
   string chat_guid = 1;
@@ -139,9 +123,15 @@ message SubscribeChatEventsRequest {}
 message SubscribeChatEventsResponse {
   google.protobuf.Timestamp timestamp = 1;
   oneof payload {
+    ChatLifecycleEvent chat_created = 12;
+    ChatLifecycleEvent chat_left = 14;
     ChatReadStatusEvent chat_read_status_changed = 10;
     TypingEvent typing_indicator = 11;
   }
+}
+
+message ChatLifecycleEvent {
+  string chat_guid = 1;
 }
 
 message ChatReadStatusEvent {

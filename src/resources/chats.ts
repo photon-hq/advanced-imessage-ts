@@ -99,17 +99,6 @@ export class ChatsResource {
   }
 
   /**
-   * Permanently delete a chat.
-   */
-  async delete(guid: ChatGuid): Promise<void> {
-    try {
-      await this._client.deleteChat({ guid });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
    * Leave a group chat.
    */
   async leave(guid: ChatGuid): Promise<void> {
@@ -138,21 +127,6 @@ export class ChatsResource {
   // -------------------------------------------------------------------------
   // Contact info sharing
   // -------------------------------------------------------------------------
-
-  /**
-   * Check whether the local user can share contact info (Name and Photo)
-   * with the participants of a chat.
-   */
-  async canShareContactInfo(chat: ChatGuid): Promise<boolean> {
-    try {
-      const response = await this._client.canShareContactInfo({
-        chatGuid: chat,
-      });
-      return response.canShare;
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
 
   /**
    * Share the local user's contact info (Name and Photo) with a chat.
