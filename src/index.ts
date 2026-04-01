@@ -97,5 +97,6 @@ export { Reaction } from "./types/reactions.js";
 export type {
   CreateScheduledMessageOptions,
   ScheduledMessage,
+  ScheduledMessagePayload,
   UpdateScheduledMessageOptions,
 } from "./types/scheduled-messages.js";
