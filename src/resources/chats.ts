@@ -1,11 +1,12 @@
 /**
  * ChatsResource -- manages conversations (direct and group), including
- * creation, deletion, typing indicators, contact info sharing, participants,
- * and real-time event subscription.
+ * creation, typing indicators, contact info sharing, participants, and
+ * real-time event subscription.
  */
 
 import { fromGrpcError } from "../errors/error-handler.ts";
 import type {
+  ChatLifecycleEvent,
   ChatReadStatusEvent,
   TypingEvent,
 } from "../generated/photon/imessage/v1/chat_service.ts";
@@ -206,7 +207,21 @@ export class ChatsResource {
         for await (const proto of rpcStream) {
           const timestamp = proto.timestamp ?? new Date();
 
-          if (proto.chatReadStatusChanged !== undefined) {
+          if (proto.chatCreated !== undefined) {
+            const evt: ChatLifecycleEvent = proto.chatCreated;
+            yield {
+              type: "chat.created" as const,
+              timestamp,
+              chatGuid: chatGuid(evt.chatGuid),
+            };
+          } else if (proto.chatLeft !== undefined) {
+            const evt: ChatLifecycleEvent = proto.chatLeft;
+            yield {
+              type: "chat.left" as const,
+              timestamp,
+              chatGuid: chatGuid(evt.chatGuid),
+            };
+          } else if (proto.chatReadStatusChanged !== undefined) {
             const evt: ChatReadStatusEvent = proto.chatReadStatusChanged;
             yield {
               type: "chat.readStatusChanged" as const,

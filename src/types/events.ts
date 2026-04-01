@@ -55,6 +55,16 @@ export type MessageEvent =
 /** Events related to chat-level state changes. */
 export type ChatEvent =
   | {
+      readonly type: "chat.created";
+      readonly timestamp: Date;
+      readonly chatGuid: ChatGuid;
+    }
+  | {
+      readonly type: "chat.left";
+      readonly timestamp: Date;
+      readonly chatGuid: ChatGuid;
+    }
+  | {
       readonly type: "chat.readStatusChanged";
       readonly timestamp: Date;
       readonly chatGuid: ChatGuid;
@@ -155,6 +165,8 @@ export type IMessageEvent =
  * specific event type string is provided.
  */
 export interface EventTypeMap {
+  "chat.created": Extract<ChatEvent, { type: "chat.created" }>;
+  "chat.left": Extract<ChatEvent, { type: "chat.left" }>;
   "chat.readStatusChanged": Extract<
     ChatEvent,
     { type: "chat.readStatusChanged" }
