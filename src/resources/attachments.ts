@@ -1,6 +1,6 @@
 /**
  * AttachmentsResource -- manages attachment metadata retrieval, uploading,
- * downloading (including streaming downloads), force-downloading from iCloud,
+ * downloading (including streaming downloads with transparent iCloud recovery),
  * and Live Photo extraction.
  */
 
@@ -234,6 +234,10 @@ export class AttachmentsResource {
    *
    * The returned `StreamedDownload` provides both a `ReadableStream` for
    * streaming consumption and an `arrayBuffer()` method for buffered use.
+   *
+   * If the attachment has been purged from local storage (iCloud-optimized),
+   * the server transparently recovers it from iCloud before streaming --
+   * no separate force-download step is needed.
    */
   download(guid: AttachmentGuid): StreamedDownload {
     const rpcStream = this._client.download({ attachmentGuid: guid });
@@ -249,19 +253,6 @@ export class AttachmentsResource {
   async downloadBuffer(guid: AttachmentGuid): Promise<Uint8Array> {
     const dl = this.download(guid);
     return await dl.arrayBuffer();
-  }
-
-  /**
-   * Force-download an attachment from iCloud.
-   *
-   * This triggers the server to re-download the attachment from Apple's
-   * servers, useful when the local copy is missing or corrupted.
-   */
-  forceDownload(guid: AttachmentGuid): StreamedDownload {
-    const rpcStream = this._client.forceDownload({
-      attachmentGuid: guid,
-    });
-    return createStreamedDownload(rpcStream);
   }
 
   /**

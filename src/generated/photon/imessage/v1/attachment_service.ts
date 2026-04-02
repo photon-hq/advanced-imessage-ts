@@ -62,16 +62,6 @@ export interface GetLivePhotoResponse {
   offset: number;
 }
 
-export interface ForceDownloadRequest {
-  attachmentGuid: string;
-}
-
-export interface ForceDownloadResponse {
-  data: Uint8Array;
-  totalBytes: number;
-  offset: number;
-}
-
 function createBaseGetAttachmentRequest(): GetAttachmentRequest {
   return { guid: "" };
 }
@@ -791,166 +781,6 @@ export const GetLivePhotoResponse: MessageFns<GetLivePhotoResponse> = {
   },
 };
 
-function createBaseForceDownloadRequest(): ForceDownloadRequest {
-  return { attachmentGuid: "" };
-}
-
-export const ForceDownloadRequest: MessageFns<ForceDownloadRequest> = {
-  encode(message: ForceDownloadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.attachmentGuid !== "") {
-      writer.uint32(10).string(message.attachmentGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ForceDownloadRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseForceDownloadRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.attachmentGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ForceDownloadRequest {
-    return {
-      attachmentGuid: isSet(object.attachmentGuid)
-        ? globalThis.String(object.attachmentGuid)
-        : isSet(object.attachment_guid)
-        ? globalThis.String(object.attachment_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: ForceDownloadRequest): unknown {
-    const obj: any = {};
-    if (message.attachmentGuid !== "") {
-      obj.attachmentGuid = message.attachmentGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<ForceDownloadRequest>): ForceDownloadRequest {
-    return ForceDownloadRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<ForceDownloadRequest>): ForceDownloadRequest {
-    const message = createBaseForceDownloadRequest();
-    message.attachmentGuid = object.attachmentGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseForceDownloadResponse(): ForceDownloadResponse {
-  return { data: new Uint8Array(0), totalBytes: 0, offset: 0 };
-}
-
-export const ForceDownloadResponse: MessageFns<ForceDownloadResponse> = {
-  encode(message: ForceDownloadResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.data.length !== 0) {
-      writer.uint32(10).bytes(message.data);
-    }
-    if (message.totalBytes !== 0) {
-      writer.uint32(16).int64(message.totalBytes);
-    }
-    if (message.offset !== 0) {
-      writer.uint32(24).int64(message.offset);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ForceDownloadResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseForceDownloadResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.data = reader.bytes();
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.totalBytes = longToNumber(reader.int64());
-          continue;
-        }
-        case 3: {
-          if (tag !== 24) {
-            break;
-          }
-
-          message.offset = longToNumber(reader.int64());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ForceDownloadResponse {
-    return {
-      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-      totalBytes: isSet(object.totalBytes)
-        ? globalThis.Number(object.totalBytes)
-        : isSet(object.total_bytes)
-        ? globalThis.Number(object.total_bytes)
-        : 0,
-      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
-    };
-  },
-
-  toJSON(message: ForceDownloadResponse): unknown {
-    const obj: any = {};
-    if (message.data.length !== 0) {
-      obj.data = base64FromBytes(message.data);
-    }
-    if (message.totalBytes !== 0) {
-      obj.totalBytes = Math.round(message.totalBytes);
-    }
-    if (message.offset !== 0) {
-      obj.offset = Math.round(message.offset);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<ForceDownloadResponse>): ForceDownloadResponse {
-    return ForceDownloadResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<ForceDownloadResponse>): ForceDownloadResponse {
-    const message = createBaseForceDownloadResponse();
-    message.data = object.data ?? new Uint8Array(0);
-    message.totalBytes = object.totalBytes ?? 0;
-    message.offset = object.offset ?? 0;
-    return message;
-  },
-};
-
 export type AttachmentServiceDefinition = typeof AttachmentServiceDefinition;
 export const AttachmentServiceDefinition = {
   name: "AttachmentService",
@@ -996,14 +826,6 @@ export const AttachmentServiceDefinition = {
       responseStream: true,
       options: {},
     },
-    forceDownload: {
-      name: "ForceDownload",
-      requestType: ForceDownloadRequest as typeof ForceDownloadRequest,
-      requestStream: false,
-      responseType: ForceDownloadResponse as typeof ForceDownloadResponse,
-      responseStream: true,
-      options: {},
-    },
   },
 } as const;
 
@@ -1025,10 +847,6 @@ export interface AttachmentServiceImplementation<CallContextExt = {}> {
     request: GetLivePhotoRequest,
     context: CallContext & CallContextExt,
   ): ServerStreamingMethodResult<DeepPartial<GetLivePhotoResponse>>;
-  forceDownload(
-    request: ForceDownloadRequest,
-    context: CallContext & CallContextExt,
-  ): ServerStreamingMethodResult<DeepPartial<ForceDownloadResponse>>;
 }
 
 export interface AttachmentServiceClient<CallOptionsExt = {}> {
@@ -1049,10 +867,6 @@ export interface AttachmentServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<GetLivePhotoRequest>,
     options?: CallOptions & CallOptionsExt,
   ): AsyncIterable<GetLivePhotoResponse>;
-  forceDownload(
-    request: DeepPartial<ForceDownloadRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): AsyncIterable<ForceDownloadResponse>;
 }
 
 function bytesFromBase64(b64: string): Uint8Array {

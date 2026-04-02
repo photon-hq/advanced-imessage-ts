@@ -15,7 +15,6 @@ service AttachmentService {
   rpc Upload(UploadRequest) returns (UploadResponse);
   rpc Download(DownloadRequest) returns (stream DownloadResponse);
   rpc GetLivePhoto(GetLivePhotoRequest) returns (stream GetLivePhotoResponse);
-  rpc ForceDownload(ForceDownloadRequest) returns (stream ForceDownloadResponse);
 }
 
 // ---------------------------------------------------------------------------
@@ -70,12 +69,3 @@ message GetLivePhotoResponse {
   int64 offset = 3;
 }
 
-message ForceDownloadRequest {
-  string attachment_guid = 1;
-}
-
-message ForceDownloadResponse {
-  bytes data = 1;
-  int64 total_bytes = 2;
-  int64 offset = 3;
-}
