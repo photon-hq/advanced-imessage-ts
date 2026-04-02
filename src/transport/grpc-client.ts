@@ -87,7 +87,7 @@ export interface GrpcClientOptions {
   autoIdempotency?: boolean;
   /**
    * Whether to use TLS. If `true`, the channel uses SSL credentials.
-   * Defaults to `false` (insecure).
+   * Defaults to `true`.
    */
   tls?: boolean;
   /**
@@ -117,9 +117,10 @@ export interface GrpcClientOptions {
  */
 export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
   // --- Channel ---
-  const credentials = options.tls
-    ? ChannelCredentials.createSsl()
-    : ChannelCredentials.createInsecure();
+  const credentials =
+    (options.tls ?? true)
+      ? ChannelCredentials.createSsl()
+      : ChannelCredentials.createInsecure();
 
   const channel = createChannel(options.address, credentials);
 
