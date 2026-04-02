@@ -76,6 +76,40 @@ export type AttachmentInput =
     };
 
 // ---------------------------------------------------------------------------
+// LivePhotoInput
+// ---------------------------------------------------------------------------
+
+/**
+ * Input for uploading a Live Photo (paired image + video).
+ *
+ * Supply raw bytes for both components. The server writes the video as a
+ * companion `.mov` sibling file, matching the convention used by
+ * `getLivePhoto()` for download. The video file name and MIME type are
+ * determined server-side (always `.mov` / `video/quicktime`).
+ *
+ * @example
+ * ```ts
+ * const att = await im.attachments.uploadLivePhoto({
+ *   image: { data: heicBytes, fileName: "photo.HEIC", mimeType: "image/heic" },
+ *   video: { data: movBytes },
+ * });
+ * console.log(att.hasLivePhoto); // true
+ * ```
+ */
+export interface LivePhotoInput {
+  /** The still-image component (typically HEIC or JPEG). */
+  readonly image: {
+    readonly data: Uint8Array;
+    readonly fileName: string;
+    readonly mimeType: string;
+  };
+  /** The companion video component (raw `.mov` bytes). */
+  readonly video: {
+    readonly data: Uint8Array;
+  };
+}
+
+// ---------------------------------------------------------------------------
 // StreamedDownload
 // ---------------------------------------------------------------------------
 

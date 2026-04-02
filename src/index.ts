@@ -20,6 +20,7 @@ export type { AddressInfo } from "./types/addresses.js";
 export type {
   AttachmentInfo,
   AttachmentInput,
+  LivePhotoInput,
   StreamedDownload,
 } from "./types/attachments.js";
 // Branded types + constructors

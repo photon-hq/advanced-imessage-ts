@@ -30,6 +30,12 @@ export interface UploadRequest {
   fileName: string;
   mimeType: string;
   data: Uint8Array;
+  /**
+   * Optional Live Photo companion video (.mov).
+   * When present the server writes a sibling .mov file next to the image,
+   * enabling getLivePhoto() to find it via the existing naming convention.
+   */
+  livePhotoVideo?: Uint8Array | undefined;
 }
 
 export interface UploadResponse {
@@ -286,7 +292,7 @@ export const GetAttachmentCountResponse: MessageFns<GetAttachmentCountResponse> 
 };
 
 function createBaseUploadRequest(): UploadRequest {
-  return { fileName: "", mimeType: "", data: new Uint8Array(0) };
+  return { fileName: "", mimeType: "", data: new Uint8Array(0), livePhotoVideo: undefined };
 }
 
 export const UploadRequest: MessageFns<UploadRequest> = {
@@ -299,6 +305,9 @@ export const UploadRequest: MessageFns<UploadRequest> = {
     }
     if (message.data.length !== 0) {
       writer.uint32(26).bytes(message.data);
+    }
+    if (message.livePhotoVideo !== undefined) {
+      writer.uint32(34).bytes(message.livePhotoVideo);
     }
     return writer;
   },
@@ -334,6 +343,14 @@ export const UploadRequest: MessageFns<UploadRequest> = {
           message.data = reader.bytes();
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.livePhotoVideo = reader.bytes();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -356,6 +373,11 @@ export const UploadRequest: MessageFns<UploadRequest> = {
         ? globalThis.String(object.mime_type)
         : "",
       data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
+      livePhotoVideo: isSet(object.livePhotoVideo)
+        ? bytesFromBase64(object.livePhotoVideo)
+        : isSet(object.live_photo_video)
+        ? bytesFromBase64(object.live_photo_video)
+        : undefined,
     };
   },
 
@@ -370,6 +392,9 @@ export const UploadRequest: MessageFns<UploadRequest> = {
     if (message.data.length !== 0) {
       obj.data = base64FromBytes(message.data);
     }
+    if (message.livePhotoVideo !== undefined) {
+      obj.livePhotoVideo = base64FromBytes(message.livePhotoVideo);
+    }
     return obj;
   },
 
@@ -381,6 +406,7 @@ export const UploadRequest: MessageFns<UploadRequest> = {
     message.fileName = object.fileName ?? "";
     message.mimeType = object.mimeType ?? "";
     message.data = object.data ?? new Uint8Array(0);
+    message.livePhotoVideo = object.livePhotoVideo ?? undefined;
     return message;
   },
 };
