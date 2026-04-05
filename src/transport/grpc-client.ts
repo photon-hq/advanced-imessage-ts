@@ -87,6 +87,7 @@ export interface GrpcClientOptions {
   autoIdempotency?: boolean;
   /**
    * Whether to use TLS. If `true`, the channel uses SSL credentials.
+   * If `false`, this forces `ChannelCredentials.createInsecure()`.
    * Defaults to `true`.
    */
   tls?: boolean;
