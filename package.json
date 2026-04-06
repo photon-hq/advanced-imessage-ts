@@ -9,8 +9,13 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist", "proto"],
-  "engines": { "node": ">=18" },
+  "files": [
+    "dist",
+    "proto"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "generate": "PATH=./node_modules/.bin:$PATH buf generate",
     "build": "bun run generate && tsup",
