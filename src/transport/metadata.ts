@@ -11,7 +11,10 @@ import {
   Metadata,
 } from "nice-grpc-common";
 import type { RetryOptions } from "../types/common.ts";
+import { readMetadataValue } from "../utils/grpc-metadata.ts";
 import { generateIdempotencyKey } from "../utils/idempotency.ts";
+import { DEFAULT_RETRY_OPTIONS } from "../utils/retry.ts";
+import { sleep } from "../utils/sleep.ts";
 
 // ---------------------------------------------------------------------------
 // Auth middleware
@@ -94,32 +97,6 @@ export function idempotencyMiddleware(): ClientMiddleware {
 // Retry middleware
 // ---------------------------------------------------------------------------
 
-/** Default retry settings (4 total attempts with exponential backoff). */
-const DEFAULT_MAX_ATTEMPTS = 4;
-const DEFAULT_INITIAL_DELAY = 200;
-const DEFAULT_MAX_DELAY = 5000;
-
-/**
- * Read a string value from gRPC trailing metadata attached to an error.
- */
-function readMetadataValue(error: unknown, key: string): string | undefined {
-  const meta = (error as { metadata?: { get(key: string): unknown[] } })
-    .metadata;
-  if (!meta || typeof meta.get !== "function") {
-    return undefined;
-  }
-  const values = meta.get(key);
-  if (!Array.isArray(values) || values.length === 0) {
-    return undefined;
-  }
-  const first = values[0];
-  return typeof first === "string" ? first : undefined;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise<void>((resolve) => setTimeout(resolve, ms));
-}
-
 /**
  * Creates a nice-grpc client middleware that automatically retries failed
  * unary calls when the server indicates the error is retryable (via the
@@ -129,9 +106,12 @@ function sleep(ms: number): Promise<void> {
  * through without retry.
  */
 export function retryMiddleware(opts: RetryOptions = {}): ClientMiddleware {
-  const maxAttempts = opts.maxAttempts ?? DEFAULT_MAX_ATTEMPTS;
-  const initialDelay = opts.initialDelay ?? DEFAULT_INITIAL_DELAY;
-  const maxDelay = opts.maxDelay ?? DEFAULT_MAX_DELAY;
+  const maxAttempts = Math.max(
+    1,
+    opts.maxAttempts ?? DEFAULT_RETRY_OPTIONS.maxAttempts
+  );
+  const initialDelay = opts.initialDelay ?? DEFAULT_RETRY_OPTIONS.initialDelay;
+  const maxDelay = opts.maxDelay ?? DEFAULT_RETRY_OPTIONS.maxDelay;
 
   return async function* retryMw(call, options) {
     // Skip streaming calls — retrying mid-stream would duplicate data.
@@ -156,17 +136,18 @@ export function retryMiddleware(opts: RetryOptions = {}): ClientMiddleware {
         // Exponential backoff with full jitter.
         const exponentialDelay = initialDelay * 2 ** attempt;
         const cappedDelay = Math.min(exponentialDelay, maxDelay);
-        await sleep(Math.random() * cappedDelay);
+        await sleep(Math.random() * cappedDelay, options.signal);
+
+        // Stop retrying if the caller has cancelled.
+        if (options.signal?.aborted) {
+          throw error;
+        }
       }
     }
 
     throw lastError;
   };
 }
-
-// ---------------------------------------------------------------------------
-// Timeout middleware
-// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Trailing metadata capture middleware
@@ -225,13 +206,19 @@ export function trailingMetadataCaptureMiddleware(): ClientMiddleware {
 
 /**
  * Creates a nice-grpc client middleware that sets a default timeout on
- * every call via `AbortSignal.timeout()`.
+ * unary calls via `AbortSignal.timeout()`.  Streaming calls are passed
+ * through without a timeout to avoid killing long-lived subscriptions.
  *
  * If the caller already supplied an `AbortSignal`, the timeout signal is
  * combined with it using `AbortSignal.any()` so that either can cancel.
  */
 export function timeoutMiddleware(timeoutMs: number): ClientMiddleware {
   return async function* timeoutMw(call, options) {
+    // Skip streaming calls — a fixed timeout would kill long-lived streams.
+    if (call.method.responseStream || call.method.requestStream) {
+      return yield* call.next(call.request, options);
+    }
+
     if (options.signal) {
       // Preserve the caller's signal while adding the timeout.
       const combined = AbortSignal.any([

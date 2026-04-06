@@ -31,7 +31,7 @@ describe("withRetry", () => {
         }
         return "recovered";
       },
-      { maxAttempts: 4, initialDelay: 1, maxDelay: 1 },
+      { maxAttempts: 4, initialDelay: 1, maxDelay: 1 }
     );
 
     expect(result).toBe("recovered");
@@ -50,7 +50,7 @@ describe("withRetry", () => {
             grpcCode: 5,
           });
         },
-        { maxAttempts: 3, initialDelay: 1, maxDelay: 1 },
+        { maxAttempts: 3, initialDelay: 1, maxDelay: 1 }
       );
       throw new Error("should have thrown");
     } catch (err: any) {
@@ -68,7 +68,7 @@ describe("withRetry", () => {
           calls++;
           throw new Error("generic");
         },
-        { maxAttempts: 3, initialDelay: 1, maxDelay: 1 },
+        { maxAttempts: 3, initialDelay: 1, maxDelay: 1 }
       );
       throw new Error("should have thrown");
     } catch (err: any) {
@@ -89,7 +89,7 @@ describe("withRetry", () => {
             grpcCode: 14,
           });
         },
-        { maxAttempts: 2, initialDelay: 1, maxDelay: 1 },
+        { maxAttempts: 2, initialDelay: 1, maxDelay: 1 }
       );
       throw new Error("should have thrown");
     } catch (err: any) {
@@ -114,7 +114,12 @@ describe("withRetry", () => {
             grpcCode: 14,
           });
         },
-        { maxAttempts: 5, initialDelay: 1, maxDelay: 1, signal: controller.signal },
+        {
+          maxAttempts: 5,
+          initialDelay: 1,
+          maxDelay: 1,
+          signal: controller.signal,
+        }
       );
       throw new Error("should have thrown");
     } catch (err: any) {

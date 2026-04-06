@@ -8,24 +8,29 @@
  * behaviour without requiring an actual gRPC server.
  */
 
-import { describe, expect, it, mock } from "bun:test";
-import { type CallOptions, ClientError, Metadata, Status } from "nice-grpc-common";
-import type { RetryOptions } from "../../src/types/common.ts";
+import { describe, expect, it } from "bun:test";
+import {
+  type CallOptions,
+  ClientError,
+  Metadata,
+  Status,
+} from "nice-grpc-common";
 import {
   retryMiddleware,
   timeoutMiddleware,
   trailingMetadataCaptureMiddleware,
 } from "../../src/transport/metadata.ts";
+import type { RetryOptions } from "../../src/types/common.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers — mock the nice-grpc middleware call/next interface
 // ---------------------------------------------------------------------------
 
 interface MockMethodDescriptor {
+  options: Record<string, unknown>;
   path: string;
   requestStream: boolean;
   responseStream: boolean;
-  options: Record<string, unknown>;
 }
 
 const UNARY_METHOD: MockMethodDescriptor = {
@@ -50,11 +55,12 @@ const SERVER_STREAM_METHOD: MockMethodDescriptor = {
 function buildCall<Req, Res>(
   method: MockMethodDescriptor,
   request: Req,
-  handler: (req: Req, opts: CallOptions) => Promise<Res>,
+  handler: (req: Req, opts: CallOptions) => Promise<Res>
 ) {
+  // biome-ignore lint/correctness/useYield: simulates nice-grpc async generator interface
   async function* nextFn(
     req: Req | AsyncIterable<Req>,
-    opts: CallOptions,
+    opts: CallOptions
   ): AsyncGenerator<never, Res, undefined> {
     return await handler(req as Req, opts);
   }
@@ -69,7 +75,9 @@ function buildCall<Req, Res>(
 }
 
 /** Drain an async generator, returning the final return value. */
-async function drain<T>(gen: AsyncGenerator<T, T | void, undefined>): Promise<T> {
+async function drain<T>(
+  gen: AsyncGenerator<T, T | undefined, undefined>
+): Promise<T> {
   let result = await gen.next();
   while (!result.done) {
     result = await gen.next();
@@ -84,7 +92,7 @@ async function drain<T>(gen: AsyncGenerator<T, T | void, undefined>): Promise<T>
 function errorWithMetadata(
   code: number,
   details: string,
-  meta: Record<string, string>,
+  meta: Record<string, string>
 ): ClientError {
   const err = new ClientError("/test.Service/Unary", code, details);
   Object.defineProperty(err, "metadata", {
@@ -114,7 +122,11 @@ describe("trailingMetadataCaptureMiddleware", () => {
       trailer.set("error-code", "chatNotFound");
       trailer.set("x-retryable", "true");
       opts.onTrailer?.(trailer);
-      throw new ClientError("/test.Service/Unary", Status.NOT_FOUND, "chat not found");
+      throw new ClientError(
+        "/test.Service/Unary",
+        Status.NOT_FOUND,
+        "chat not found"
+      );
     };
 
     const call = buildCall(UNARY_METHOD, {}, handler);
@@ -141,7 +153,11 @@ describe("trailingMetadataCaptureMiddleware", () => {
       const trailer = Metadata();
       trailer.set("error-code", "timeout");
       opts.onTrailer?.(trailer);
-      throw new ClientError("/test.Service/Unary", Status.DEADLINE_EXCEEDED, "timeout");
+      throw new ClientError(
+        "/test.Service/Unary",
+        Status.DEADLINE_EXCEEDED,
+        "timeout"
+      );
     };
 
     const call = buildCall(UNARY_METHOD, {}, handler);
@@ -276,26 +292,8 @@ describe("retryMiddleware", () => {
     expect(attempts).toBe(1);
   });
 
-  it("uses default options when none provided", async () => {
+  it("uses default options when none provided", () => {
     const mw = retryMiddleware();
-
-    let attempts = 0;
-    const handler = async () => {
-      attempts++;
-      if (attempts < 4) {
-        throw errorWithMetadata(Status.UNAVAILABLE, "unavailable", {
-          "x-retryable": "true",
-        });
-      }
-      return "success";
-    };
-
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    // Use very short delays to speed up the test — but default middleware
-    // uses 200ms base delay. We test with explicit opts in other tests.
-    // Here we just verify it doesn't crash with defaults.
-    // Actually, defaults have real delays. Let's use explicit opts.
-    // Test that the constructor doesn't blow up:
     expect(mw).toBeFunction();
   });
 });
@@ -320,7 +318,25 @@ describe("timeoutMiddleware", () => {
 
     expect(result).toBe("ok");
     expect(receivedSignal).toBeDefined();
-    expect(receivedSignal!.aborted).toBe(false);
+    expect(receivedSignal?.aborted).toBe(false);
+  });
+
+  it("skips streaming calls", async () => {
+    const mw = timeoutMiddleware(5000);
+
+    let receivedSignal: AbortSignal | undefined;
+    const handler = async (_req: unknown, opts: CallOptions) => {
+      receivedSignal = opts.signal;
+      return "ok";
+    };
+
+    const call = buildCall(SERVER_STREAM_METHOD, {}, handler);
+    const gen = mw(call as any, {});
+    const result = await drain(gen);
+
+    expect(result).toBe("ok");
+    // Streaming calls should NOT get a timeout signal
+    expect(receivedSignal).toBeUndefined();
   });
 
   it("combines with existing caller signal", async () => {
@@ -340,11 +356,11 @@ describe("timeoutMiddleware", () => {
     expect(receivedSignal).toBeDefined();
     // The received signal should be a combined signal (not the original)
     expect(receivedSignal).not.toBe(callerAbort.signal);
-    expect(receivedSignal!.aborted).toBe(false);
+    expect(receivedSignal?.aborted).toBe(false);
 
     // Aborting the caller's signal should propagate
     callerAbort.abort();
-    expect(receivedSignal!.aborted).toBe(true);
+    expect(receivedSignal?.aborted).toBe(true);
   });
 });
 
@@ -355,7 +371,11 @@ describe("timeoutMiddleware", () => {
 describe("trailingMetadataCapture + retry integration", () => {
   it("retry reads x-retryable from captured trailing metadata", async () => {
     const captureMw = trailingMetadataCaptureMiddleware();
-    const retryMw = retryMiddleware({ maxAttempts: 3, initialDelay: 1, maxDelay: 1 });
+    const retryMw = retryMiddleware({
+      maxAttempts: 3,
+      initialDelay: 1,
+      maxDelay: 1,
+    });
 
     let attempts = 0;
 
@@ -372,7 +392,11 @@ describe("trailingMetadataCapture + retry integration", () => {
       opts.onTrailer?.(trailer);
 
       if (attempts < 3) {
-        throw new ClientError("/test.Service/Unary", Status.UNAVAILABLE, "unavailable");
+        throw new ClientError(
+          "/test.Service/Unary",
+          Status.UNAVAILABLE,
+          "unavailable"
+        );
       }
       return "success";
     };
@@ -382,7 +406,8 @@ describe("trailingMetadataCapture + retry integration", () => {
 
     // Inner: capture wraps handler
     const innerCall = buildCall(UNARY_METHOD, {}, handler);
-    const captureGen = (req: unknown, opts: CallOptions) => captureMw(innerCall as any, opts);
+    const captureGen = (_req: unknown, opts: CallOptions) =>
+      captureMw(innerCall as any, opts);
 
     // Outer: retry wraps capture
     const outerCall = {

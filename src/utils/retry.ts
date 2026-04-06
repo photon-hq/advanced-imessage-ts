@@ -6,10 +6,10 @@
  */
 
 import { IMessageError } from "../errors/imessage-error.ts";
+import type { RetryOptions } from "../types/common.ts";
+import { sleep } from "./sleep.ts";
 
 export type { RetryOptions } from "../types/common.ts";
-
-import type { RetryOptions } from "../types/common.ts";
 
 // ---------------------------------------------------------------------------
 // Options
@@ -41,7 +41,10 @@ export async function withRetry<T>(
   fn: () => Promise<T>,
   options: RetryOptions & { readonly signal?: AbortSignal } = {}
 ): Promise<T> {
-  const maxAttempts = options.maxAttempts ?? DEFAULT_RETRY_OPTIONS.maxAttempts;
+  const maxAttempts = Math.max(
+    1,
+    options.maxAttempts ?? DEFAULT_RETRY_OPTIONS.maxAttempts
+  );
   const initialDelay =
     options.initialDelay ?? DEFAULT_RETRY_OPTIONS.initialDelay;
   const maxDelay = options.maxDelay ?? DEFAULT_RETRY_OPTIONS.maxDelay;
@@ -77,32 +80,4 @@ export async function withRetry<T>(
 
   // Should be unreachable, but satisfies the type checker.
   throw lastError;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Sleep for the given number of milliseconds, aborting early if the signal
- * fires.
- */
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise<void>((resolve) => {
-    if (signal?.aborted) {
-      resolve();
-      return;
-    }
-
-    const timer = setTimeout(resolve, ms);
-
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true }
-    );
-  });
 }
