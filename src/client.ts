@@ -41,6 +41,7 @@ export interface AdvancedIMessage extends AsyncDisposable {
 export function createClient(options: ClientOptions): AdvancedIMessage {
   const clients = createGrpcClients({
     address: options.address,
+    autoIdempotency: options.autoIdempotency,
     tls: options.tls,
     token: options.token,
   });
