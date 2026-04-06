@@ -45,6 +45,9 @@ import { unwrap } from "../utils/unwrap.ts";
 // Helpers
 // ---------------------------------------------------------------------------
 
+// biome-ignore lint/suspicious/noEmptyBlockStatements: intentional noop for promise chain suppression
+function noop(): void {}
+
 /**
  * Convert SDK TextFormatInput[] to proto TextFormat[].
  */
@@ -104,9 +107,38 @@ function resolveReplyTo(
 
 export class MessagesResource {
   private readonly _client: MessageServiceClient;
+  private readonly _chains = new Map<string, Promise<void>>();
 
   constructor(client: MessageServiceClient) {
     this._client = client;
+  }
+
+  // -------------------------------------------------------------------------
+  // Ordering internals
+  // -------------------------------------------------------------------------
+
+  /**
+   * Chain a send onto the per-chat promise queue. Sends to the same chat
+   * execute sequentially; different chats proceed concurrently.
+   */
+  private _enqueue<T>(chat: ChatGuid, fn: () => Promise<T>): Promise<T> {
+    const prev = this._chains.get(chat) ?? Promise.resolve();
+
+    const task = prev.then(
+      () => fn(),
+      () => fn()
+    );
+
+    const chain = task.then(noop, noop);
+    this._chains.set(chat, chain);
+
+    chain.then(() => {
+      if (this._chains.get(chat) === chain) {
+        this._chains.delete(chat);
+      }
+    });
+
+    return task;
   }
 
   // -------------------------------------------------------------------------
@@ -116,7 +148,15 @@ export class MessagesResource {
   /**
    * Send a plain-text message to a chat (Tier 1 / Tier 2 API).
    */
-  async send(
+  send(
+    chat: ChatGuid,
+    text: string,
+    options?: SendOptions
+  ): Promise<SendReceipt> {
+    return this._enqueue(chat, () => this._doSend(chat, text, options));
+  }
+
+  private async _doSend(
     chat: ChatGuid,
     text: string,
     options?: SendOptions
@@ -170,7 +210,17 @@ export class MessagesResource {
    * a single text string. Formatting is specified per-part rather than at
    * the top level.
    */
-  async sendMultipart(
+  sendMultipart(
+    chat: ChatGuid,
+    parts: MessagePart[],
+    options?: Omit<SendOptions, "formatting">
+  ): Promise<SendReceipt> {
+    return this._enqueue(chat, () =>
+      this._doSendMultipart(chat, parts, options)
+    );
+  }
+
+  private async _doSendMultipart(
     chat: ChatGuid,
     parts: MessagePart[],
     options?: Omit<SendOptions, "formatting">
@@ -221,7 +271,11 @@ export class MessagesResource {
    *
    * Accepts a `ComposedMessage` typically produced by `MessageBuilder`.
    */
-  async sendComposed(
+  sendComposed(chat: ChatGuid, message: ComposedMessage): Promise<SendReceipt> {
+    return this._enqueue(chat, () => this._doSendComposed(chat, message));
+  }
+
+  private async _doSendComposed(
     chat: ChatGuid,
     message: ComposedMessage
   ): Promise<SendReceipt> {
