@@ -9,15 +9,16 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       return;
     }
 
-    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
 
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true }
-    );
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
