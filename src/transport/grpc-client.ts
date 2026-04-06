@@ -31,8 +31,15 @@ import { PollServiceDefinition } from "../generated/photon/imessage/v1/poll_serv
 import type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
 import { ScheduledMessageServiceDefinition } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
 
+import type { RetryOptions } from "../types/common.ts";
 // Middleware
-import { authMiddleware, idempotencyMiddleware } from "./metadata.ts";
+import {
+  authMiddleware,
+  idempotencyMiddleware,
+  retryMiddleware,
+  timeoutMiddleware,
+  trailingMetadataCaptureMiddleware,
+} from "./metadata.ts";
 
 // ---------------------------------------------------------------------------
 // Client type aliases
@@ -86,6 +93,17 @@ export interface GrpcClientOptions {
    */
   autoIdempotency?: boolean;
   /**
+   * Enable automatic retry with exponential backoff for retryable errors.
+   * Pass `true` for default settings, or a `RetryOptions` object to
+   * customise the behaviour.
+   */
+  retry?: boolean | RetryOptions;
+  /**
+   * Default timeout in milliseconds for unary RPC calls.
+   * Sets a deadline on each call unless one is already provided.
+   */
+  timeout?: number;
+  /**
    * Whether to use TLS. If `true`, the channel uses SSL credentials.
    * Defaults to `false` (insecure).
    */
@@ -124,17 +142,32 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
   const channel = createChannel(options.address, credentials);
 
   // --- Client factory with middleware ---
+  //
+  // Middleware is added outermost-first: the first .use() call runs first
+  // in the call chain. Desired execution order:
+  //   idempotency → retry → timeout → auth → trailingMetadataCapture → RPC
   let factory = createClientFactory();
 
-  // Idempotency middleware runs first (outermost), so it executes before auth.
   if (options.autoIdempotency) {
     factory = factory.use(idempotencyMiddleware());
   }
 
-  // Auth middleware runs after idempotency (innermost), closest to the wire.
+  if (options.retry) {
+    const retryOpts = options.retry === true ? {} : options.retry;
+    factory = factory.use(retryMiddleware(retryOpts));
+  }
+
+  if (options.timeout) {
+    factory = factory.use(timeoutMiddleware(options.timeout));
+  }
+
   if (options.token) {
     factory = factory.use(authMiddleware(options.token));
   }
+
+  // Always capture trailing metadata — nice-grpc strips it from errors,
+  // but our error handler and retry middleware depend on it.
+  factory = factory.use(trailingMetadataCaptureMiddleware());
 
   // --- Create clients ---
   // ts-proto definitions are natively compatible with nice-grpc, no casts needed.
