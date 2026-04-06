@@ -42,6 +42,8 @@ export function createClient(options: ClientOptions): AdvancedIMessage {
   const clients = createGrpcClients({
     address: options.address,
     autoIdempotency: options.autoIdempotency,
+    retry: options.retry,
+    timeout: options.timeout,
     tls: options.tls,
     token: options.token,
   });

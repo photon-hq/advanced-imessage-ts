@@ -22,6 +22,7 @@
 
 import { ClientError, Status } from "nice-grpc-common";
 import type { ErrorCode } from "../types/errors.ts";
+import { readMetadataValue } from "../utils/grpc-metadata.ts";
 import {
   AuthenticationError,
   ConnectionError,
@@ -31,37 +32,6 @@ import {
   RateLimitError,
   ValidationError,
 } from "./imessage-error.ts";
-
-// ---------------------------------------------------------------------------
-// Metadata helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Attempt to read a string value from gRPC trailing metadata.
- *
- * nice-grpc-common's `ClientError` does not expose metadata directly, so we
- * also accept a raw `@grpc/grpc-js` status object (which carries a `metadata`
- * field with a `.get()` method).
- */
-function readMetadataValue(error: unknown, key: string): string | undefined {
-  // The raw @grpc/grpc-js error carries `metadata` with a `.get()` method
-  // that returns an array of MetadataValue (string | Buffer).
-  const meta = (error as { metadata?: { get(key: string): unknown[] } })
-    .metadata;
-
-  if (!meta || typeof meta.get !== "function") {
-    return undefined;
-  }
-
-  const values = meta.get(key);
-
-  if (!Array.isArray(values) || values.length === 0) {
-    return undefined;
-  }
-
-  const first = values[0];
-  return typeof first === "string" ? first : undefined;
-}
 
 // ---------------------------------------------------------------------------
 // Public API
