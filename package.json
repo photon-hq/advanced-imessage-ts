@@ -2,7 +2,7 @@
   "name": "@photon-ai/advanced-imessage",
   "version": "0.1.1",
   "description": "TypeScript SDK for Advanced iMessage API",
-  "author": "Photon AI",
+  "author": "Photon",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -10,8 +10,8 @@
   },
   "keywords": [
     "imessage",
-    "sdk",
-    "grpc",
+    "agent",
+    "ai",
     "typescript",
     "apple"
   ],
