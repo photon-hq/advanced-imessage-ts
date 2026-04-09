@@ -28,20 +28,15 @@ export class LocationsResource {
   // Queries
   // -------------------------------------------------------------------------
 
-  /** Get the current list of Find My Friends with their last known locations. */
-  async getFriends(): Promise<FindMyFriend[]> {
+  /**
+   * Get the current cached Find My snapshot and trigger a server-side
+   * background refresh.
+   */
+  async getFriends(friendIds?: readonly string[]): Promise<FindMyFriend[]> {
     try {
-      const response = await this._client.getFriends({});
-      return response.friends.map(mapFindMyFriend);
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  /** Force a refresh of friend locations and return the updated list. */
-  async refreshFriends(): Promise<FindMyFriend[]> {
-    try {
-      const response = await this._client.refreshFriends({});
+      const response = await this._client.getFriends({
+        friendIds: friendIds ? [...friendIds] : [],
+      });
       return response.friends.map(mapFindMyFriend);
     } catch (error) {
       throw fromGrpcError(error);
@@ -52,7 +47,7 @@ export class LocationsResource {
   // Event subscription
   // -------------------------------------------------------------------------
 
-  /** Subscribe to location update events. Returns a typed event stream. */
+  /** Subscribe to real-time location update events. Returns a typed stream. */
   subscribe(): TypedEventStream<LocationEvent> {
     const rpcStream = this._client.subscribeLocationEvents({});
 
