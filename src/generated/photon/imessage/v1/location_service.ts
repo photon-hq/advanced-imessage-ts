@@ -15,6 +15,7 @@ export enum FindMyLocationType {
   FIND_MY_LOCATION_TYPE_UNSPECIFIED = 0,
   FIND_MY_LOCATION_TYPE_LIVE = 1,
   FIND_MY_LOCATION_TYPE_SHALLOW = 2,
+  FIND_MY_LOCATION_TYPE_LEGACY = 3,
   UNRECOGNIZED = -1,
 }
 
@@ -29,6 +30,9 @@ export function findMyLocationTypeFromJSON(object: any): FindMyLocationType {
     case 2:
     case "FIND_MY_LOCATION_TYPE_SHALLOW":
       return FindMyLocationType.FIND_MY_LOCATION_TYPE_SHALLOW;
+    case 3:
+    case "FIND_MY_LOCATION_TYPE_LEGACY":
+      return FindMyLocationType.FIND_MY_LOCATION_TYPE_LEGACY;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -44,6 +48,8 @@ export function findMyLocationTypeToJSON(object: FindMyLocationType): string {
       return "FIND_MY_LOCATION_TYPE_LIVE";
     case FindMyLocationType.FIND_MY_LOCATION_TYPE_SHALLOW:
       return "FIND_MY_LOCATION_TYPE_SHALLOW";
+    case FindMyLocationType.FIND_MY_LOCATION_TYPE_LEGACY:
+      return "FIND_MY_LOCATION_TYPE_LEGACY";
     case FindMyLocationType.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -65,16 +71,11 @@ export interface FindMyFriend {
 }
 
 export interface GetFriendsRequest {
+  /** Filter by specific friend IDs. Empty = return all friends. */
+  friendIds: string[];
 }
 
 export interface GetFriendsResponse {
-  friends: FindMyFriend[];
-}
-
-export interface RefreshFriendsRequest {
-}
-
-export interface RefreshFriendsResponse {
   friends: FindMyFriend[];
 }
 
@@ -347,11 +348,14 @@ export const FindMyFriend: MessageFns<FindMyFriend> = {
 };
 
 function createBaseGetFriendsRequest(): GetFriendsRequest {
-  return {};
+  return { friendIds: [] };
 }
 
 export const GetFriendsRequest: MessageFns<GetFriendsRequest> = {
-  encode(_: GetFriendsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: GetFriendsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.friendIds) {
+      writer.uint32(10).string(v!);
+    }
     return writer;
   },
 
@@ -362,6 +366,14 @@ export const GetFriendsRequest: MessageFns<GetFriendsRequest> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.friendIds.push(reader.string());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -371,20 +383,30 @@ export const GetFriendsRequest: MessageFns<GetFriendsRequest> = {
     return message;
   },
 
-  fromJSON(_: any): GetFriendsRequest {
-    return {};
+  fromJSON(object: any): GetFriendsRequest {
+    return {
+      friendIds: globalThis.Array.isArray(object?.friendIds)
+        ? object.friendIds.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.friend_ids)
+        ? object.friend_ids.map((e: any) => globalThis.String(e))
+        : [],
+    };
   },
 
-  toJSON(_: GetFriendsRequest): unknown {
+  toJSON(message: GetFriendsRequest): unknown {
     const obj: any = {};
+    if (message.friendIds?.length) {
+      obj.friendIds = message.friendIds;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<GetFriendsRequest>): GetFriendsRequest {
     return GetFriendsRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<GetFriendsRequest>): GetFriendsRequest {
+  fromPartial(object: DeepPartial<GetFriendsRequest>): GetFriendsRequest {
     const message = createBaseGetFriendsRequest();
+    message.friendIds = object.friendIds?.map((e) => e) || [];
     return message;
   },
 };
@@ -446,111 +468,6 @@ export const GetFriendsResponse: MessageFns<GetFriendsResponse> = {
   },
   fromPartial(object: DeepPartial<GetFriendsResponse>): GetFriendsResponse {
     const message = createBaseGetFriendsResponse();
-    message.friends = object.friends?.map((e) => FindMyFriend.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseRefreshFriendsRequest(): RefreshFriendsRequest {
-  return {};
-}
-
-export const RefreshFriendsRequest: MessageFns<RefreshFriendsRequest> = {
-  encode(_: RefreshFriendsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RefreshFriendsRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRefreshFriendsRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): RefreshFriendsRequest {
-    return {};
-  },
-
-  toJSON(_: RefreshFriendsRequest): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<RefreshFriendsRequest>): RefreshFriendsRequest {
-    return RefreshFriendsRequest.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<RefreshFriendsRequest>): RefreshFriendsRequest {
-    const message = createBaseRefreshFriendsRequest();
-    return message;
-  },
-};
-
-function createBaseRefreshFriendsResponse(): RefreshFriendsResponse {
-  return { friends: [] };
-}
-
-export const RefreshFriendsResponse: MessageFns<RefreshFriendsResponse> = {
-  encode(message: RefreshFriendsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.friends) {
-      FindMyFriend.encode(v!, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RefreshFriendsResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRefreshFriendsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.friends.push(FindMyFriend.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): RefreshFriendsResponse {
-    return {
-      friends: globalThis.Array.isArray(object?.friends)
-        ? object.friends.map((e: any) => FindMyFriend.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: RefreshFriendsResponse): unknown {
-    const obj: any = {};
-    if (message.friends?.length) {
-      obj.friends = message.friends.map((e) => FindMyFriend.toJSON(e));
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<RefreshFriendsResponse>): RefreshFriendsResponse {
-    return RefreshFriendsResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<RefreshFriendsResponse>): RefreshFriendsResponse {
-    const message = createBaseRefreshFriendsResponse();
     message.friends = object.friends?.map((e) => FindMyFriend.fromPartial(e)) || [];
     return message;
   },
@@ -749,6 +666,7 @@ export const LocationServiceDefinition = {
   name: "LocationService",
   fullName: "photon.imessage.v1.LocationService",
   methods: {
+    /** Returns the current cached snapshot and triggers a background refresh. */
     getFriends: {
       name: "GetFriends",
       requestType: GetFriendsRequest as typeof GetFriendsRequest,
@@ -757,14 +675,10 @@ export const LocationServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    refreshFriends: {
-      name: "RefreshFriends",
-      requestType: RefreshFriendsRequest as typeof RefreshFriendsRequest,
-      requestStream: false,
-      responseType: RefreshFriendsResponse as typeof RefreshFriendsResponse,
-      responseStream: false,
-      options: {},
-    },
+    /**
+     * Forwards real helper push events. While at least one subscriber is active,
+     * the server triggers periodic background refreshes.
+     */
     subscribeLocationEvents: {
       name: "SubscribeLocationEvents",
       requestType: SubscribeLocationEventsRequest as typeof SubscribeLocationEventsRequest,
@@ -777,14 +691,15 @@ export const LocationServiceDefinition = {
 } as const;
 
 export interface LocationServiceImplementation<CallContextExt = {}> {
+  /** Returns the current cached snapshot and triggers a background refresh. */
   getFriends(
     request: GetFriendsRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetFriendsResponse>>;
-  refreshFriends(
-    request: RefreshFriendsRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<RefreshFriendsResponse>>;
+  /**
+   * Forwards real helper push events. While at least one subscriber is active,
+   * the server triggers periodic background refreshes.
+   */
   subscribeLocationEvents(
     request: SubscribeLocationEventsRequest,
     context: CallContext & CallContextExt,
@@ -792,14 +707,15 @@ export interface LocationServiceImplementation<CallContextExt = {}> {
 }
 
 export interface LocationServiceClient<CallOptionsExt = {}> {
+  /** Returns the current cached snapshot and triggers a background refresh. */
   getFriends(
     request: DeepPartial<GetFriendsRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetFriendsResponse>;
-  refreshFriends(
-    request: DeepPartial<RefreshFriendsRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<RefreshFriendsResponse>;
+  /**
+   * Forwards real helper push events. While at least one subscriber is active,
+   * the server triggers periodic background refreshes.
+   */
   subscribeLocationEvents(
     request: DeepPartial<SubscribeLocationEventsRequest>,
     options?: CallOptions & CallOptionsExt,

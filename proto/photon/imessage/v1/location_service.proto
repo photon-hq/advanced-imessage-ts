@@ -10,8 +10,11 @@ import "google/protobuf/timestamp.proto";
 // ---------------------------------------------------------------------------
 
 service LocationService {
+  // Returns the current cached snapshot and triggers a background refresh.
   rpc GetFriends(GetFriendsRequest) returns (GetFriendsResponse);
-  rpc RefreshFriends(RefreshFriendsRequest) returns (RefreshFriendsResponse);
+
+  // Forwards real helper push events. While at least one subscriber is active,
+  // the server triggers periodic background refreshes.
   rpc SubscribeLocationEvents(SubscribeLocationEventsRequest) returns (stream SubscribeLocationEventsResponse);
 }
 
@@ -23,6 +26,7 @@ enum FindMyLocationType {
   FIND_MY_LOCATION_TYPE_UNSPECIFIED = 0;
   FIND_MY_LOCATION_TYPE_LIVE = 1;
   FIND_MY_LOCATION_TYPE_SHALLOW = 2;
+  FIND_MY_LOCATION_TYPE_LEGACY = 3;
 }
 
 message FindMyFriend {
@@ -43,15 +47,12 @@ message FindMyFriend {
 // Request / Response messages
 // ---------------------------------------------------------------------------
 
-message GetFriendsRequest {}
-
-message GetFriendsResponse {
-  repeated FindMyFriend friends = 1;
+message GetFriendsRequest {
+  // Filter by specific friend IDs. Empty = return all friends.
+  repeated string friend_ids = 1;
 }
 
-message RefreshFriendsRequest {}
-
-message RefreshFriendsResponse {
+message GetFriendsResponse {
   repeated FindMyFriend friends = 1;
 }
 

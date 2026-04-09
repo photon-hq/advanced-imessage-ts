@@ -163,15 +163,22 @@ function mapScheduledMessageType(proto: ProtoScheduledMessageType): string {
 
 /**
  * Map a proto `FindMyLocationType` enum value to the SDK string literal.
+ *
+ * Older servers used `UNSPECIFIED` for legacy locations, so we treat the
+ * fallback path as `"legacy"` instead of silently misclassifying it.
  */
-function mapLocationType(proto: ProtoFindMyLocationType): "live" | "shallow" {
+function mapLocationType(
+  proto: ProtoFindMyLocationType
+): "legacy" | "live" | "shallow" {
   switch (proto) {
     case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_LIVE:
       return "live";
     case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_SHALLOW:
       return "shallow";
+    case ProtoFindMyLocationType.FIND_MY_LOCATION_TYPE_LEGACY:
+      return "legacy";
     default:
-      return "shallow";
+      return "legacy";
   }
 }
 

@@ -23,8 +23,8 @@ export interface FindMyFriend {
   readonly latitude?: number;
   /** When this location fix was taken. */
   readonly locationTimestamp?: Date;
-  /** Whether this is a live or shallow (cached) location. */
-  readonly locationType: "live" | "shallow";
+  /** Whether this is a live, shallow (cached), or legacy location. */
+  readonly locationType: "legacy" | "live" | "shallow";
   /** Full street address, when available. */
   readonly longAddress?: string;
   /** Longitude in decimal degrees. */
