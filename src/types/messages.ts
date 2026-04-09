@@ -12,6 +12,7 @@ import type { AttachmentInfo } from "./attachments.js";
 import type { AttachmentGuid, ChatGuid, MessageGuid } from "./branded.js";
 import type { MessageEffect, TextEffect } from "./effects.js";
 import type { MessageItemType, SortDirection } from "./enums.js";
+import type { Reaction } from "./reactions.js";
 
 // ---------------------------------------------------------------------------
 // Message
@@ -36,6 +37,11 @@ export interface Message {
   readonly chatGuids: readonly ChatGuid[];
   /** Client-provided idempotency key, if one was supplied when sending. */
   readonly clientMessageId?: string;
+
+  // -- Content ---------------------------------------------------------------
+
+  /** Structured interpretation of the message (text, image, reaction, etc.). */
+  readonly content: MessageContent;
 
   // -- Timeline --------------------------------------------------------------
 
@@ -99,11 +105,199 @@ export interface Message {
   readonly sender?: AddressInfo;
   /** Subject line (used with MMS-style messages). */
   readonly subject?: string;
-
-  // -- Content ---------------------------------------------------------------
-
   /** Plain-text body of the message. */
   readonly text?: string;
+
+  // -- Threading -------------------------------------------------------------
+
+  /** GUID of the thread originator message, when this is a threaded reply. */
+  readonly threadOriginatorGuid?: MessageGuid;
+  /** Part index on the originator message this reply targets. */
+  readonly threadOriginatorPart?: string;
+}
+
+// ---------------------------------------------------------------------------
+// MessageContent
+// ---------------------------------------------------------------------------
+
+export interface TextContent {
+  readonly effect?: string;
+  readonly text: string;
+  readonly type: "text";
+}
+
+export interface ImageContent {
+  readonly attachment: AttachmentInfo;
+  readonly height?: number;
+  readonly subtype?: "gif" | "png" | "heic" | "jpeg" | "webp";
+  readonly type: "image";
+  readonly width?: number;
+}
+
+export interface VideoContent {
+  readonly attachment: AttachmentInfo;
+  readonly height?: number;
+  readonly type: "video";
+  readonly width?: number;
+}
+
+export interface AudioContent {
+  readonly attachment: AttachmentInfo;
+  readonly isVoiceMessage: boolean;
+  readonly type: "audio";
+}
+
+export interface FileContent {
+  readonly attachment: AttachmentInfo;
+  readonly type: "file";
+}
+
+export interface ReactionContent {
+  readonly emoji?: string;
+  readonly isRemoval: boolean;
+  readonly reaction: Reaction;
+  readonly targetGuid: MessageGuid;
+  readonly targetPart: number;
+  readonly type: "reaction";
+}
+
+export interface EditContent {
+  readonly editedAt: Date;
+  readonly newText: string;
+  readonly originalText?: string;
+  readonly type: "edit";
+}
+
+export interface UnsendContent {
+  readonly retractedAt: Date;
+  readonly type: "unsend";
+}
+
+export interface ContactContent {
+  readonly attachmentGuid?: AttachmentGuid;
+  readonly type: "contact";
+}
+
+export interface RichLinkContent {
+  readonly imageUrl?: string;
+  readonly raw?: Uint8Array;
+  readonly summary?: string;
+  readonly title?: string;
+  readonly type: "richLink";
+  readonly url?: string;
+}
+
+export interface LocationShareContent {
+  readonly address?: string;
+  readonly coordinates?: {
+    readonly latitude: number;
+    readonly longitude: number;
+  };
+  readonly kind: "pin" | "live" | "mapsLink" | "unknown";
+  readonly mapsUrl?: string;
+  readonly raw?: Uint8Array;
+  readonly type: "locationShare";
+}
+
+export interface CheckinContent {
+  readonly destinationName?: string;
+  readonly estimatedEndTime?: Date;
+  readonly mode: "timer" | "travel" | "unknown";
+  readonly raw?: Uint8Array;
+  readonly sessionId?: string;
+  readonly status: "started" | "stopped" | "expired" | "checkedIn" | "unknown";
+  readonly type: "checkin";
+}
+
+export interface PollContent {
+  readonly pollMessageGuid: MessageGuid;
+  readonly type: "poll";
+}
+
+export interface StickerContent {
+  readonly attachment: AttachmentInfo;
+  readonly type: "sticker";
+}
+
+export interface CollaborationContent {
+  readonly appName?: string;
+  readonly bundleId: string;
+  readonly raw?: Uint8Array;
+  readonly type: "collaboration";
+  readonly url?: string;
+}
+
+export interface SystemContent {
+  readonly groupTitle?: string;
+  readonly systemType: Exclude<MessageItemType, "normal"> | "other";
+  readonly type: "system";
+}
+
+export interface UnknownContent {
+  readonly type: "unknown";
+}
+
+export type MessageContent =
+  | AudioContent
+  | CheckinContent
+  | CollaborationContent
+  | ContactContent
+  | EditContent
+  | FileContent
+  | ImageContent
+  | LocationShareContent
+  | PollContent
+  | ReactionContent
+  | RichLinkContent
+  | StickerContent
+  | SystemContent
+  | TextContent
+  | UnknownContent
+  | UnsendContent
+  | VideoContent;
+
+// ---------------------------------------------------------------------------
+// VCard types
+// ---------------------------------------------------------------------------
+
+export interface VCardPhoto {
+  /** Base64-encoded image data. */
+  readonly data: string;
+  /** MIME type (e.g. "image/jpeg"). */
+  readonly mimeType: string;
+}
+
+export interface VCardAddress {
+  readonly city?: string;
+  readonly country?: string;
+  readonly label?: string;
+  readonly postalCode?: string;
+  readonly state?: string;
+  readonly street?: string;
+}
+
+export interface VCardContact {
+  readonly addresses: readonly VCardAddress[];
+  readonly emails: readonly VCardEmail[];
+  readonly firstName?: string;
+  readonly fullName?: string;
+  readonly lastName?: string;
+  readonly note?: string;
+  readonly org?: string;
+  readonly phones: readonly VCardPhone[];
+  readonly photo?: VCardPhoto;
+  readonly title?: string;
+  readonly urls: readonly string[];
+}
+
+export interface VCardPhone {
+  readonly label?: string;
+  readonly value: string;
+}
+
+export interface VCardEmail {
+  readonly label?: string;
+  readonly value: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -59,9 +59,18 @@ import type {
   TransferState,
 } from "../types/enums.ts";
 import type { FindMyFriend } from "../types/locations.ts";
-import type { Message } from "../types/messages.ts";
+import type { Message, MessageContent } from "../types/messages.ts";
 import type { PollInfo, PollOption, PollVote } from "../types/polls.ts";
+import type { Reaction } from "../types/reactions.ts";
 import type { ScheduledMessage } from "../types/scheduled-messages.ts";
+import {
+  decompressPayload,
+  extractCheckin,
+  extractCollaboration,
+  extractLocationShare,
+  extractOriginalText,
+  extractRichLink,
+} from "../utils/payload.ts";
 
 // ---------------------------------------------------------------------------
 // Timestamp conversion
@@ -244,6 +253,300 @@ export function mapAttachmentInfo(proto: ProtoAttachmentInfo): AttachmentInfo {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Content resolution
+// ---------------------------------------------------------------------------
+
+/** 2000-2005 = add, 3000-3005 = remove. Last digit indexes into this array. */
+const TAPBACK_REACTIONS: readonly Reaction[] = [
+  "love",
+  "like",
+  "dislike",
+  "laugh",
+  "emphasize",
+  "question",
+];
+
+const TAPBACK_PART_RE = /^p:(\d+)\//;
+
+const BALLOON_RICH_LINK = "com.apple.messages.URLBalloonProvider";
+const BALLOON_CHECKIN =
+  "com.apple.SafetyMonitorPlugin.SafetyMonitorMessageExtension";
+const BALLOON_LOCATION = "com.apple.locationsharing";
+const BALLOON_POLL = "com.apple.messages.PollBalloonProvider";
+const BALLOON_COLLAB_PREFIX =
+  "com.apple.messages.MSMessageExtensionBalloonPlugin:";
+
+const IMAGE_SUBTYPE_MAP: Record<
+  string,
+  "gif" | "png" | "heic" | "jpeg" | "webp"
+> = {
+  "image/gif": "gif",
+  "image/png": "png",
+  "image/heic": "heic",
+  "image/jpeg": "jpeg",
+  "image/webp": "webp",
+};
+
+/** Priority: unsend > reaction > edit > system > balloon > attachment > text > unknown */
+function resolveContent(
+  proto: ProtoMessage,
+  mappedAttachments: readonly AttachmentInfo[]
+): MessageContent {
+  if (proto.dateRetracted) {
+    return { type: "unsend", retractedAt: proto.dateRetracted };
+  }
+
+  const reactionResult = resolveReaction(proto);
+  if (reactionResult) {
+    return reactionResult;
+  }
+
+  if (proto.dateEdited) {
+    return resolveEdit(proto);
+  }
+
+  if (
+    proto.isSystemMessage ||
+    proto.itemType !== ProtoMessageItemType.MESSAGE_ITEM_TYPE_NORMAL
+  ) {
+    return resolveSystem(proto);
+  }
+
+  const balloonResult = resolveBalloon(proto);
+  if (balloonResult) {
+    return balloonResult;
+  }
+
+  const attachmentResult = resolveAttachment(proto, mappedAttachments);
+  if (attachmentResult) {
+    return attachmentResult;
+  }
+
+  if (proto.text) {
+    return {
+      type: "text",
+      text: proto.text,
+      effect: proto.expressiveSendStyleId,
+    };
+  }
+
+  return { type: "unknown" };
+}
+
+function resolveReaction(proto: ProtoMessage): MessageContent | undefined {
+  if (!proto.associatedMessageType) {
+    return undefined;
+  }
+
+  const code = Number.parseInt(proto.associatedMessageType, 10);
+  if (Number.isNaN(code) || code < 2000 || code > 3005) {
+    return undefined;
+  }
+
+  const isRemoval = code >= 3000;
+  const reactionIdx = (code % 1000) % 6;
+  const reaction = TAPBACK_REACTIONS[reactionIdx] ?? "love";
+
+  let targetGuid = proto.associatedMessageGuid ?? "";
+  let targetPart = 0;
+  const partMatch = TAPBACK_PART_RE.exec(targetGuid);
+  if (partMatch) {
+    targetPart = Number.parseInt(partMatch[1] ?? "0", 10);
+    targetGuid = targetGuid.slice(partMatch[0].length);
+  }
+
+  return {
+    type: "reaction",
+    reaction,
+    emoji: proto.associatedMessageEmoji,
+    isRemoval,
+    targetGuid: messageGuid(targetGuid),
+    targetPart,
+  };
+}
+
+function resolveEdit(proto: ProtoMessage): MessageContent {
+  const originalText = proto.messageSummaryInfo
+    ? extractOriginalText(proto.messageSummaryInfo)
+    : undefined;
+  return {
+    type: "edit",
+    editedAt: proto.dateEdited ?? new Date(0),
+    newText: proto.text ?? "",
+    originalText,
+  };
+}
+
+function resolveSystem(proto: ProtoMessage): MessageContent {
+  const itemType = mapMessageItemType(proto.itemType);
+  const systemType = itemType === "normal" ? "other" : itemType;
+  return { type: "system", groupTitle: proto.groupTitle, systemType };
+}
+
+function resolveBalloon(proto: ProtoMessage): MessageContent | undefined {
+  if (!proto.balloonBundleId) {
+    return undefined;
+  }
+
+  const balloon = proto.balloonBundleId;
+  const rawPayload = proto.payloadData;
+
+  if (balloon === BALLOON_RICH_LINK) {
+    return resolveRichLink(rawPayload);
+  }
+  if (balloon === BALLOON_CHECKIN) {
+    return resolveCheckin(rawPayload);
+  }
+  if (balloon === BALLOON_LOCATION) {
+    return resolveLocationShare(rawPayload);
+  }
+  if (balloon === BALLOON_POLL) {
+    return { type: "poll", pollMessageGuid: messageGuid(proto.guid) };
+  }
+  if (balloon.startsWith(BALLOON_COLLAB_PREFIX)) {
+    return resolveCollaboration(balloon, rawPayload);
+  }
+  return undefined;
+}
+
+function resolveAttachment(
+  proto: ProtoMessage,
+  mappedAttachments: readonly AttachmentInfo[]
+): MessageContent | undefined {
+  const first = mappedAttachments[0];
+  if (!first) {
+    return undefined;
+  }
+
+  if (first.isSticker) {
+    return { type: "sticker", attachment: first };
+  }
+
+  const mime = first.mimeType.toLowerCase();
+
+  if (mime === "text/vcard" || mime === "text/x-vcard") {
+    return { type: "contact", attachmentGuid: first.guid };
+  }
+  if (mime.startsWith("image/")) {
+    return {
+      type: "image",
+      attachment: first,
+      height: first.height,
+      subtype: IMAGE_SUBTYPE_MAP[mime],
+      width: first.width,
+    };
+  }
+  if (mime.startsWith("video/")) {
+    return {
+      type: "video",
+      attachment: first,
+      height: first.height,
+      width: first.width,
+    };
+  }
+  if (mime.startsWith("audio/")) {
+    return {
+      type: "audio",
+      attachment: first,
+      isVoiceMessage: proto.isAudioMessage,
+    };
+  }
+  return { type: "file", attachment: first };
+}
+
+function tryDecompress(rawPayload: Uint8Array | undefined): Uint8Array | null {
+  if (!rawPayload || rawPayload.length === 0) {
+    return null;
+  }
+  return decompressPayload(rawPayload);
+}
+
+function resolveRichLink(rawPayload: Uint8Array | undefined): MessageContent {
+  const decompressed = tryDecompress(rawPayload);
+  if (!decompressed) {
+    return { type: "richLink", raw: rawPayload };
+  }
+  const extracted = extractRichLink(decompressed);
+  return {
+    type: "richLink",
+    url: extracted.url,
+    title: extracted.title,
+    summary: extracted.summary,
+    imageUrl: extracted.imageUrl,
+    raw: extracted.url ? undefined : rawPayload,
+  };
+}
+
+function resolveCheckin(rawPayload: Uint8Array | undefined): MessageContent {
+  const decompressed = tryDecompress(rawPayload);
+  if (!decompressed) {
+    return {
+      type: "checkin",
+      mode: "unknown",
+      status: "unknown",
+      raw: rawPayload,
+    };
+  }
+  const extracted = extractCheckin(decompressed);
+  return {
+    type: "checkin",
+    mode: extracted.mode,
+    status: extracted.status,
+    sessionId: extracted.sessionId,
+    estimatedEndTime: extracted.estimatedEndTime,
+    destinationName: extracted.destinationName,
+    raw:
+      extracted.mode === "unknown" && extracted.status === "unknown"
+        ? rawPayload
+        : undefined,
+  };
+}
+
+function resolveLocationShare(
+  rawPayload: Uint8Array | undefined
+): MessageContent {
+  const decompressed = tryDecompress(rawPayload);
+  if (!decompressed) {
+    return { type: "locationShare", kind: "unknown", raw: rawPayload };
+  }
+  const extracted = extractLocationShare(decompressed);
+  return {
+    type: "locationShare",
+    kind: extracted.kind,
+    coordinates:
+      extracted.latitude != null && extracted.longitude != null
+        ? { latitude: extracted.latitude, longitude: extracted.longitude }
+        : undefined,
+    address: extracted.address,
+    mapsUrl: extracted.mapsUrl,
+    raw: extracted.kind === "unknown" ? rawPayload : undefined,
+  };
+}
+
+function resolveCollaboration(
+  balloonBundleId: string,
+  rawPayload: Uint8Array | undefined
+): MessageContent {
+  const bundleId = balloonBundleId.slice(BALLOON_COLLAB_PREFIX.length);
+  const decompressed = tryDecompress(rawPayload);
+  if (!decompressed) {
+    return { type: "collaboration", bundleId, raw: rawPayload };
+  }
+  const extracted = extractCollaboration(decompressed);
+  return {
+    type: "collaboration",
+    appName: extracted.appName,
+    url: extracted.url,
+    bundleId,
+    raw: extracted.appName || extracted.url ? undefined : rawPayload,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Domain type mappers: proto -> SDK (continued)
+// ---------------------------------------------------------------------------
+
 /**
  * Map a proto `Message` to the SDK `Message`.
  *
@@ -252,11 +555,14 @@ export function mapAttachmentInfo(proto: ProtoAttachmentInfo): AttachmentInfo {
  * object.
  */
 export function mapMessage(proto: ProtoMessage): Message {
+  const mappedAttachments = proto.attachments.map(mapAttachmentInfo);
+
   return {
     guid: messageGuid(proto.guid),
     clientMessageId: proto.clientMessageId,
 
     // Content
+    content: resolveContent(proto, mappedAttachments),
     text: proto.text,
     subject: proto.subject,
 
@@ -295,8 +601,14 @@ export function mapMessage(proto: ProtoMessage): Message {
     expressiveSendStyleId: proto.expressiveSendStyleId,
 
     // Relations
-    attachments: proto.attachments.map(mapAttachmentInfo),
+    attachments: mappedAttachments,
     chatGuids: proto.chatGuids.map(chatGuid),
+
+    // Threading
+    threadOriginatorGuid: proto.threadOriginatorGuid
+      ? messageGuid(proto.threadOriginatorGuid)
+      : undefined,
+    threadOriginatorPart: proto.threadOriginatorPart,
 
     // Runtime
     latencyMs: proto.latencyMs,

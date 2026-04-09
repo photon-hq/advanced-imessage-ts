@@ -81,18 +81,7 @@ export type {
 } from "./types/events.js";
 export type { BackgroundInfo } from "./types/groups.js";
 export type { FindMyFriend } from "./types/locations.js";
-// Domain types
-export type {
-  ComposedMessage,
-  EmbeddedMediaItem,
-  Message,
-  MessageListOptions,
-  MessagePart,
-  MessageStats,
-  SendOptions,
-  StickerPlacement,
-  TextFormatInput,
-} from "./types/messages.js";
+export * from "./types/messages.js";
 export type { PollInfo, PollOption, PollVote } from "./types/polls.js";
 export { Reaction } from "./types/reactions.js";
 export type {
@@ -101,3 +90,4 @@ export type {
   ScheduledMessagePayload,
   UpdateScheduledMessageOptions,
 } from "./types/scheduled-messages.js";
+export { parseVCard } from "./utils/payload.js";
