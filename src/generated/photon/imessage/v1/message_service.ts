@@ -235,6 +235,7 @@ export interface StickerPlacement {
   y: number;
   scale?: number | undefined;
   rotation?: number | undefined;
+  width?: number | undefined;
 }
 
 export interface MessagePart {
@@ -271,7 +272,6 @@ export interface SendRequest {
   parts: MessagePart[];
   selectedMessageGuid?: string | undefined;
   partIndex: number;
-  service?: string | undefined;
   formatting: TextFormat[];
 }
 
@@ -2071,7 +2071,7 @@ export const Message: MessageFns<Message> = {
 };
 
 function createBaseStickerPlacement(): StickerPlacement {
-  return { x: 0, y: 0, scale: undefined, rotation: undefined };
+  return { x: 0, y: 0, scale: undefined, rotation: undefined, width: undefined };
 }
 
 export const StickerPlacement: MessageFns<StickerPlacement> = {
@@ -2087,6 +2087,9 @@ export const StickerPlacement: MessageFns<StickerPlacement> = {
     }
     if (message.rotation !== undefined) {
       writer.uint32(33).double(message.rotation);
+    }
+    if (message.width !== undefined) {
+      writer.uint32(41).double(message.width);
     }
     return writer;
   },
@@ -2130,6 +2133,14 @@ export const StickerPlacement: MessageFns<StickerPlacement> = {
           message.rotation = reader.double();
           continue;
         }
+        case 5: {
+          if (tag !== 41) {
+            break;
+          }
+
+          message.width = reader.double();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -2145,6 +2156,7 @@ export const StickerPlacement: MessageFns<StickerPlacement> = {
       y: isSet(object.y) ? globalThis.Number(object.y) : 0,
       scale: isSet(object.scale) ? globalThis.Number(object.scale) : undefined,
       rotation: isSet(object.rotation) ? globalThis.Number(object.rotation) : undefined,
+      width: isSet(object.width) ? globalThis.Number(object.width) : undefined,
     };
   },
 
@@ -2162,6 +2174,9 @@ export const StickerPlacement: MessageFns<StickerPlacement> = {
     if (message.rotation !== undefined) {
       obj.rotation = message.rotation;
     }
+    if (message.width !== undefined) {
+      obj.width = message.width;
+    }
     return obj;
   },
 
@@ -2174,6 +2189,7 @@ export const StickerPlacement: MessageFns<StickerPlacement> = {
     message.y = object.y ?? 0;
     message.scale = object.scale ?? undefined;
     message.rotation = object.rotation ?? undefined;
+    message.width = object.width ?? undefined;
     return message;
   },
 };
@@ -2470,7 +2486,6 @@ function createBaseSendRequest(): SendRequest {
     parts: [],
     selectedMessageGuid: undefined,
     partIndex: 0,
-    service: undefined,
     formatting: [],
   };
 }
@@ -2527,9 +2542,6 @@ export const SendRequest: MessageFns<SendRequest> = {
     }
     if (message.partIndex !== 0) {
       writer.uint32(136).int32(message.partIndex);
-    }
-    if (message.service !== undefined) {
-      writer.uint32(146).string(message.service);
     }
     for (const v of message.formatting) {
       TextFormat.encode(v!, writer.uint32(154).fork()).join();
@@ -2680,14 +2692,6 @@ export const SendRequest: MessageFns<SendRequest> = {
           message.partIndex = reader.int32();
           continue;
         }
-        case 18: {
-          if (tag !== 146) {
-            break;
-          }
-
-          message.service = reader.string();
-          continue;
-        }
         case 19: {
           if (tag !== 154) {
             break;
@@ -2782,7 +2786,6 @@ export const SendRequest: MessageFns<SendRequest> = {
         : isSet(object.part_index)
         ? globalThis.Number(object.part_index)
         : 0,
-      service: isSet(object.service) ? globalThis.String(object.service) : undefined,
       formatting: globalThis.Array.isArray(object?.formatting)
         ? object.formatting.map((e: any) => TextFormat.fromJSON(e))
         : [],
@@ -2842,9 +2845,6 @@ export const SendRequest: MessageFns<SendRequest> = {
     if (message.partIndex !== 0) {
       obj.partIndex = Math.round(message.partIndex);
     }
-    if (message.service !== undefined) {
-      obj.service = message.service;
-    }
     if (message.formatting?.length) {
       obj.formatting = message.formatting.map((e) => TextFormat.toJSON(e));
     }
@@ -2875,7 +2875,6 @@ export const SendRequest: MessageFns<SendRequest> = {
     message.parts = object.parts?.map((e) => MessagePart.fromPartial(e)) || [];
     message.selectedMessageGuid = object.selectedMessageGuid ?? undefined;
     message.partIndex = object.partIndex ?? 0;
-    message.service = object.service ?? undefined;
     message.formatting = object.formatting?.map((e) => TextFormat.fromPartial(e)) || [];
     return message;
   },

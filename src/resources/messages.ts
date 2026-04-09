@@ -180,13 +180,13 @@ export class MessagesResource {
             y: options.sticker.placement.y,
             scale: options.sticker.placement.scale,
             rotation: options.sticker.placement.rotation,
+            width: options.sticker.placement.width,
           } satisfies ProtoStickerPlacement)
         : undefined,
       selectedMessageGuid:
         reply?.selectedMessageGuid ??
         (options?.sticker?.target as string | undefined),
       partIndex: reply?.partIndex ?? 0,
-      service: options?.service,
       parts: [],
       formatting: toProtoFormatting(options?.formatting),
     };
@@ -243,13 +243,13 @@ export class MessagesResource {
             y: options.sticker.placement.y,
             scale: options.sticker.placement.scale,
             rotation: options.sticker.placement.rotation,
+            width: options.sticker.placement.width,
           } satisfies ProtoStickerPlacement)
         : undefined,
       selectedMessageGuid:
         reply?.selectedMessageGuid ??
         (options?.sticker?.target as string | undefined),
       partIndex: reply?.partIndex ?? 0,
-      service: options?.service,
       parts: toProtoMessageParts(parts),
       formatting: [],
     };
@@ -291,7 +291,6 @@ export class MessagesResource {
       isSticker: false,
       selectedMessageGuid: reply?.selectedMessageGuid,
       partIndex: reply?.partIndex ?? 0,
-      service: message.service,
       parts: toProtoMessageParts(message.parts),
       formatting: [],
     };

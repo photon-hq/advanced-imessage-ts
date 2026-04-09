@@ -153,6 +153,7 @@ export type TextFormatInput =
 export interface StickerPlacement {
   readonly rotation?: number;
   readonly scale?: number;
+  readonly width?: number;
   readonly x: number;
   readonly y: number;
 }
@@ -181,8 +182,6 @@ export interface SendOptions {
     | { readonly guid: MessageGuid; readonly partIndex?: number };
   /** Enable rich link previews. */
   readonly richLink?: boolean;
-  /** Force a specific transport service. */
-  readonly service?: "iMessage" | "SMS" | "RCS";
   /** Place a sticker on an existing message. */
   readonly sticker?: {
     readonly attachment: AttachmentGuid;
@@ -230,8 +229,6 @@ export interface ComposedMessage {
   readonly replyTo?:
     | MessageGuid
     | { readonly guid: MessageGuid; readonly partIndex?: number };
-  /** Force a specific transport service. */
-  readonly service?: "iMessage" | "SMS" | "RCS";
   /** Subject line. */
   readonly subject?: string;
 }
