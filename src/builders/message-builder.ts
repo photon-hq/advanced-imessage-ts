@@ -22,7 +22,6 @@ export class MessageBuilder {
   private _effect?: MessageEffect;
   private _subject?: string;
   private _replyTo?: MessageGuid | { guid: MessageGuid; partIndex?: number };
-  private _service?: "iMessage" | "SMS" | "RCS";
 
   // ---------------------------------------------------------------------------
   // Static factories
@@ -190,12 +189,6 @@ export class MessageBuilder {
     return this;
   }
 
-  /** Force the message to be sent via a specific transport. */
-  withService(service: "iMessage" | "SMS" | "RCS"): this {
-    this._service = service;
-    return this;
-  }
-
   // ---------------------------------------------------------------------------
   // Terminal
   // ---------------------------------------------------------------------------
@@ -218,7 +211,6 @@ export class MessageBuilder {
       ...(this._effect != null && { effect: this._effect }),
       ...(this._subject != null && { subject: this._subject }),
       ...(this._replyTo != null && { replyTo: this._replyTo }),
-      ...(this._service != null && { service: this._service }),
     };
 
     return message;

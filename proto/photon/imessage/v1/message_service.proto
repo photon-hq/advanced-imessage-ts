@@ -161,6 +161,7 @@ message StickerPlacement {
   double y = 2;
   optional double scale = 3;
   optional double rotation = 4;
+  optional double width = 5;
 }
 
 message MessagePart {
@@ -198,7 +199,8 @@ message SendRequest {
   repeated MessagePart parts = 15;
   optional string selected_message_guid = 16;
   int32 part_index = 17;
-  optional string service = 18;
+  reserved 18;
+  reserved "service";
   repeated TextFormat formatting = 19;
 }
 
