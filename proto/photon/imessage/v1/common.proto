@@ -10,6 +10,10 @@ message PaginatedMeta {
   int32 limit = 3;
 }
 
+// Keepalive signal for streaming RPCs behind proxies (e.g. Cloudflare Tunnel).
+// Clients should silently discard these.
+message Heartbeat {}
+
 // Sort direction for list queries.
 enum SortDirection {
   SORT_DIRECTION_UNSPECIFIED = 0;

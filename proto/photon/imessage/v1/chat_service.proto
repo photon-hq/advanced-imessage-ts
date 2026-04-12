@@ -4,6 +4,7 @@ package photon.imessage.v1;
 option swift_prefix = "PIMsg_";
 
 import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/common.proto";
 import "photon/imessage/v1/message_service.proto";
 
 // ---------------------------------------------------------------------------
@@ -127,6 +128,7 @@ message SubscribeChatEventsResponse {
     ChatLifecycleEvent chat_left = 14;
     ChatReadStatusEvent chat_read_status_changed = 10;
     TypingEvent typing_indicator = 11;
+    Heartbeat heartbeat = 99;
   }
 }
 

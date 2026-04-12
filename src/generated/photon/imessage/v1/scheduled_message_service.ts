@@ -8,6 +8,7 @@
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
+import { Heartbeat } from "./common.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
@@ -179,6 +180,7 @@ export interface SubscribeScheduleEventsRequest {
 export interface SubscribeScheduleEventsResponse {
   timestamp: Date | undefined;
   scheduledMessageChanged?: ScheduledMessageEvent | undefined;
+  heartbeat?: Heartbeat | undefined;
 }
 
 export interface ScheduledMessageEvent {
@@ -1461,7 +1463,7 @@ export const SubscribeScheduleEventsRequest: MessageFns<SubscribeScheduleEventsR
 };
 
 function createBaseSubscribeScheduleEventsResponse(): SubscribeScheduleEventsResponse {
-  return { timestamp: undefined, scheduledMessageChanged: undefined };
+  return { timestamp: undefined, scheduledMessageChanged: undefined, heartbeat: undefined };
 }
 
 export const SubscribeScheduleEventsResponse: MessageFns<SubscribeScheduleEventsResponse> = {
@@ -1471,6 +1473,9 @@ export const SubscribeScheduleEventsResponse: MessageFns<SubscribeScheduleEvents
     }
     if (message.scheduledMessageChanged !== undefined) {
       ScheduledMessageEvent.encode(message.scheduledMessageChanged, writer.uint32(82).fork()).join();
+    }
+    if (message.heartbeat !== undefined) {
+      Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
     }
     return writer;
   },
@@ -1498,6 +1503,14 @@ export const SubscribeScheduleEventsResponse: MessageFns<SubscribeScheduleEvents
           message.scheduledMessageChanged = ScheduledMessageEvent.decode(reader, reader.uint32());
           continue;
         }
+        case 99: {
+          if (tag !== 794) {
+            break;
+          }
+
+          message.heartbeat = Heartbeat.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1515,6 +1528,7 @@ export const SubscribeScheduleEventsResponse: MessageFns<SubscribeScheduleEvents
         : isSet(object.scheduled_message_changed)
         ? ScheduledMessageEvent.fromJSON(object.scheduled_message_changed)
         : undefined,
+      heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
 
@@ -1525,6 +1539,9 @@ export const SubscribeScheduleEventsResponse: MessageFns<SubscribeScheduleEvents
     }
     if (message.scheduledMessageChanged !== undefined) {
       obj.scheduledMessageChanged = ScheduledMessageEvent.toJSON(message.scheduledMessageChanged);
+    }
+    if (message.heartbeat !== undefined) {
+      obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
     }
     return obj;
   },
@@ -1539,6 +1556,9 @@ export const SubscribeScheduleEventsResponse: MessageFns<SubscribeScheduleEvents
       (object.scheduledMessageChanged !== undefined && object.scheduledMessageChanged !== null)
         ? ScheduledMessageEvent.fromPartial(object.scheduledMessageChanged)
         : undefined;
+    message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
+      ? Heartbeat.fromPartial(object.heartbeat)
+      : undefined;
     return message;
   },
 };

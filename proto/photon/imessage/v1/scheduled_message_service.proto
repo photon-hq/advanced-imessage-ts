@@ -4,6 +4,7 @@ package photon.imessage.v1;
 option swift_prefix = "PIMsg_";
 
 import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/common.proto";
 
 // ---------------------------------------------------------------------------
 // Service
@@ -125,6 +126,7 @@ message SubscribeScheduleEventsResponse {
   google.protobuf.Timestamp timestamp = 1;
   oneof payload {
     ScheduledMessageEvent scheduled_message_changed = 10;
+    Heartbeat heartbeat = 99;
   }
 }
 

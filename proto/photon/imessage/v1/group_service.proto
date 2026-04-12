@@ -4,6 +4,7 @@ package photon.imessage.v1;
 option swift_prefix = "PIMsg_";
 
 import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/common.proto";
 import "photon/imessage/v1/chat_service.proto";
 
 // ---------------------------------------------------------------------------
@@ -112,6 +113,7 @@ message SubscribeGroupEventsResponse {
   google.protobuf.Timestamp timestamp = 1;
   oneof payload {
     GroupChangeEvent group_changed = 10;
+    Heartbeat heartbeat = 99;
   }
 }
 

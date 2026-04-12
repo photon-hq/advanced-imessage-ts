@@ -304,6 +304,7 @@ message SubscribeMessageEventsResponse {
     MessageReceivedEvent message_received = 11;
     MessageUpdatedEvent message_updated = 12;
     MessageSendErrorEvent message_send_error = 13;
+    Heartbeat heartbeat = 99;
   }
 }
 

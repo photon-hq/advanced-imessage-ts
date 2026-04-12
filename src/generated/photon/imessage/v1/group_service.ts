@@ -9,6 +9,7 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
 import { Chat } from "./chat_service.js";
+import { Heartbeat } from "./common.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
@@ -96,6 +97,7 @@ export interface SubscribeGroupEventsRequest {
 export interface SubscribeGroupEventsResponse {
   timestamp: Date | undefined;
   groupChanged?: GroupChangeEvent | undefined;
+  heartbeat?: Heartbeat | undefined;
 }
 
 export interface IconChanged {
@@ -1390,7 +1392,7 @@ export const SubscribeGroupEventsRequest: MessageFns<SubscribeGroupEventsRequest
 };
 
 function createBaseSubscribeGroupEventsResponse(): SubscribeGroupEventsResponse {
-  return { timestamp: undefined, groupChanged: undefined };
+  return { timestamp: undefined, groupChanged: undefined, heartbeat: undefined };
 }
 
 export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsResponse> = {
@@ -1400,6 +1402,9 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
     }
     if (message.groupChanged !== undefined) {
       GroupChangeEvent.encode(message.groupChanged, writer.uint32(82).fork()).join();
+    }
+    if (message.heartbeat !== undefined) {
+      Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
     }
     return writer;
   },
@@ -1427,6 +1432,14 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
           message.groupChanged = GroupChangeEvent.decode(reader, reader.uint32());
           continue;
         }
+        case 99: {
+          if (tag !== 794) {
+            break;
+          }
+
+          message.heartbeat = Heartbeat.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1444,6 +1457,7 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
         : isSet(object.group_changed)
         ? GroupChangeEvent.fromJSON(object.group_changed)
         : undefined,
+      heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
 
@@ -1454,6 +1468,9 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
     }
     if (message.groupChanged !== undefined) {
       obj.groupChanged = GroupChangeEvent.toJSON(message.groupChanged);
+    }
+    if (message.heartbeat !== undefined) {
+      obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
     }
     return obj;
   },
@@ -1466,6 +1483,9 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
     message.timestamp = object.timestamp ?? undefined;
     message.groupChanged = (object.groupChanged !== undefined && object.groupChanged !== null)
       ? GroupChangeEvent.fromPartial(object.groupChanged)
+      : undefined;
+    message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
+      ? Heartbeat.fromPartial(object.heartbeat)
       : undefined;
     return message;
   },

@@ -8,6 +8,7 @@
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
+import { Heartbeat } from "./common.js";
 import { Message, MessageCommandReceipt } from "./message_service.js";
 
 export const protobufPackage = "photon.imessage.v1";
@@ -84,6 +85,7 @@ export interface SubscribePollEventsRequest {
 export interface SubscribePollEventsResponse {
   timestamp: Date | undefined;
   pollChanged?: PollChangeEvent | undefined;
+  heartbeat?: Heartbeat | undefined;
 }
 
 export interface PollChangeEvent {
@@ -1203,7 +1205,7 @@ export const SubscribePollEventsRequest: MessageFns<SubscribePollEventsRequest> 
 };
 
 function createBaseSubscribePollEventsResponse(): SubscribePollEventsResponse {
-  return { timestamp: undefined, pollChanged: undefined };
+  return { timestamp: undefined, pollChanged: undefined, heartbeat: undefined };
 }
 
 export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse> = {
@@ -1213,6 +1215,9 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
     }
     if (message.pollChanged !== undefined) {
       PollChangeEvent.encode(message.pollChanged, writer.uint32(82).fork()).join();
+    }
+    if (message.heartbeat !== undefined) {
+      Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
     }
     return writer;
   },
@@ -1240,6 +1245,14 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
           message.pollChanged = PollChangeEvent.decode(reader, reader.uint32());
           continue;
         }
+        case 99: {
+          if (tag !== 794) {
+            break;
+          }
+
+          message.heartbeat = Heartbeat.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1257,6 +1270,7 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
         : isSet(object.poll_changed)
         ? PollChangeEvent.fromJSON(object.poll_changed)
         : undefined,
+      heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
 
@@ -1267,6 +1281,9 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
     }
     if (message.pollChanged !== undefined) {
       obj.pollChanged = PollChangeEvent.toJSON(message.pollChanged);
+    }
+    if (message.heartbeat !== undefined) {
+      obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
     }
     return obj;
   },
@@ -1279,6 +1296,9 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
     message.timestamp = object.timestamp ?? undefined;
     message.pollChanged = (object.pollChanged !== undefined && object.pollChanged !== null)
       ? PollChangeEvent.fromPartial(object.pollChanged)
+      : undefined;
+    message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
+      ? Heartbeat.fromPartial(object.heartbeat)
       : undefined;
     return message;
   },
