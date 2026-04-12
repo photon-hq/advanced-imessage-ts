@@ -8,6 +8,7 @@
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
+import { Heartbeat } from "./common.js";
 import { AddressInfo, Message, MessageSendReceipt } from "./message_service.js";
 
 export const protobufPackage = "photon.imessage.v1";
@@ -109,6 +110,7 @@ export interface SubscribeChatEventsResponse {
   chatLeft?: ChatLifecycleEvent | undefined;
   chatReadStatusChanged?: ChatReadStatusEvent | undefined;
   typingIndicator?: TypingEvent | undefined;
+  heartbeat?: Heartbeat | undefined;
 }
 
 export interface ChatLifecycleEvent {
@@ -1597,6 +1599,7 @@ function createBaseSubscribeChatEventsResponse(): SubscribeChatEventsResponse {
     chatLeft: undefined,
     chatReadStatusChanged: undefined,
     typingIndicator: undefined,
+    heartbeat: undefined,
   };
 }
 
@@ -1616,6 +1619,9 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
     }
     if (message.typingIndicator !== undefined) {
       TypingEvent.encode(message.typingIndicator, writer.uint32(90).fork()).join();
+    }
+    if (message.heartbeat !== undefined) {
+      Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
     }
     return writer;
   },
@@ -1667,6 +1673,14 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
           message.typingIndicator = TypingEvent.decode(reader, reader.uint32());
           continue;
         }
+        case 99: {
+          if (tag !== 794) {
+            break;
+          }
+
+          message.heartbeat = Heartbeat.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1699,6 +1713,7 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
         : isSet(object.typing_indicator)
         ? TypingEvent.fromJSON(object.typing_indicator)
         : undefined,
+      heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
 
@@ -1718,6 +1733,9 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
     }
     if (message.typingIndicator !== undefined) {
       obj.typingIndicator = TypingEvent.toJSON(message.typingIndicator);
+    }
+    if (message.heartbeat !== undefined) {
+      obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
     }
     return obj;
   },
@@ -1740,6 +1758,9 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
         : undefined;
     message.typingIndicator = (object.typingIndicator !== undefined && object.typingIndicator !== null)
       ? TypingEvent.fromPartial(object.typingIndicator)
+      : undefined;
+    message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
+      ? Heartbeat.fromPartial(object.heartbeat)
       : undefined;
     return message;
   },

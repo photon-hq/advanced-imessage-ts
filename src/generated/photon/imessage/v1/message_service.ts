@@ -8,7 +8,7 @@
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
-import { PaginatedMeta, SortDirection, sortDirectionFromJSON, sortDirectionToJSON } from "./common.js";
+import { Heartbeat, PaginatedMeta, SortDirection, sortDirectionFromJSON, sortDirectionToJSON } from "./common.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
@@ -375,6 +375,7 @@ export interface SubscribeMessageEventsResponse {
   messageReceived?: MessageReceivedEvent | undefined;
   messageUpdated?: MessageUpdatedEvent | undefined;
   messageSendError?: MessageSendErrorEvent | undefined;
+  heartbeat?: Heartbeat | undefined;
 }
 
 export interface MessageSentEvent {
@@ -4395,6 +4396,7 @@ function createBaseSubscribeMessageEventsResponse(): SubscribeMessageEventsRespo
     messageReceived: undefined,
     messageUpdated: undefined,
     messageSendError: undefined,
+    heartbeat: undefined,
   };
 }
 
@@ -4414,6 +4416,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     }
     if (message.messageSendError !== undefined) {
       MessageSendErrorEvent.encode(message.messageSendError, writer.uint32(106).fork()).join();
+    }
+    if (message.heartbeat !== undefined) {
+      Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
     }
     return writer;
   },
@@ -4465,6 +4470,14 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
           message.messageSendError = MessageSendErrorEvent.decode(reader, reader.uint32());
           continue;
         }
+        case 99: {
+          if (tag !== 794) {
+            break;
+          }
+
+          message.heartbeat = Heartbeat.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4497,6 +4510,7 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
         : isSet(object.message_send_error)
         ? MessageSendErrorEvent.fromJSON(object.message_send_error)
         : undefined,
+      heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
 
@@ -4516,6 +4530,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     }
     if (message.messageSendError !== undefined) {
       obj.messageSendError = MessageSendErrorEvent.toJSON(message.messageSendError);
+    }
+    if (message.heartbeat !== undefined) {
+      obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
     }
     return obj;
   },
@@ -4537,6 +4554,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
       : undefined;
     message.messageSendError = (object.messageSendError !== undefined && object.messageSendError !== null)
       ? MessageSendErrorEvent.fromPartial(object.messageSendError)
+      : undefined;
+    message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
+      ? Heartbeat.fromPartial(object.heartbeat)
       : undefined;
     return message;
   },

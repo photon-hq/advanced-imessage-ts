@@ -56,6 +56,13 @@ export interface PaginatedMeta {
   limit: number;
 }
 
+/**
+ * Keepalive signal for streaming RPCs behind proxies (e.g. Cloudflare Tunnel).
+ * Clients should silently discard these.
+ */
+export interface Heartbeat {
+}
+
 function createBasePaginatedMeta(): PaginatedMeta {
   return { total: 0, offset: 0, limit: 0 };
 }
@@ -144,6 +151,49 @@ export const PaginatedMeta: MessageFns<PaginatedMeta> = {
     message.total = object.total ?? 0;
     message.offset = object.offset ?? 0;
     message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseHeartbeat(): Heartbeat {
+  return {};
+}
+
+export const Heartbeat: MessageFns<Heartbeat> = {
+  encode(_: Heartbeat, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Heartbeat {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHeartbeat();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): Heartbeat {
+    return {};
+  },
+
+  toJSON(_: Heartbeat): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<Heartbeat>): Heartbeat {
+    return Heartbeat.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<Heartbeat>): Heartbeat {
+    const message = createBaseHeartbeat();
     return message;
   },
 };
