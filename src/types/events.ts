@@ -25,12 +25,14 @@ export type MessageEvent =
       readonly message: Message;
       readonly clientMessageId?: string;
       readonly chatGuid: ChatGuid;
+      readonly cursor?: string;
     }
   | {
       readonly type: "message.received";
       readonly timestamp: Date;
       readonly message: Message;
       readonly chatGuid: ChatGuid;
+      readonly cursor?: string;
     }
   | {
       readonly type: "message.updated";
@@ -38,6 +40,7 @@ export type MessageEvent =
       readonly message: Message;
       readonly updateType: "edited" | "unsent" | "notified" | "reaction";
       readonly chatGuid: ChatGuid;
+      readonly cursor?: string;
     }
   | {
       readonly type: "message.sendError";
@@ -46,6 +49,7 @@ export type MessageEvent =
       readonly clientMessageId?: string;
       readonly errorCode: string;
       readonly errorMessage: string;
+      readonly cursor?: string;
     };
 
 // ---------------------------------------------------------------------------

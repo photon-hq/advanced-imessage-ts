@@ -8,7 +8,15 @@
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
-import { Heartbeat, PaginatedMeta, SortDirection, sortDirectionFromJSON, sortDirectionToJSON } from "./common.js";
+import {
+  CursorReset,
+  Heartbeat,
+  PaginatedMeta,
+  SortDirection,
+  sortDirectionFromJSON,
+  sortDirectionToJSON,
+  StreamCursor,
+} from "./common.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
@@ -336,6 +344,7 @@ export interface ListMessagesRequest {
   offset: number;
   withChats: boolean;
   withAttachments: boolean;
+  afterCursor?: StreamCursor | undefined;
 }
 
 export interface ListMessagesResponse {
@@ -367,14 +376,17 @@ export interface GetMessageStatsResponse {
 }
 
 export interface SubscribeMessageEventsRequest {
+  cursor?: StreamCursor | undefined;
 }
 
 export interface SubscribeMessageEventsResponse {
   timestamp: Date | undefined;
+  cursor?: StreamCursor | undefined;
   messageSent?: MessageSentEvent | undefined;
   messageReceived?: MessageReceivedEvent | undefined;
   messageUpdated?: MessageUpdatedEvent | undefined;
   messageSendError?: MessageSendErrorEvent | undefined;
+  cursorReset?: CursorReset | undefined;
   heartbeat?: Heartbeat | undefined;
 }
 
@@ -3726,6 +3738,7 @@ function createBaseListMessagesRequest(): ListMessagesRequest {
     offset: 0,
     withChats: false,
     withAttachments: false,
+    afterCursor: undefined,
   };
 }
 
@@ -3754,6 +3767,9 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
     }
     if (message.withAttachments !== false) {
       writer.uint32(64).bool(message.withAttachments);
+    }
+    if (message.afterCursor !== undefined) {
+      StreamCursor.encode(message.afterCursor, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -3829,6 +3845,14 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
           message.withAttachments = reader.bool();
           continue;
         }
+        case 9: {
+          if (tag !== 74) {
+            break;
+          }
+
+          message.afterCursor = StreamCursor.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3860,6 +3884,11 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
         : isSet(object.with_attachments)
         ? globalThis.Boolean(object.with_attachments)
         : false,
+      afterCursor: isSet(object.afterCursor)
+        ? StreamCursor.fromJSON(object.afterCursor)
+        : isSet(object.after_cursor)
+        ? StreamCursor.fromJSON(object.after_cursor)
+        : undefined,
     };
   },
 
@@ -3889,6 +3918,9 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
     if (message.withAttachments !== false) {
       obj.withAttachments = message.withAttachments;
     }
+    if (message.afterCursor !== undefined) {
+      obj.afterCursor = StreamCursor.toJSON(message.afterCursor);
+    }
     return obj;
   },
 
@@ -3905,6 +3937,9 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
     message.offset = object.offset ?? 0;
     message.withChats = object.withChats ?? false;
     message.withAttachments = object.withAttachments ?? false;
+    message.afterCursor = (object.afterCursor !== undefined && object.afterCursor !== null)
+      ? StreamCursor.fromPartial(object.afterCursor)
+      : undefined;
     return message;
   },
 };
@@ -4347,11 +4382,14 @@ export const GetMessageStatsResponse: MessageFns<GetMessageStatsResponse> = {
 };
 
 function createBaseSubscribeMessageEventsRequest(): SubscribeMessageEventsRequest {
-  return {};
+  return { cursor: undefined };
 }
 
 export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsRequest> = {
-  encode(_: SubscribeMessageEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: SubscribeMessageEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.cursor !== undefined) {
+      StreamCursor.encode(message.cursor, writer.uint32(10).fork()).join();
+    }
     return writer;
   },
 
@@ -4362,6 +4400,14 @@ export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsReq
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.cursor = StreamCursor.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -4371,20 +4417,26 @@ export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsReq
     return message;
   },
 
-  fromJSON(_: any): SubscribeMessageEventsRequest {
-    return {};
+  fromJSON(object: any): SubscribeMessageEventsRequest {
+    return { cursor: isSet(object.cursor) ? StreamCursor.fromJSON(object.cursor) : undefined };
   },
 
-  toJSON(_: SubscribeMessageEventsRequest): unknown {
+  toJSON(message: SubscribeMessageEventsRequest): unknown {
     const obj: any = {};
+    if (message.cursor !== undefined) {
+      obj.cursor = StreamCursor.toJSON(message.cursor);
+    }
     return obj;
   },
 
   create(base?: DeepPartial<SubscribeMessageEventsRequest>): SubscribeMessageEventsRequest {
     return SubscribeMessageEventsRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<SubscribeMessageEventsRequest>): SubscribeMessageEventsRequest {
+  fromPartial(object: DeepPartial<SubscribeMessageEventsRequest>): SubscribeMessageEventsRequest {
     const message = createBaseSubscribeMessageEventsRequest();
+    message.cursor = (object.cursor !== undefined && object.cursor !== null)
+      ? StreamCursor.fromPartial(object.cursor)
+      : undefined;
     return message;
   },
 };
@@ -4392,10 +4444,12 @@ export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsReq
 function createBaseSubscribeMessageEventsResponse(): SubscribeMessageEventsResponse {
   return {
     timestamp: undefined,
+    cursor: undefined,
     messageSent: undefined,
     messageReceived: undefined,
     messageUpdated: undefined,
     messageSendError: undefined,
+    cursorReset: undefined,
     heartbeat: undefined,
   };
 }
@@ -4404,6 +4458,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
   encode(message: SubscribeMessageEventsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.timestamp !== undefined) {
       Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(10).fork()).join();
+    }
+    if (message.cursor !== undefined) {
+      StreamCursor.encode(message.cursor, writer.uint32(18).fork()).join();
     }
     if (message.messageSent !== undefined) {
       MessageSentEvent.encode(message.messageSent, writer.uint32(82).fork()).join();
@@ -4416,6 +4473,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     }
     if (message.messageSendError !== undefined) {
       MessageSendErrorEvent.encode(message.messageSendError, writer.uint32(106).fork()).join();
+    }
+    if (message.cursorReset !== undefined) {
+      CursorReset.encode(message.cursorReset, writer.uint32(786).fork()).join();
     }
     if (message.heartbeat !== undefined) {
       Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
@@ -4436,6 +4496,14 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
           }
 
           message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.cursor = StreamCursor.decode(reader, reader.uint32());
           continue;
         }
         case 10: {
@@ -4470,6 +4538,14 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
           message.messageSendError = MessageSendErrorEvent.decode(reader, reader.uint32());
           continue;
         }
+        case 98: {
+          if (tag !== 786) {
+            break;
+          }
+
+          message.cursorReset = CursorReset.decode(reader, reader.uint32());
+          continue;
+        }
         case 99: {
           if (tag !== 794) {
             break;
@@ -4490,6 +4566,7 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
   fromJSON(object: any): SubscribeMessageEventsResponse {
     return {
       timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
+      cursor: isSet(object.cursor) ? StreamCursor.fromJSON(object.cursor) : undefined,
       messageSent: isSet(object.messageSent)
         ? MessageSentEvent.fromJSON(object.messageSent)
         : isSet(object.message_sent)
@@ -4510,6 +4587,11 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
         : isSet(object.message_send_error)
         ? MessageSendErrorEvent.fromJSON(object.message_send_error)
         : undefined,
+      cursorReset: isSet(object.cursorReset)
+        ? CursorReset.fromJSON(object.cursorReset)
+        : isSet(object.cursor_reset)
+        ? CursorReset.fromJSON(object.cursor_reset)
+        : undefined,
       heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
@@ -4518,6 +4600,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     const obj: any = {};
     if (message.timestamp !== undefined) {
       obj.timestamp = message.timestamp.toISOString();
+    }
+    if (message.cursor !== undefined) {
+      obj.cursor = StreamCursor.toJSON(message.cursor);
     }
     if (message.messageSent !== undefined) {
       obj.messageSent = MessageSentEvent.toJSON(message.messageSent);
@@ -4531,6 +4616,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     if (message.messageSendError !== undefined) {
       obj.messageSendError = MessageSendErrorEvent.toJSON(message.messageSendError);
     }
+    if (message.cursorReset !== undefined) {
+      obj.cursorReset = CursorReset.toJSON(message.cursorReset);
+    }
     if (message.heartbeat !== undefined) {
       obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
     }
@@ -4543,6 +4631,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
   fromPartial(object: DeepPartial<SubscribeMessageEventsResponse>): SubscribeMessageEventsResponse {
     const message = createBaseSubscribeMessageEventsResponse();
     message.timestamp = object.timestamp ?? undefined;
+    message.cursor = (object.cursor !== undefined && object.cursor !== null)
+      ? StreamCursor.fromPartial(object.cursor)
+      : undefined;
     message.messageSent = (object.messageSent !== undefined && object.messageSent !== null)
       ? MessageSentEvent.fromPartial(object.messageSent)
       : undefined;
@@ -4554,6 +4645,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
       : undefined;
     message.messageSendError = (object.messageSendError !== undefined && object.messageSendError !== null)
       ? MessageSendErrorEvent.fromPartial(object.messageSendError)
+      : undefined;
+    message.cursorReset = (object.cursorReset !== undefined && object.cursorReset !== null)
+      ? CursorReset.fromPartial(object.cursorReset)
       : undefined;
     message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
       ? Heartbeat.fromPartial(object.heartbeat)

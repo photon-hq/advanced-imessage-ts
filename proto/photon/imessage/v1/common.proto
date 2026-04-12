@@ -20,3 +20,16 @@ enum SortDirection {
   SORT_DIRECTION_DESCENDING = 1;
   SORT_DIRECTION_ASCENDING = 2;
 }
+
+// Opaque cursor for resumable event streams.
+// Clients must treat the value as opaque and pass it back verbatim.
+message StreamCursor {
+  string value = 1;
+}
+
+// Sent when a client's cursor is no longer valid (e.g. server reinstalled,
+// chat.db reset). The client should discard its stored cursor and optionally
+// use ListMessages to catch up.
+message CursorReset {
+  StreamCursor current_position = 1;
+}
