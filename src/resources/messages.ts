@@ -31,6 +31,7 @@ import type { MessageEvent } from "../types/events.ts";
 import type {
   ComposedMessage,
   EmbeddedMediaItem,
+  FetchMissedOptions,
   Message,
   MessageListOptions,
   MessagePart,
@@ -462,6 +463,9 @@ export class MessagesResource {
             offset,
             withChats: options?.withChats ?? false,
             withAttachments: options?.withAttachments ?? false,
+            afterCursor: options?.afterCursor
+              ? { value: options.afterCursor }
+              : undefined,
           });
 
           const meta = response.meta ?? { total: 0, offset: 0, limit };
@@ -480,6 +484,42 @@ export class MessagesResource {
       },
       { limit: options?.limit, offset: options?.offset }
     );
+  }
+
+  /**
+   * Fetch messages missed during a disconnect, using a cursor obtained from
+   * a previous `subscribe()` event.
+   *
+   * This is the recommended way to catch up after a stream disconnection.
+   * Results are ordered chronologically (ascending by ROWID) so they can
+   * be replayed in order.
+   *
+   * @example
+   * ```ts
+   * let cursor = loadPersistedCursor();
+   *
+   * // Catch up on missed messages
+   * if (cursor) {
+   *   for await (const msg of client.messages.fetchMissed(cursor)) {
+   *     processMissedMessage(msg);
+   *   }
+   * }
+   *
+   * // Resume live stream
+   * for await (const event of client.messages.subscribe()) {
+   *   if (event.cursor) cursor = event.cursor;
+   *   processEvent(event);
+   * }
+   * ```
+   */
+  fetchMissed(cursor: string, options?: FetchMissedOptions): Paginated<Message> {
+    return this.list({
+      afterCursor: cursor,
+      chatGuid: options?.chatGuid,
+      limit: options?.limit,
+      withChats: true,
+      withAttachments: true,
+    });
   }
 
   /**
@@ -560,6 +600,7 @@ export class MessagesResource {
       try {
         for await (const proto of rpcStream) {
           const timestamp = proto.timestamp ?? new Date();
+          const cursor = proto.cursor?.value || undefined;
 
           if (proto.messageSent !== undefined) {
             const evt: MessageSentEvent = proto.messageSent;
@@ -569,6 +610,7 @@ export class MessagesResource {
               message: mapMessage(unwrap(evt.message, "message")),
               clientMessageId: evt.clientMessageId,
               chatGuid: chatGuid(evt.chatGuid),
+              cursor,
             };
           } else if (proto.messageReceived !== undefined) {
             const evt: MessageReceivedEvent = proto.messageReceived;
@@ -577,6 +619,7 @@ export class MessagesResource {
               timestamp,
               message: mapMessage(unwrap(evt.message, "message")),
               chatGuid: chatGuid(evt.chatGuid),
+              cursor,
             };
           } else if (proto.messageUpdated !== undefined) {
             const evt: MessageUpdatedEvent = proto.messageUpdated;
@@ -590,6 +633,7 @@ export class MessagesResource {
                 | "notified"
                 | "reaction",
               chatGuid: chatGuid(evt.chatGuid),
+              cursor,
             };
           } else if (proto.messageSendError !== undefined) {
             const evt: MessageSendErrorEvent = proto.messageSendError;
@@ -600,6 +644,7 @@ export class MessagesResource {
               clientMessageId: evt.clientMessageId,
               errorCode: evt.errorCode,
               errorMessage: evt.errorMessage,
+              cursor,
             };
           }
           // Unknown payload kinds are silently skipped.

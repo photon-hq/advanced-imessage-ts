@@ -138,11 +138,13 @@ No pagination API to learn. Standard JS iteration handles it.
 
 ```ts
 type MessageEvent =
-  | { type: "message.sent"; message: Message; chatGuid: ChatGuid }
-  | { type: "message.received"; message: Message; chatGuid: ChatGuid }
-  | { type: "message.updated"; message: Message; updateType: "edited" | "unsent" | "notified" | "reaction" }
-  | { type: "message.sendError"; errorCode: string; errorMessage: string };
+  | { type: "message.sent"; message: Message; chatGuid: ChatGuid; cursor?: string }
+  | { type: "message.received"; message: Message; chatGuid: ChatGuid; cursor?: string }
+  | { type: "message.updated"; message: Message; updateType: "edited" | "unsent" | "notified" | "reaction"; cursor?: string }
+  | { type: "message.sendError"; errorCode: string; errorMessage: string; cursor?: string };
 ```
+
+Each event carries an opaque `cursor` — a position marker for catching up after a disconnect. See [Stream Catch-Up](#stream-catch-up) below.
 
 `subscribe()` is overloaded — passing a type string narrows the return:
 
@@ -167,6 +169,36 @@ for await (const { from, text } of incoming) {
   console.log(`[${from}] ${text}`);
 }
 ```
+
+---
+
+## Stream Catch-Up
+
+When a stream disconnects, messages keep arriving on the server. The SDK exposes cursor-based catch-up so you never lose messages:
+
+```ts
+let cursor = loadPersistedCursor(); // your storage
+
+// 1. Catch up on anything missed while disconnected
+if (cursor) {
+  for await (const msg of im.messages.fetchMissed(cursor)) {
+    processMissedMessage(msg);
+  }
+}
+
+// 2. Resume live stream, tracking cursor for next time
+for await (const event of im.messages.subscribe()) {
+  if (event.cursor) cursor = event.cursor;
+  processEvent(event);
+}
+
+// 3. Persist cursor when done (or periodically)
+persistCursor(cursor);
+```
+
+`fetchMissed(cursor)` returns `Paginated<Message>` — same auto-pagination as `list()`. It fetches every message after the cursor position, ordered chronologically, with full chat and attachment metadata.
+
+The cursor is opaque — treat it as a string, persist it, pass it back. The server handles the rest.
 
 ---
 

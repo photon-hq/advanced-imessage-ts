@@ -262,6 +262,7 @@ message ListMessagesRequest {
   int32 offset = 6;
   bool with_chats = 7;
   bool with_attachments = 8;
+  optional StreamCursor after_cursor = 9;
 }
 
 message ListMessagesResponse {
@@ -295,15 +296,19 @@ message GetMessageStatsResponse {
 // Event streaming
 // ---------------------------------------------------------------------------
 
-message SubscribeMessageEventsRequest {}
+message SubscribeMessageEventsRequest {
+  optional StreamCursor cursor = 1;
+}
 
 message SubscribeMessageEventsResponse {
   google.protobuf.Timestamp timestamp = 1;
+  optional StreamCursor cursor = 2;
   oneof payload {
     MessageSentEvent message_sent = 10;
     MessageReceivedEvent message_received = 11;
     MessageUpdatedEvent message_updated = 12;
     MessageSendErrorEvent message_send_error = 13;
+    CursorReset cursor_reset = 98;
     Heartbeat heartbeat = 99;
   }
 }

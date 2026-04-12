@@ -85,6 +85,7 @@ export type { FindMyFriend } from "./types/locations.js";
 export type {
   ComposedMessage,
   EmbeddedMediaItem,
+  FetchMissedOptions,
   Message,
   MessageListOptions,
   MessagePart,

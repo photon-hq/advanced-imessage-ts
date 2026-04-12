@@ -241,6 +241,13 @@ export interface ComposedMessage {
 export interface MessageListOptions {
   /** Return only messages created after this date. */
   readonly after?: Date;
+  /**
+   * Resume cursor from a stream event. When set, returns messages with
+   * ROWID > cursor position, overriding `after`.
+   * Sort is forced to ascending by ROWID (chronological order for catch-up).
+   * `offset` and `limit` still apply for pagination within catch-up results.
+   */
+  readonly afterCursor?: string;
   /** Return only messages created before this date. */
   readonly before?: Date;
   /** Restrict to messages in a specific chat. */
@@ -255,6 +262,18 @@ export interface MessageListOptions {
   readonly withAttachments?: boolean;
   /** Include chat metadata in the response. */
   readonly withChats?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// FetchMissedOptions
+// ---------------------------------------------------------------------------
+
+/** Options for `messages.fetchMissed()`. */
+export interface FetchMissedOptions {
+  /** Restrict to messages in a specific chat. */
+  readonly chatGuid?: ChatGuid;
+  /** Maximum number of messages per page. */
+  readonly limit?: number;
 }
 
 // ---------------------------------------------------------------------------
