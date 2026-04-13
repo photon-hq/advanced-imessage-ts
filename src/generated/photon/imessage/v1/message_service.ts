@@ -9,7 +9,6 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
 import {
-  CursorReset,
   Heartbeat,
   PaginatedMeta,
   SortDirection,
@@ -386,7 +385,6 @@ export interface SubscribeMessageEventsResponse {
   messageReceived?: MessageReceivedEvent | undefined;
   messageUpdated?: MessageUpdatedEvent | undefined;
   messageSendError?: MessageSendErrorEvent | undefined;
-  cursorReset?: CursorReset | undefined;
   heartbeat?: Heartbeat | undefined;
 }
 
@@ -4449,7 +4447,6 @@ function createBaseSubscribeMessageEventsResponse(): SubscribeMessageEventsRespo
     messageReceived: undefined,
     messageUpdated: undefined,
     messageSendError: undefined,
-    cursorReset: undefined,
     heartbeat: undefined,
   };
 }
@@ -4473,9 +4470,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     }
     if (message.messageSendError !== undefined) {
       MessageSendErrorEvent.encode(message.messageSendError, writer.uint32(106).fork()).join();
-    }
-    if (message.cursorReset !== undefined) {
-      CursorReset.encode(message.cursorReset, writer.uint32(786).fork()).join();
     }
     if (message.heartbeat !== undefined) {
       Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
@@ -4538,14 +4532,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
           message.messageSendError = MessageSendErrorEvent.decode(reader, reader.uint32());
           continue;
         }
-        case 98: {
-          if (tag !== 786) {
-            break;
-          }
-
-          message.cursorReset = CursorReset.decode(reader, reader.uint32());
-          continue;
-        }
         case 99: {
           if (tag !== 794) {
             break;
@@ -4587,11 +4573,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
         : isSet(object.message_send_error)
         ? MessageSendErrorEvent.fromJSON(object.message_send_error)
         : undefined,
-      cursorReset: isSet(object.cursorReset)
-        ? CursorReset.fromJSON(object.cursorReset)
-        : isSet(object.cursor_reset)
-        ? CursorReset.fromJSON(object.cursor_reset)
-        : undefined,
       heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
@@ -4615,9 +4596,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     }
     if (message.messageSendError !== undefined) {
       obj.messageSendError = MessageSendErrorEvent.toJSON(message.messageSendError);
-    }
-    if (message.cursorReset !== undefined) {
-      obj.cursorReset = CursorReset.toJSON(message.cursorReset);
     }
     if (message.heartbeat !== undefined) {
       obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
@@ -4645,9 +4623,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
       : undefined;
     message.messageSendError = (object.messageSendError !== undefined && object.messageSendError !== null)
       ? MessageSendErrorEvent.fromPartial(object.messageSendError)
-      : undefined;
-    message.cursorReset = (object.cursorReset !== undefined && object.cursorReset !== null)
-      ? CursorReset.fromPartial(object.cursorReset)
       : undefined;
     message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
       ? Heartbeat.fromPartial(object.heartbeat)

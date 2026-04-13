@@ -71,15 +71,6 @@ export interface StreamCursor {
   value: string;
 }
 
-/**
- * Sent when a client's cursor is no longer valid (e.g. server reinstalled,
- * chat.db reset). The client should discard its stored cursor and optionally
- * use ListMessages to catch up.
- */
-export interface CursorReset {
-  currentPosition: StreamCursor | undefined;
-}
-
 function createBasePaginatedMeta(): PaginatedMeta {
   return { total: 0, offset: 0, limit: 0 };
 }
@@ -269,72 +260,6 @@ export const StreamCursor: MessageFns<StreamCursor> = {
   fromPartial(object: DeepPartial<StreamCursor>): StreamCursor {
     const message = createBaseStreamCursor();
     message.value = object.value ?? "";
-    return message;
-  },
-};
-
-function createBaseCursorReset(): CursorReset {
-  return { currentPosition: undefined };
-}
-
-export const CursorReset: MessageFns<CursorReset> = {
-  encode(message: CursorReset, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.currentPosition !== undefined) {
-      StreamCursor.encode(message.currentPosition, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): CursorReset {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCursorReset();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.currentPosition = StreamCursor.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): CursorReset {
-    return {
-      currentPosition: isSet(object.currentPosition)
-        ? StreamCursor.fromJSON(object.currentPosition)
-        : isSet(object.current_position)
-        ? StreamCursor.fromJSON(object.current_position)
-        : undefined,
-    };
-  },
-
-  toJSON(message: CursorReset): unknown {
-    const obj: any = {};
-    if (message.currentPosition !== undefined) {
-      obj.currentPosition = StreamCursor.toJSON(message.currentPosition);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<CursorReset>): CursorReset {
-    return CursorReset.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<CursorReset>): CursorReset {
-    const message = createBaseCursorReset();
-    message.currentPosition = (object.currentPosition !== undefined && object.currentPosition !== null)
-      ? StreamCursor.fromPartial(object.currentPosition)
-      : undefined;
     return message;
   },
 };

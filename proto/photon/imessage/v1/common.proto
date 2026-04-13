@@ -26,10 +26,3 @@ enum SortDirection {
 message StreamCursor {
   string value = 1;
 }
-
-// Sent when a client's cursor is no longer valid (e.g. server reinstalled,
-// chat.db reset). The client should discard its stored cursor and optionally
-// use ListMessages to catch up.
-message CursorReset {
-  StreamCursor current_position = 1;
-}
