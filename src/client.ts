@@ -17,12 +17,19 @@ import { ScheduledMessagesResource as ScheduledMessagesImpl } from "./resources/
 import { createGrpcClients } from "./transport/grpc-client.js";
 import type { RetryOptions } from "./types/common.js";
 
+/** Options for configuring the Advanced iMessage client. */
 export interface ClientOptions {
+  /** The server address to connect to (e.g., `"localhost:50051"`). */
   readonly address: string;
+  /** When `true`, automatically generates a unique key for each request to prevent duplicate operations. */
   readonly autoIdempotency?: boolean;
+  /** When `true`, enables automatic retries. Accepts a {@link RetryOptions} object for fine-grained control. */
   readonly retry?: boolean | RetryOptions;
+  /** Request timeout in milliseconds. */
   readonly timeout?: number;
+  /** When `true`, uses a TLS-encrypted connection to the server. */
   readonly tls?: boolean;
+  /** Authentication token. Pass a function that returns `Promise<string>` to provide the token dynamically. */
   readonly token: string | (() => Promise<string>);
 }
 
@@ -38,6 +45,23 @@ export interface AdvancedIMessage extends AsyncDisposable {
   readonly scheduledMessages: ScheduledMessagesResource;
 }
 
+/**
+ * Creates an Advanced iMessage client with access to messages, chats, groups, attachments, polls, and more.
+ *
+ * Call {@link AdvancedIMessage.close} to release the underlying connection when done.
+ *
+ * @example
+ * ```ts
+ * const im = createClient({
+ *   address: "localhost:50051",
+ *   token: "my-api-token",
+ * });
+ *
+ * // ... use im.messages, im.groups, etc.
+ *
+ * await im.close();
+ * ```
+ */
 export function createClient(options: ClientOptions): AdvancedIMessage {
   const clients = createGrpcClients({
     address: options.address,
