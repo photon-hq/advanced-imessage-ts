@@ -308,7 +308,6 @@ message SubscribeMessageEventsResponse {
     MessageReceivedEvent message_received = 11;
     MessageUpdatedEvent message_updated = 12;
     MessageSendErrorEvent message_send_error = 13;
-    CursorReset cursor_reset = 98;
     Heartbeat heartbeat = 99;
   }
 }
