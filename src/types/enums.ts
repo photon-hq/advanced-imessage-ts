@@ -37,13 +37,3 @@ export type MessageItemType =
 /** The underlying transport service for a chat. */
 export type ChatServiceType = "iMessage" | "SMS";
 
-// ---------------------------------------------------------------------------
-// ScheduledMessageStatus
-// ---------------------------------------------------------------------------
-
-/** Lifecycle status of a scheduled message. */
-export type ScheduledMessageStatus =
-  | "pending"
-  | "inProgress"
-  | "complete"
-  | "failed";

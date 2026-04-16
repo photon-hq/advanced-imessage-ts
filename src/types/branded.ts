@@ -29,9 +29,6 @@ export type MessageGuid = Brand<string, "MessageGuid">;
 /** An attachment GUID as returned by the server. */
 export type AttachmentGuid = Brand<string, "AttachmentGuid">;
 
-/** A scheduled-message numeric identifier. */
-export type ScheduledMessageId = Brand<number, "ScheduledMessageId">;
-
 // ---------------------------------------------------------------------------
 // Constructor functions
 // ---------------------------------------------------------------------------
@@ -51,7 +48,3 @@ export function attachmentGuid(raw: string): AttachmentGuid {
   return raw as AttachmentGuid;
 }
 
-/** Brand a raw number as a `ScheduledMessageId`. */
-export function scheduledMessageId(raw: number): ScheduledMessageId {
-  return raw as ScheduledMessageId;
-}

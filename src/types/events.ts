@@ -11,7 +11,6 @@
 import type { ChatGuid, MessageGuid } from "./branded.ts";
 import type { FindMyFriend } from "./locations.ts";
 import type { Message } from "./messages.ts";
-import type { ScheduledMessage } from "./scheduled-messages.ts";
 
 // ---------------------------------------------------------------------------
 // MessageEvent
@@ -123,18 +122,6 @@ export interface PollEvent {
 }
 
 // ---------------------------------------------------------------------------
-// ScheduleEvent
-// ---------------------------------------------------------------------------
-
-/** An event indicating a scheduled message changed lifecycle state. */
-export interface ScheduleEvent {
-  readonly action: "created" | "updated" | "deleted" | "sent" | "failed";
-  readonly scheduledMessage: ScheduledMessage;
-  readonly timestamp: Date;
-  readonly type: "schedule.changed";
-}
-
-// ---------------------------------------------------------------------------
 // LocationEvent
 // ---------------------------------------------------------------------------
 
@@ -155,7 +142,6 @@ export type IMessageEvent =
   | ChatEvent
   | GroupEvent
   | PollEvent
-  | ScheduleEvent
   | LocationEvent;
 
 // ---------------------------------------------------------------------------
@@ -183,7 +169,6 @@ export interface EventTypeMap {
   "message.sent": Extract<MessageEvent, { type: "message.sent" }>;
   "message.updated": Extract<MessageEvent, { type: "message.updated" }>;
   "poll.changed": PollEvent;
-  "schedule.changed": ScheduleEvent;
 }
 
 /** Union of all known event-type string literals. */

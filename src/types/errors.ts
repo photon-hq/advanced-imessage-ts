@@ -24,7 +24,6 @@ export const ErrorCode = {
   messageNotFound: "messageNotFound",
   attachmentNotFound: "attachmentNotFound",
   addressNotFound: "addressNotFound",
-  scheduledMessageNotFound: "scheduledMessageNotFound",
   pollNotFound: "pollNotFound",
 
   // Validation / precondition

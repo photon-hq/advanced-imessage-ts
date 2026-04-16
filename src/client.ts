@@ -12,8 +12,6 @@ import type { MessagesResource } from "./resources/messages.js";
 import { MessagesResource as MessagesImpl } from "./resources/messages.js";
 import type { PollsResource } from "./resources/polls.js";
 import { PollsResource as PollsImpl } from "./resources/polls.js";
-import type { ScheduledMessagesResource } from "./resources/scheduled-messages.js";
-import { ScheduledMessagesResource as ScheduledMessagesImpl } from "./resources/scheduled-messages.js";
 import { createGrpcClients } from "./transport/grpc-client.js";
 import type { RetryOptions } from "./types/common.js";
 
@@ -42,7 +40,6 @@ export interface AdvancedIMessage extends AsyncDisposable {
   readonly locations: LocationsResource;
   readonly messages: MessagesResource;
   readonly polls: PollsResource;
-  readonly scheduledMessages: ScheduledMessagesResource;
 }
 
 /**
@@ -78,9 +75,6 @@ export function createClient(options: ClientOptions): AdvancedIMessage {
   const attachments = new AttachmentsImpl(clients.attachments);
   const addresses = new AddressesImpl(clients.addresses);
   const polls = new PollsImpl(clients.polls);
-  const scheduledMessages = new ScheduledMessagesImpl(
-    clients.scheduledMessages
-  );
   const locations = new LocationsImpl(clients.locations);
 
   function close(): Promise<void> {
@@ -95,7 +89,6 @@ export function createClient(options: ClientOptions): AdvancedIMessage {
     attachments,
     addresses,
     polls,
-    scheduledMessages,
     locations,
     close,
     async [Symbol.asyncDispose](): Promise<void> {

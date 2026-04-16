@@ -264,7 +264,6 @@ interface AdvancedIMessage extends AsyncDisposable {
   readonly attachments: Attachments;
   readonly addresses: Addresses;
   readonly polls: Polls;
-  readonly scheduledMessages: ScheduledMessages;
   readonly locations: Locations;
   close(): Promise<void>;
 }

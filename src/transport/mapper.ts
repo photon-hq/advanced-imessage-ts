@@ -32,12 +32,6 @@ import type {
   PollOption as ProtoPollOption,
   PollVote as ProtoPollVote,
 } from "../generated/photon/imessage/v1/poll_service.ts";
-import {
-  type ScheduledMessage as ProtoScheduledMessage,
-  ScheduledMessageStatus as ProtoScheduledMessageStatus,
-  ScheduledMessageType as ProtoScheduledMessageType,
-} from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-
 // ---------------------------------------------------------------------------
 // SDK type imports
 // ---------------------------------------------------------------------------
@@ -48,20 +42,17 @@ import {
   attachmentGuid,
   chatGuid,
   messageGuid,
-  scheduledMessageId,
 } from "../types/branded.ts";
 import type { Chat } from "../types/chats.ts";
 import type {
   ChatServiceType,
   MessageItemType,
-  ScheduledMessageStatus,
   SortDirection,
   TransferState,
 } from "../types/enums.ts";
 import type { FindMyFriend } from "../types/locations.ts";
 import type { Message } from "../types/messages.ts";
 import type { PollInfo, PollOption, PollVote } from "../types/polls.ts";
-import type { ScheduledMessage } from "../types/scheduled-messages.ts";
 
 // ---------------------------------------------------------------------------
 // Timestamp conversion
@@ -126,38 +117,6 @@ export function mapMessageItemType(
       return "leftGroup";
     default:
       return "normal";
-  }
-}
-
-/**
- * Map a proto `ScheduledMessageStatus` enum value to the SDK string literal.
- */
-function mapScheduledMessageStatus(
-  proto: ProtoScheduledMessageStatus
-): ScheduledMessageStatus {
-  switch (proto) {
-    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_PENDING:
-      return "pending";
-    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_IN_PROGRESS:
-      return "inProgress";
-    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_COMPLETE:
-      return "complete";
-    case ProtoScheduledMessageStatus.SCHEDULED_MESSAGE_STATUS_FAILED:
-      return "failed";
-    default:
-      return "pending";
-  }
-}
-
-/**
- * Map a proto `ScheduledMessageType` enum value to a string.
- */
-function mapScheduledMessageType(proto: ProtoScheduledMessageType): string {
-  switch (proto) {
-    case ProtoScheduledMessageType.SCHEDULED_MESSAGE_TYPE_SEND_MESSAGE:
-      return "sendMessage";
-    default:
-      return "unspecified";
   }
 }
 
@@ -364,27 +323,6 @@ export function mapPollInfo(proto: ProtoPollInfo): PollInfo {
     title: proto.title,
     options: proto.options.map(mapPollOption),
     votes: proto.votes.map(mapPollVote),
-  };
-}
-
-/**
- * Map a proto `ScheduledMessage` to the SDK `ScheduledMessage`.
- *
- * ts-proto gives us `Date | undefined` for Timestamp fields.
- */
-export function mapScheduledMessage(
-  proto: ProtoScheduledMessage
-): ScheduledMessage {
-  return {
-    id: scheduledMessageId(proto.id),
-    type: mapScheduledMessageType(proto.type),
-    payload: proto.payload,
-    scheduledFor: proto.scheduledFor ?? new Date(0),
-    schedule: proto.schedule,
-    status: mapScheduledMessageStatus(proto.status),
-    errorMessage: proto.errorMessage,
-    sentAt: proto.sentAt,
-    createdAt: proto.createdAt ?? new Date(0),
   };
 }
 
