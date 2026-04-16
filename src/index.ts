@@ -28,13 +28,11 @@ export type {
   AttachmentGuid,
   ChatGuid,
   MessageGuid,
-  ScheduledMessageId,
 } from "./types/branded.js";
 export {
   attachmentGuid,
   chatGuid,
   messageGuid,
-  scheduledMessageId,
 } from "./types/branded.js";
 export type { ParsedChatGuid } from "./types/chat-guid.js";
 // ChatGuid utilities
@@ -60,7 +58,6 @@ export { MessageEffect, TextEffect } from "./types/effects.js";
 export type {
   ChatServiceType,
   MessageItemType,
-  ScheduledMessageStatus,
   SortDirection,
   TransferState,
 } from "./types/enums.js";
@@ -77,7 +74,6 @@ export type {
   LocationEvent,
   MessageEvent,
   PollEvent,
-  ScheduleEvent,
 } from "./types/events.js";
 export type { BackgroundInfo } from "./types/groups.js";
 export type { FindMyFriend } from "./types/locations.js";
@@ -96,9 +92,3 @@ export type {
 } from "./types/messages.js";
 export type { PollInfo, PollOption, PollVote } from "./types/polls.js";
 export { Reaction } from "./types/reactions.js";
-export type {
-  CreateScheduledMessageOptions,
-  ScheduledMessage,
-  ScheduledMessagePayload,
-  UpdateScheduledMessageOptions,
-} from "./types/scheduled-messages.js";

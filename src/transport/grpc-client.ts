@@ -1,5 +1,5 @@
 /**
- * Creates and configures the nice-grpc channel and all 8 service clients.
+ * Creates and configures the nice-grpc channel and all 7 service clients.
  *
  * This module is the single entry point for establishing a gRPC connection.
  * It wires up channel creation, auth middleware, optional idempotency
@@ -28,9 +28,6 @@ import type { MessageServiceClient } from "../generated/photon/imessage/v1/messa
 import { MessageServiceDefinition } from "../generated/photon/imessage/v1/message_service.ts";
 import type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
 import { PollServiceDefinition } from "../generated/photon/imessage/v1/poll_service.ts";
-import type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-import { ScheduledMessageServiceDefinition } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-
 import type { RetryOptions } from "../types/common.ts";
 // Middleware
 import {
@@ -55,8 +52,6 @@ export type { GroupServiceClient } from "../generated/photon/imessage/v1/group_s
 export type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
 export type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
 export type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
-export type { ScheduledMessageServiceClient } from "../generated/photon/imessage/v1/scheduled_message_service.ts";
-
 // ---------------------------------------------------------------------------
 // GrpcClients interface
 // ---------------------------------------------------------------------------
@@ -76,7 +71,6 @@ export interface GrpcClients {
   readonly locations: LocationServiceClient;
   readonly messages: MessageServiceClient;
   readonly polls: PollServiceClient;
-  readonly scheduledMessages: ScheduledMessageServiceClient;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +115,7 @@ export interface GrpcClientOptions {
 // ---------------------------------------------------------------------------
 
 /**
- * Create a gRPC channel and all 8 service clients with the configured
+ * Create a gRPC channel and all 7 service clients with the configured
  * middleware.
  *
  * @example
@@ -180,10 +174,6 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
     attachments: factory.create(AttachmentServiceDefinition, channel),
     addresses: factory.create(AddressServiceDefinition, channel),
     polls: factory.create(PollServiceDefinition, channel),
-    scheduledMessages: factory.create(
-      ScheduledMessageServiceDefinition,
-      channel
-    ),
     locations: factory.create(LocationServiceDefinition, channel),
     channel,
   };
