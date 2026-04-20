@@ -8,6 +8,7 @@
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
+import { Heartbeat } from "./common.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
@@ -85,6 +86,7 @@ export interface SubscribeLocationEventsRequest {
 export interface SubscribeLocationEventsResponse {
   timestamp: Date | undefined;
   findMyLocationUpdated?: FindMyEvent | undefined;
+  heartbeat?: Heartbeat | undefined;
 }
 
 export interface FindMyEvent {
@@ -517,7 +519,7 @@ export const SubscribeLocationEventsRequest: MessageFns<SubscribeLocationEventsR
 };
 
 function createBaseSubscribeLocationEventsResponse(): SubscribeLocationEventsResponse {
-  return { timestamp: undefined, findMyLocationUpdated: undefined };
+  return { timestamp: undefined, findMyLocationUpdated: undefined, heartbeat: undefined };
 }
 
 export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEventsResponse> = {
@@ -527,6 +529,9 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
     }
     if (message.findMyLocationUpdated !== undefined) {
       FindMyEvent.encode(message.findMyLocationUpdated, writer.uint32(82).fork()).join();
+    }
+    if (message.heartbeat !== undefined) {
+      Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
     }
     return writer;
   },
@@ -554,6 +559,14 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
           message.findMyLocationUpdated = FindMyEvent.decode(reader, reader.uint32());
           continue;
         }
+        case 99: {
+          if (tag !== 794) {
+            break;
+          }
+
+          message.heartbeat = Heartbeat.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -571,6 +584,7 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
         : isSet(object.find_my_location_updated)
         ? FindMyEvent.fromJSON(object.find_my_location_updated)
         : undefined,
+      heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
 
@@ -581,6 +595,9 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
     }
     if (message.findMyLocationUpdated !== undefined) {
       obj.findMyLocationUpdated = FindMyEvent.toJSON(message.findMyLocationUpdated);
+    }
+    if (message.heartbeat !== undefined) {
+      obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
     }
     return obj;
   },
@@ -595,6 +612,9 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
       (object.findMyLocationUpdated !== undefined && object.findMyLocationUpdated !== null)
         ? FindMyEvent.fromPartial(object.findMyLocationUpdated)
         : undefined;
+    message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
+      ? Heartbeat.fromPartial(object.heartbeat)
+      : undefined;
     return message;
   },
 };
