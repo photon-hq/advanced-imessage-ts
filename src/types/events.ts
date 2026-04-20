@@ -40,15 +40,6 @@ export type MessageEvent =
       readonly updateType: "edited" | "unsent" | "notified" | "reaction";
       readonly chatGuid: ChatGuid;
       readonly cursor?: string;
-    }
-  | {
-      readonly type: "message.sendError";
-      readonly timestamp: Date;
-      readonly chatGuid: ChatGuid;
-      readonly clientMessageId?: string;
-      readonly errorCode: string;
-      readonly errorMessage: string;
-      readonly cursor?: string;
     };
 
 // ---------------------------------------------------------------------------
@@ -165,7 +156,6 @@ export interface EventTypeMap {
   "group.changed": GroupEvent;
   "location.updated": LocationEvent;
   "message.received": Extract<MessageEvent, { type: "message.received" }>;
-  "message.sendError": Extract<MessageEvent, { type: "message.sendError" }>;
   "message.sent": Extract<MessageEvent, { type: "message.sent" }>;
   "message.updated": Extract<MessageEvent, { type: "message.updated" }>;
   "poll.changed": PollEvent;

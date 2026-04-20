@@ -383,8 +383,10 @@ export interface SubscribeMessageEventsResponse {
   cursor?: StreamCursor | undefined;
   messageSent?: MessageSentEvent | undefined;
   messageReceived?: MessageReceivedEvent | undefined;
-  messageUpdated?: MessageUpdatedEvent | undefined;
-  messageSendError?: MessageSendErrorEvent | undefined;
+  messageUpdated?:
+    | MessageUpdatedEvent
+    | undefined;
+  /** Field 13 (message_send_error) removed — send errors are returned via RPC, not the event stream. */
   heartbeat?: Heartbeat | undefined;
 }
 
@@ -403,13 +405,6 @@ export interface MessageUpdatedEvent {
   message: Message | undefined;
   updateType: string;
   chatGuid: string;
-}
-
-export interface MessageSendErrorEvent {
-  chatGuid: string;
-  clientMessageId?: string | undefined;
-  errorCode: string;
-  errorMessage: string;
 }
 
 function createBaseAddressInfo(): AddressInfo {
@@ -4446,7 +4441,6 @@ function createBaseSubscribeMessageEventsResponse(): SubscribeMessageEventsRespo
     messageSent: undefined,
     messageReceived: undefined,
     messageUpdated: undefined,
-    messageSendError: undefined,
     heartbeat: undefined,
   };
 }
@@ -4467,9 +4461,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     }
     if (message.messageUpdated !== undefined) {
       MessageUpdatedEvent.encode(message.messageUpdated, writer.uint32(98).fork()).join();
-    }
-    if (message.messageSendError !== undefined) {
-      MessageSendErrorEvent.encode(message.messageSendError, writer.uint32(106).fork()).join();
     }
     if (message.heartbeat !== undefined) {
       Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
@@ -4524,14 +4515,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
           message.messageUpdated = MessageUpdatedEvent.decode(reader, reader.uint32());
           continue;
         }
-        case 13: {
-          if (tag !== 106) {
-            break;
-          }
-
-          message.messageSendError = MessageSendErrorEvent.decode(reader, reader.uint32());
-          continue;
-        }
         case 99: {
           if (tag !== 794) {
             break;
@@ -4568,11 +4551,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
         : isSet(object.message_updated)
         ? MessageUpdatedEvent.fromJSON(object.message_updated)
         : undefined,
-      messageSendError: isSet(object.messageSendError)
-        ? MessageSendErrorEvent.fromJSON(object.messageSendError)
-        : isSet(object.message_send_error)
-        ? MessageSendErrorEvent.fromJSON(object.message_send_error)
-        : undefined,
       heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
@@ -4593,9 +4571,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
     }
     if (message.messageUpdated !== undefined) {
       obj.messageUpdated = MessageUpdatedEvent.toJSON(message.messageUpdated);
-    }
-    if (message.messageSendError !== undefined) {
-      obj.messageSendError = MessageSendErrorEvent.toJSON(message.messageSendError);
     }
     if (message.heartbeat !== undefined) {
       obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
@@ -4620,9 +4595,6 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
       : undefined;
     message.messageUpdated = (object.messageUpdated !== undefined && object.messageUpdated !== null)
       ? MessageUpdatedEvent.fromPartial(object.messageUpdated)
-      : undefined;
-    message.messageSendError = (object.messageSendError !== undefined && object.messageSendError !== null)
-      ? MessageSendErrorEvent.fromPartial(object.messageSendError)
       : undefined;
     message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
       ? Heartbeat.fromPartial(object.heartbeat)
@@ -4913,130 +4885,6 @@ export const MessageUpdatedEvent: MessageFns<MessageUpdatedEvent> = {
       : undefined;
     message.updateType = object.updateType ?? "";
     message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseMessageSendErrorEvent(): MessageSendErrorEvent {
-  return { chatGuid: "", clientMessageId: undefined, errorCode: "", errorMessage: "" };
-}
-
-export const MessageSendErrorEvent: MessageFns<MessageSendErrorEvent> = {
-  encode(message: MessageSendErrorEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(18).string(message.clientMessageId);
-    }
-    if (message.errorCode !== "") {
-      writer.uint32(26).string(message.errorCode);
-    }
-    if (message.errorMessage !== "") {
-      writer.uint32(34).string(message.errorMessage);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessageSendErrorEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessageSendErrorEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.errorCode = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.errorMessage = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessageSendErrorEvent {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      clientMessageId: isSet(object.clientMessageId)
-        ? globalThis.String(object.clientMessageId)
-        : isSet(object.client_message_id)
-        ? globalThis.String(object.client_message_id)
-        : undefined,
-      errorCode: isSet(object.errorCode)
-        ? globalThis.String(object.errorCode)
-        : isSet(object.error_code)
-        ? globalThis.String(object.error_code)
-        : "",
-      errorMessage: isSet(object.errorMessage)
-        ? globalThis.String(object.errorMessage)
-        : isSet(object.error_message)
-        ? globalThis.String(object.error_message)
-        : "",
-    };
-  },
-
-  toJSON(message: MessageSendErrorEvent): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    if (message.clientMessageId !== undefined) {
-      obj.clientMessageId = message.clientMessageId;
-    }
-    if (message.errorCode !== "") {
-      obj.errorCode = message.errorCode;
-    }
-    if (message.errorMessage !== "") {
-      obj.errorMessage = message.errorMessage;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessageSendErrorEvent>): MessageSendErrorEvent {
-    return MessageSendErrorEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessageSendErrorEvent>): MessageSendErrorEvent {
-    const message = createBaseMessageSendErrorEvent();
-    message.chatGuid = object.chatGuid ?? "";
-    message.clientMessageId = object.clientMessageId ?? undefined;
-    message.errorCode = object.errorCode ?? "";
-    message.errorMessage = object.errorMessage ?? "";
     return message;
   },
 };
