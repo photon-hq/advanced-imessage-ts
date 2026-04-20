@@ -140,7 +140,7 @@ No pagination API to learn. Standard JS iteration handles it.
 type MessageEvent =
   | { type: "message.sent"; message: Message; chatGuid: ChatGuid; cursor?: string }
   | { type: "message.received"; message: Message; chatGuid: ChatGuid; cursor?: string }
-  | { type: "message.updated"; message: Message; updateType: "edited" | "unsent" | "notified" | "reaction"; cursor?: string };
+  | { type: "message.updated"; message: Message; updateType: "edited" | "unsent" | "notified" | "reaction"; chatGuid: ChatGuid; cursor?: string };
 ```
 
 Each event carries an opaque `cursor` — a position marker for catching up after a disconnect. See [Stream Catch-Up](#stream-catch-up) below.

@@ -311,6 +311,7 @@ message SubscribeMessageEventsResponse {
     Heartbeat heartbeat = 99;
   }
   reserved 13;
+  reserved "message_send_error";
 }
 
 message MessageSentEvent {
