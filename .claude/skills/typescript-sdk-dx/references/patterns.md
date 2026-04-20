@@ -95,8 +95,7 @@ Factory function `fromGrpcError()` lives in transport layer. Resources never con
 type MessageEvent =
   | { type: "message.sent"; message: Message; chatGuid: ChatGuid }
   | { type: "message.received"; message: Message; chatGuid: ChatGuid }
-  | { type: "message.updated"; message: Message; updateType: "edited" | "unsent" }
-  | { type: "message.sendError"; errorCode: string; errorMessage: string };
+  | { type: "message.updated"; message: Message; updateType: "edited" | "unsent" | "notified" | "reaction"; chatGuid: ChatGuid };
 ```
 
 `subscribe()` overloaded to narrow:

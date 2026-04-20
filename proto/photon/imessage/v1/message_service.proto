@@ -307,9 +307,11 @@ message SubscribeMessageEventsResponse {
     MessageSentEvent message_sent = 10;
     MessageReceivedEvent message_received = 11;
     MessageUpdatedEvent message_updated = 12;
-    MessageSendErrorEvent message_send_error = 13;
+    // Field 13 (message_send_error) removed — send errors are returned via RPC, not the event stream.
     Heartbeat heartbeat = 99;
   }
+  reserved 13;
+  reserved "message_send_error";
 }
 
 message MessageSentEvent {
@@ -329,9 +331,5 @@ message MessageUpdatedEvent {
   string chat_guid = 3;
 }
 
-message MessageSendErrorEvent {
-  string chat_guid = 1;
-  optional string client_message_id = 2;
-  string error_code = 3;
-  string error_message = 4;
-}
+// MessageSendErrorEvent removed — send errors are returned synchronously via the
+// Send RPC's gRPC error status; they do not appear in the event stream.

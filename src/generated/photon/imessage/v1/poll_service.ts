@@ -13,6 +13,57 @@ import { Message, MessageCommandReceipt } from "./message_service.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
+export enum PollAction {
+  POLL_ACTION_UNSPECIFIED = 0,
+  POLL_ACTION_CREATED = 1,
+  POLL_ACTION_VOTED = 2,
+  POLL_ACTION_UNVOTED = 3,
+  POLL_ACTION_OPTION_ADDED = 4,
+  UNRECOGNIZED = -1,
+}
+
+export function pollActionFromJSON(object: any): PollAction {
+  switch (object) {
+    case 0:
+    case "POLL_ACTION_UNSPECIFIED":
+      return PollAction.POLL_ACTION_UNSPECIFIED;
+    case 1:
+    case "POLL_ACTION_CREATED":
+      return PollAction.POLL_ACTION_CREATED;
+    case 2:
+    case "POLL_ACTION_VOTED":
+      return PollAction.POLL_ACTION_VOTED;
+    case 3:
+    case "POLL_ACTION_UNVOTED":
+      return PollAction.POLL_ACTION_UNVOTED;
+    case 4:
+    case "POLL_ACTION_OPTION_ADDED":
+      return PollAction.POLL_ACTION_OPTION_ADDED;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return PollAction.UNRECOGNIZED;
+  }
+}
+
+export function pollActionToJSON(object: PollAction): string {
+  switch (object) {
+    case PollAction.POLL_ACTION_UNSPECIFIED:
+      return "POLL_ACTION_UNSPECIFIED";
+    case PollAction.POLL_ACTION_CREATED:
+      return "POLL_ACTION_CREATED";
+    case PollAction.POLL_ACTION_VOTED:
+      return "POLL_ACTION_VOTED";
+    case PollAction.POLL_ACTION_UNVOTED:
+      return "POLL_ACTION_UNVOTED";
+    case PollAction.POLL_ACTION_OPTION_ADDED:
+      return "POLL_ACTION_OPTION_ADDED";
+    case PollAction.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 export interface PollOption {
   text: string;
   optionIdentifier?: string | undefined;
@@ -92,7 +143,7 @@ export interface PollChangeEvent {
   chatGuid: string;
   pollMessageGuid: string;
   message: Message | undefined;
-  action: string;
+  action: PollAction;
 }
 
 function createBasePollOption(): PollOption {
@@ -1305,7 +1356,7 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
 };
 
 function createBasePollChangeEvent(): PollChangeEvent {
-  return { chatGuid: "", pollMessageGuid: "", message: undefined, action: "" };
+  return { chatGuid: "", pollMessageGuid: "", message: undefined, action: 0 };
 }
 
 export const PollChangeEvent: MessageFns<PollChangeEvent> = {
@@ -1319,8 +1370,8 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     if (message.message !== undefined) {
       Message.encode(message.message, writer.uint32(26).fork()).join();
     }
-    if (message.action !== "") {
-      writer.uint32(34).string(message.action);
+    if (message.action !== 0) {
+      writer.uint32(32).int32(message.action);
     }
     return writer;
   },
@@ -1357,11 +1408,11 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
           continue;
         }
         case 4: {
-          if (tag !== 34) {
+          if (tag !== 32) {
             break;
           }
 
-          message.action = reader.string();
+          message.action = reader.int32() as any;
           continue;
         }
       }
@@ -1386,7 +1437,7 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
         ? globalThis.String(object.poll_message_guid)
         : "",
       message: isSet(object.message) ? Message.fromJSON(object.message) : undefined,
-      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      action: isSet(object.action) ? pollActionFromJSON(object.action) : 0,
     };
   },
 
@@ -1401,8 +1452,8 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     if (message.message !== undefined) {
       obj.message = Message.toJSON(message.message);
     }
-    if (message.action !== "") {
-      obj.action = message.action;
+    if (message.action !== 0) {
+      obj.action = pollActionToJSON(message.action);
     }
     return obj;
   },
@@ -1417,7 +1468,7 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     message.message = (object.message !== undefined && object.message !== null)
       ? Message.fromPartial(object.message)
       : undefined;
-    message.action = object.action ?? "";
+    message.action = object.action ?? 0;
     return message;
   },
 };

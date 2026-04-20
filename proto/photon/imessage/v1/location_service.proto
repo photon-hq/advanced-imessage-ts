@@ -4,6 +4,7 @@ package photon.imessage.v1;
 option swift_prefix = "PIMsg_";
 
 import "google/protobuf/timestamp.proto";
+import "photon/imessage/v1/common.proto";
 
 // ---------------------------------------------------------------------------
 // Service
@@ -66,6 +67,7 @@ message SubscribeLocationEventsResponse {
   google.protobuf.Timestamp timestamp = 1;
   oneof payload {
     FindMyEvent find_my_location_updated = 10;
+    Heartbeat heartbeat = 99;
   }
 }
 

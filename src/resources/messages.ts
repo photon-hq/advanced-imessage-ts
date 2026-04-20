@@ -8,7 +8,6 @@ import { fromGrpcError } from "../errors/error-handler.ts";
 import { SortDirection as ProtoSortDirection } from "../generated/photon/imessage/v1/common.ts";
 import type {
   MessageReceivedEvent,
-  MessageSendErrorEvent,
   MessageSentEvent,
   MessageUpdatedEvent,
   MessagePart as ProtoMessagePart,
@@ -635,19 +634,8 @@ export class MessagesResource {
               chatGuid: chatGuid(evt.chatGuid),
               cursor,
             };
-          } else if (proto.messageSendError !== undefined) {
-            const evt: MessageSendErrorEvent = proto.messageSendError;
-            yield {
-              type: "message.sendError" as const,
-              timestamp,
-              chatGuid: chatGuid(evt.chatGuid),
-              clientMessageId: evt.clientMessageId,
-              errorCode: evt.errorCode,
-              errorMessage: evt.errorMessage,
-              cursor,
-            };
           }
-          // Unknown payload kinds are silently skipped.
+          // Unknown payload kinds (including heartbeat) are silently skipped.
         }
       } catch (err) {
         throw fromGrpcError(err);

@@ -108,9 +108,17 @@ message SubscribePollEventsResponse {
   }
 }
 
+enum PollAction {
+  POLL_ACTION_UNSPECIFIED = 0;
+  POLL_ACTION_CREATED = 1;
+  POLL_ACTION_VOTED = 2;
+  POLL_ACTION_UNVOTED = 3;
+  POLL_ACTION_OPTION_ADDED = 4;
+}
+
 message PollChangeEvent {
   string chat_guid = 1;
   string poll_message_guid = 2;
   Message message = 3;
-  string action = 4;
+  PollAction action = 4;
 }
