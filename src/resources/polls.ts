@@ -6,7 +6,10 @@
  */
 
 import { fromGrpcError } from "../errors/error-handler.ts";
-import type { PollChangeEvent } from "../generated/photon/imessage/v1/poll_service.ts";
+import {
+  PollAction,
+  type PollChangeEvent,
+} from "../generated/photon/imessage/v1/poll_service.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { PollServiceClient } from "../transport/grpc-client.ts";
 import { mapMessage, mapPollInfo } from "../transport/mapper.ts";
@@ -160,20 +163,19 @@ export class PollsResource {
 // ---------------------------------------------------------------------------
 
 /**
- * Map a proto poll action string to the SDK PollEvent action literal.
+ * Map a proto PollAction enum to the SDK PollEvent action literal.
  */
 function mapPollAction(
-  action: string
+  action: PollAction
 ): "created" | "voted" | "unvoted" | "optionAdded" {
   switch (action) {
-    case "created":
+    case PollAction.POLL_ACTION_CREATED:
       return "created";
-    case "voted":
+    case PollAction.POLL_ACTION_VOTED:
       return "voted";
-    case "unvoted":
+    case PollAction.POLL_ACTION_UNVOTED:
       return "unvoted";
-    case "optionAdded":
-    case "option_added":
+    case PollAction.POLL_ACTION_OPTION_ADDED:
       return "optionAdded";
     default:
       return "created";
