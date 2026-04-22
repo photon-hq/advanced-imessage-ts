@@ -9,7 +9,7 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
 import { Heartbeat } from "./common.js";
-import { Message, MessageCommandReceipt } from "./message_service.js";
+import { MessageCommandReceipt } from "./message_service.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
@@ -139,11 +139,64 @@ export interface SubscribePollEventsResponse {
   heartbeat?: Heartbeat | undefined;
 }
 
+export interface PollActor {
+  /**
+   * The handle address (email / phone) of the actor, if resolvable.
+   * Empty when the acting device is the local device (see `is_from_me`)
+   * or when the row carries no handle.
+   */
+  address: string;
+  /**
+   * True when the change was written by the local iMessage account
+   * (self-initiated, including from another of the user's devices).
+   */
+  isFromMe: boolean;
+}
+
+/** Full initial poll state on creation. */
+export interface PollCreated {
+  title: string;
+  options: PollOption[];
+}
+
+/**
+ * Full post-change poll state after a definition update.
+ * Currently the only observed Apple-side definition update is "option added",
+ * but the payload carries the complete new state so the UI can render
+ * any definition mutation without a follow-up query.
+ */
+export interface PollOptionAdded {
+  title: string;
+  options: PollOption[];
+}
+
+/**
+ * Actor's current full selection after voting.
+ * iMessage represents votes as the voter's current picks (not as deltas),
+ * so `option_identifiers` is authoritative for this actor at this moment.
+ */
+export interface PollVoted {
+  optionIdentifiers: string[];
+}
+
+/** Actor cleared all their votes. Carries no extra fields. */
+export interface PollUnvoted {
+}
+
 export interface PollChangeEvent {
   chatGuid: string;
   pollMessageGuid: string;
-  message: Message | undefined;
   action: PollAction;
+  /** When the change was written (the triggering message's dateCreated). */
+  at:
+    | Date
+    | undefined;
+  /** Who made the change. */
+  actor: PollActor | undefined;
+  created?: PollCreated | undefined;
+  optionAdded?: PollOptionAdded | undefined;
+  voted?: PollVoted | undefined;
+  unvoted?: PollUnvoted | undefined;
 }
 
 function createBasePollOption(): PollOption {
@@ -1355,8 +1408,357 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
   },
 };
 
+function createBasePollActor(): PollActor {
+  return { address: "", isFromMe: false };
+}
+
+export const PollActor: MessageFns<PollActor> = {
+  encode(message: PollActor, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== "") {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.isFromMe !== false) {
+      writer.uint32(16).bool(message.isFromMe);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PollActor {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePollActor();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.address = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.isFromMe = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PollActor {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      isFromMe: isSet(object.isFromMe)
+        ? globalThis.Boolean(object.isFromMe)
+        : isSet(object.is_from_me)
+        ? globalThis.Boolean(object.is_from_me)
+        : false,
+    };
+  },
+
+  toJSON(message: PollActor): unknown {
+    const obj: any = {};
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.isFromMe !== false) {
+      obj.isFromMe = message.isFromMe;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PollActor>): PollActor {
+    return PollActor.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PollActor>): PollActor {
+    const message = createBasePollActor();
+    message.address = object.address ?? "";
+    message.isFromMe = object.isFromMe ?? false;
+    return message;
+  },
+};
+
+function createBasePollCreated(): PollCreated {
+  return { title: "", options: [] };
+}
+
+export const PollCreated: MessageFns<PollCreated> = {
+  encode(message: PollCreated, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.title !== "") {
+      writer.uint32(10).string(message.title);
+    }
+    for (const v of message.options) {
+      PollOption.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PollCreated {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePollCreated();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.title = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.options.push(PollOption.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PollCreated {
+    return {
+      title: isSet(object.title) ? globalThis.String(object.title) : "",
+      options: globalThis.Array.isArray(object?.options) ? object.options.map((e: any) => PollOption.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: PollCreated): unknown {
+    const obj: any = {};
+    if (message.title !== "") {
+      obj.title = message.title;
+    }
+    if (message.options?.length) {
+      obj.options = message.options.map((e) => PollOption.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PollCreated>): PollCreated {
+    return PollCreated.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PollCreated>): PollCreated {
+    const message = createBasePollCreated();
+    message.title = object.title ?? "";
+    message.options = object.options?.map((e) => PollOption.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePollOptionAdded(): PollOptionAdded {
+  return { title: "", options: [] };
+}
+
+export const PollOptionAdded: MessageFns<PollOptionAdded> = {
+  encode(message: PollOptionAdded, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.title !== "") {
+      writer.uint32(10).string(message.title);
+    }
+    for (const v of message.options) {
+      PollOption.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PollOptionAdded {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePollOptionAdded();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.title = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.options.push(PollOption.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PollOptionAdded {
+    return {
+      title: isSet(object.title) ? globalThis.String(object.title) : "",
+      options: globalThis.Array.isArray(object?.options) ? object.options.map((e: any) => PollOption.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: PollOptionAdded): unknown {
+    const obj: any = {};
+    if (message.title !== "") {
+      obj.title = message.title;
+    }
+    if (message.options?.length) {
+      obj.options = message.options.map((e) => PollOption.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PollOptionAdded>): PollOptionAdded {
+    return PollOptionAdded.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PollOptionAdded>): PollOptionAdded {
+    const message = createBasePollOptionAdded();
+    message.title = object.title ?? "";
+    message.options = object.options?.map((e) => PollOption.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePollVoted(): PollVoted {
+  return { optionIdentifiers: [] };
+}
+
+export const PollVoted: MessageFns<PollVoted> = {
+  encode(message: PollVoted, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.optionIdentifiers) {
+      writer.uint32(10).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PollVoted {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePollVoted();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.optionIdentifiers.push(reader.string());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PollVoted {
+    return {
+      optionIdentifiers: globalThis.Array.isArray(object?.optionIdentifiers)
+        ? object.optionIdentifiers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.option_identifiers)
+        ? object.option_identifiers.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: PollVoted): unknown {
+    const obj: any = {};
+    if (message.optionIdentifiers?.length) {
+      obj.optionIdentifiers = message.optionIdentifiers;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PollVoted>): PollVoted {
+    return PollVoted.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PollVoted>): PollVoted {
+    const message = createBasePollVoted();
+    message.optionIdentifiers = object.optionIdentifiers?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBasePollUnvoted(): PollUnvoted {
+  return {};
+}
+
+export const PollUnvoted: MessageFns<PollUnvoted> = {
+  encode(_: PollUnvoted, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PollUnvoted {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePollUnvoted();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): PollUnvoted {
+    return {};
+  },
+
+  toJSON(_: PollUnvoted): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<PollUnvoted>): PollUnvoted {
+    return PollUnvoted.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<PollUnvoted>): PollUnvoted {
+    const message = createBasePollUnvoted();
+    return message;
+  },
+};
+
 function createBasePollChangeEvent(): PollChangeEvent {
-  return { chatGuid: "", pollMessageGuid: "", message: undefined, action: 0 };
+  return {
+    chatGuid: "",
+    pollMessageGuid: "",
+    action: 0,
+    at: undefined,
+    actor: undefined,
+    created: undefined,
+    optionAdded: undefined,
+    voted: undefined,
+    unvoted: undefined,
+  };
 }
 
 export const PollChangeEvent: MessageFns<PollChangeEvent> = {
@@ -1367,11 +1769,26 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     if (message.pollMessageGuid !== "") {
       writer.uint32(18).string(message.pollMessageGuid);
     }
-    if (message.message !== undefined) {
-      Message.encode(message.message, writer.uint32(26).fork()).join();
-    }
     if (message.action !== 0) {
-      writer.uint32(32).int32(message.action);
+      writer.uint32(24).int32(message.action);
+    }
+    if (message.at !== undefined) {
+      Timestamp.encode(toTimestamp(message.at), writer.uint32(34).fork()).join();
+    }
+    if (message.actor !== undefined) {
+      PollActor.encode(message.actor, writer.uint32(42).fork()).join();
+    }
+    if (message.created !== undefined) {
+      PollCreated.encode(message.created, writer.uint32(82).fork()).join();
+    }
+    if (message.optionAdded !== undefined) {
+      PollOptionAdded.encode(message.optionAdded, writer.uint32(90).fork()).join();
+    }
+    if (message.voted !== undefined) {
+      PollVoted.encode(message.voted, writer.uint32(98).fork()).join();
+    }
+    if (message.unvoted !== undefined) {
+      PollUnvoted.encode(message.unvoted, writer.uint32(106).fork()).join();
     }
     return writer;
   },
@@ -1400,19 +1817,59 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
           continue;
         }
         case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.message = Message.decode(reader, reader.uint32());
-          continue;
-        }
-        case 4: {
-          if (tag !== 32) {
+          if (tag !== 24) {
             break;
           }
 
           message.action = reader.int32() as any;
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.at = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.actor = PollActor.decode(reader, reader.uint32());
+          continue;
+        }
+        case 10: {
+          if (tag !== 82) {
+            break;
+          }
+
+          message.created = PollCreated.decode(reader, reader.uint32());
+          continue;
+        }
+        case 11: {
+          if (tag !== 90) {
+            break;
+          }
+
+          message.optionAdded = PollOptionAdded.decode(reader, reader.uint32());
+          continue;
+        }
+        case 12: {
+          if (tag !== 98) {
+            break;
+          }
+
+          message.voted = PollVoted.decode(reader, reader.uint32());
+          continue;
+        }
+        case 13: {
+          if (tag !== 106) {
+            break;
+          }
+
+          message.unvoted = PollUnvoted.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -1436,8 +1893,17 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
         : isSet(object.poll_message_guid)
         ? globalThis.String(object.poll_message_guid)
         : "",
-      message: isSet(object.message) ? Message.fromJSON(object.message) : undefined,
       action: isSet(object.action) ? pollActionFromJSON(object.action) : 0,
+      at: isSet(object.at) ? fromJsonTimestamp(object.at) : undefined,
+      actor: isSet(object.actor) ? PollActor.fromJSON(object.actor) : undefined,
+      created: isSet(object.created) ? PollCreated.fromJSON(object.created) : undefined,
+      optionAdded: isSet(object.optionAdded)
+        ? PollOptionAdded.fromJSON(object.optionAdded)
+        : isSet(object.option_added)
+        ? PollOptionAdded.fromJSON(object.option_added)
+        : undefined,
+      voted: isSet(object.voted) ? PollVoted.fromJSON(object.voted) : undefined,
+      unvoted: isSet(object.unvoted) ? PollUnvoted.fromJSON(object.unvoted) : undefined,
     };
   },
 
@@ -1449,11 +1915,26 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     if (message.pollMessageGuid !== "") {
       obj.pollMessageGuid = message.pollMessageGuid;
     }
-    if (message.message !== undefined) {
-      obj.message = Message.toJSON(message.message);
-    }
     if (message.action !== 0) {
       obj.action = pollActionToJSON(message.action);
+    }
+    if (message.at !== undefined) {
+      obj.at = message.at.toISOString();
+    }
+    if (message.actor !== undefined) {
+      obj.actor = PollActor.toJSON(message.actor);
+    }
+    if (message.created !== undefined) {
+      obj.created = PollCreated.toJSON(message.created);
+    }
+    if (message.optionAdded !== undefined) {
+      obj.optionAdded = PollOptionAdded.toJSON(message.optionAdded);
+    }
+    if (message.voted !== undefined) {
+      obj.voted = PollVoted.toJSON(message.voted);
+    }
+    if (message.unvoted !== undefined) {
+      obj.unvoted = PollUnvoted.toJSON(message.unvoted);
     }
     return obj;
   },
@@ -1465,10 +1946,23 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     const message = createBasePollChangeEvent();
     message.chatGuid = object.chatGuid ?? "";
     message.pollMessageGuid = object.pollMessageGuid ?? "";
-    message.message = (object.message !== undefined && object.message !== null)
-      ? Message.fromPartial(object.message)
-      : undefined;
     message.action = object.action ?? 0;
+    message.at = object.at ?? undefined;
+    message.actor = (object.actor !== undefined && object.actor !== null)
+      ? PollActor.fromPartial(object.actor)
+      : undefined;
+    message.created = (object.created !== undefined && object.created !== null)
+      ? PollCreated.fromPartial(object.created)
+      : undefined;
+    message.optionAdded = (object.optionAdded !== undefined && object.optionAdded !== null)
+      ? PollOptionAdded.fromPartial(object.optionAdded)
+      : undefined;
+    message.voted = (object.voted !== undefined && object.voted !== null)
+      ? PollVoted.fromPartial(object.voted)
+      : undefined;
+    message.unvoted = (object.unvoted !== undefined && object.unvoted !== null)
+      ? PollUnvoted.fromPartial(object.unvoted)
+      : undefined;
     return message;
   },
 };

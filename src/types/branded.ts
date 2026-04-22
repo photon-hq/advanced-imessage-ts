@@ -47,4 +47,3 @@ export function messageGuid(raw: string): MessageGuid {
 export function attachmentGuid(raw: string): AttachmentGuid {
   return raw as AttachmentGuid;
 }
-

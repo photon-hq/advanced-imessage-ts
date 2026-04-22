@@ -36,4 +36,3 @@ export type MessageItemType =
 
 /** The underlying transport service for a chat. */
 export type ChatServiceType = "iMessage" | "SMS";
-
