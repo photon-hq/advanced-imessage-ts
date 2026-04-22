@@ -6,15 +6,12 @@
  */
 
 import { fromGrpcError } from "../errors/error-handler.ts";
-import {
-  PollAction,
-  type PollChangeEvent,
-} from "../generated/photon/imessage/v1/poll_service.ts";
+import type { PollChangeEvent as ProtoPollChangeEvent } from "../generated/photon/imessage/v1/poll_service.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { PollServiceClient } from "../transport/grpc-client.ts";
-import { mapMessage, mapPollInfo } from "../transport/mapper.ts";
+import { mapPollChangeEvent, mapPollInfo } from "../transport/mapper.ts";
 import type { ChatGuid, MessageGuid } from "../types/branded.ts";
-import { chatGuid, messageGuid } from "../types/branded.ts";
+import { messageGuid } from "../types/branded.ts";
 import type { CommandReceipt } from "../types/common.ts";
 import type { PollEvent } from "../types/events.ts";
 import type { PollInfo } from "../types/polls.ts";
@@ -125,28 +122,38 @@ export class PollsResource {
   // Event subscription
   // -------------------------------------------------------------------------
 
-  /** Subscribe to poll change events. Returns a typed event stream. */
+  /**
+   * Subscribe to poll change events.
+   *
+   * Each event is self-contained: `delta` is a discriminated union that
+   * carries the full post-change poll state (`created`, `optionAdded`) or
+   * the voter's current selection (`voted`). `actor` identifies who
+   * triggered the change; `at` is the triggering message's timestamp.
+   *
+   * No `polls.get()` round-trip is required for typical UI rendering.
+   */
   subscribe(): TypedEventStream<PollEvent> {
     const rpcStream = this._client.subscribePollEvents({});
 
     async function* mapEvents(): AsyncGenerator<PollEvent> {
       try {
         for await (const proto of rpcStream) {
-          const timestamp = proto.timestamp ?? new Date();
-
           if (proto.pollChanged === undefined) {
             continue;
           }
 
-          const evt: PollChangeEvent = proto.pollChanged;
+          const evt: ProtoPollChangeEvent = proto.pollChanged;
+          const mapped = mapPollChangeEvent(evt);
 
           yield {
             type: "poll.changed" as const,
-            chatGuid: chatGuid(evt.chatGuid),
-            pollMessageGuid: messageGuid(evt.pollMessageGuid),
-            message: mapMessage(unwrap(evt.message, "message")),
-            action: mapPollAction(evt.action),
-            timestamp,
+            chatGuid: mapped.chatGuid,
+            pollMessageGuid: mapped.pollMessageGuid,
+            actor: mapped.actor,
+            at: mapped.at,
+            delta: mapped.delta,
+            action: mapped.delta.type,
+            timestamp: proto.timestamp ?? new Date(),
           };
         }
       } catch (err) {
@@ -155,29 +162,5 @@ export class PollsResource {
     }
 
     return new TypedEventStream<PollEvent>(mapEvents());
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Map a proto PollAction enum to the SDK PollEvent action literal.
- */
-function mapPollAction(
-  action: PollAction
-): "created" | "voted" | "unvoted" | "optionAdded" {
-  switch (action) {
-    case PollAction.POLL_ACTION_CREATED:
-      return "created";
-    case PollAction.POLL_ACTION_VOTED:
-      return "voted";
-    case PollAction.POLL_ACTION_UNVOTED:
-      return "unvoted";
-    case PollAction.POLL_ACTION_OPTION_ADDED:
-      return "optionAdded";
-    default:
-      return "created";
   }
 }

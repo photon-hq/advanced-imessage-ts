@@ -511,7 +511,10 @@ export class MessagesResource {
    * }
    * ```
    */
-  fetchMissed(cursor: string, options?: FetchMissedOptions): Paginated<Message> {
+  fetchMissed(
+    cursor: string,
+    options?: FetchMissedOptions
+  ): Paginated<Message> {
     return this.list({
       afterCursor: cursor,
       chatGuid: options?.chatGuid,

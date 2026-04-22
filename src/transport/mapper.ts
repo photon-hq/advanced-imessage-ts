@@ -28,6 +28,8 @@ import {
   TransferState as ProtoTransferState,
 } from "../generated/photon/imessage/v1/message_service.ts";
 import type {
+  PollActor as ProtoPollActor,
+  PollChangeEvent as ProtoPollChangeEvent,
   PollInfo as ProtoPollInfo,
   PollOption as ProtoPollOption,
   PollVote as ProtoPollVote,
@@ -40,7 +42,9 @@ import type { AddressInfo } from "../types/addresses.ts";
 import type { AttachmentInfo } from "../types/attachments.ts";
 import {
   attachmentGuid,
+  type ChatGuid,
   chatGuid,
+  type MessageGuid,
   messageGuid,
 } from "../types/branded.ts";
 import type { Chat } from "../types/chats.ts";
@@ -52,7 +56,14 @@ import type {
 } from "../types/enums.ts";
 import type { FindMyFriend } from "../types/locations.ts";
 import type { Message } from "../types/messages.ts";
-import type { PollInfo, PollOption, PollVote } from "../types/polls.ts";
+import type {
+  PollActor,
+  PollChangeDelta,
+  PollInfo,
+  PollOption,
+  PollVote,
+} from "../types/polls.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
 // ---------------------------------------------------------------------------
 // Timestamp conversion
@@ -323,6 +334,77 @@ export function mapPollInfo(proto: ProtoPollInfo): PollInfo {
     title: proto.title,
     options: proto.options.map(mapPollOption),
     votes: proto.votes.map(mapPollVote),
+  };
+}
+
+/**
+ * Map a proto `PollActor` to the SDK `PollActor`.
+ *
+ * ts-proto uses `""` for missing string fields; we normalize to `undefined`
+ * so the SDK's `address?: string` contract is truthful.
+ */
+export function mapPollActor(proto: ProtoPollActor): PollActor {
+  return {
+    address: proto.address === "" ? undefined : proto.address,
+    isFromMe: proto.isFromMe,
+  };
+}
+
+/**
+ * Map a proto `PollChangeEvent`'s flattened oneof fields into a
+ * discriminated `PollChangeDelta`.
+ *
+ * ts-proto represents proto3 oneof as separate optional fields rather than a
+ * discriminated union, so we detect which one is set and rebuild the union
+ * here. Exactly one of `created` / `optionAdded` / `voted` / `unvoted` is
+ * expected to be set by the server.
+ */
+export function mapPollDelta(proto: ProtoPollChangeEvent): PollChangeDelta {
+  if (proto.created !== undefined) {
+    return {
+      type: "created",
+      title: proto.created.title,
+      options: proto.created.options.map(mapPollOption),
+    };
+  }
+  if (proto.optionAdded !== undefined) {
+    return {
+      type: "optionAdded",
+      title: proto.optionAdded.title,
+      options: proto.optionAdded.options.map(mapPollOption),
+    };
+  }
+  if (proto.voted !== undefined) {
+    return {
+      type: "voted",
+      optionIdentifiers: proto.voted.optionIdentifiers,
+    };
+  }
+  if (proto.unvoted !== undefined) {
+    return { type: "unvoted" };
+  }
+  throw new Error(
+    "PollChangeEvent delta oneof is empty — server did not populate a payload"
+  );
+}
+
+/**
+ * Map a proto `PollChangeEvent` into the SDK shape minus transport-level
+ * fields (the stream-level `timestamp` is applied by the resource).
+ */
+export function mapPollChangeEvent(proto: ProtoPollChangeEvent): {
+  chatGuid: ChatGuid;
+  pollMessageGuid: MessageGuid;
+  actor: PollActor;
+  at: Date;
+  delta: PollChangeDelta;
+} {
+  return {
+    chatGuid: chatGuid(proto.chatGuid),
+    pollMessageGuid: messageGuid(proto.pollMessageGuid),
+    actor: mapPollActor(unwrap(proto.actor, "actor")),
+    at: unwrap(proto.at, "at"),
+    delta: mapPollDelta(proto),
   };
 }
 

@@ -90,5 +90,11 @@ export type {
   StickerPlacement,
   TextFormatInput,
 } from "./types/messages.js";
-export type { PollInfo, PollOption, PollVote } from "./types/polls.js";
+export type {
+  PollActor,
+  PollChangeDelta,
+  PollInfo,
+  PollOption,
+  PollVote,
+} from "./types/polls.js";
 export { Reaction } from "./types/reactions.js";

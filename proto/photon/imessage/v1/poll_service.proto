@@ -116,9 +116,75 @@ enum PollAction {
   POLL_ACTION_OPTION_ADDED = 4;
 }
 
+// ---------------------------------------------------------------------------
+// Poll change event
+// ---------------------------------------------------------------------------
+//
+// A self-contained snapshot of one poll change — no `getPoll` round-trip
+// required for common rendering. Clients switch on `action` (or on the
+// `delta` oneof) and read the matching payload.
+//
+// `actor` and `at` identify WHO made the change and WHEN. The per-action
+// payload carries the full post-change state (for `.created` / `.optionAdded`)
+// or the actor's current full selection (for `.voted`).
+//
+// Note on `.unvoted`: iMessage's vote protocol represents unvote as
+// "user cleared all their picks" — there is no per-option unvote. The
+// event therefore does not carry an option identifier. Use `getPoll` if
+// you need the full post-change tally.
+
+message PollActor {
+  // The handle address (email / phone) of the actor, if resolvable.
+  // Empty when the acting device is the local device (see `is_from_me`)
+  // or when the row carries no handle.
+  string address = 1;
+
+  // True when the change was written by the local iMessage account
+  // (self-initiated, including from another of the user's devices).
+  bool is_from_me = 2;
+}
+
+// Full initial poll state on creation.
+message PollCreated {
+  string title = 1;
+  repeated PollOption options = 2;
+}
+
+// Full post-change poll state after a definition update.
+// Currently the only observed Apple-side definition update is "option added",
+// but the payload carries the complete new state so the UI can render
+// any definition mutation without a follow-up query.
+message PollOptionAdded {
+  string title = 1;
+  repeated PollOption options = 2;
+}
+
+// Actor's current full selection after voting.
+// iMessage represents votes as the voter's current picks (not as deltas),
+// so `option_identifiers` is authoritative for this actor at this moment.
+message PollVoted {
+  repeated string option_identifiers = 1;
+}
+
+// Actor cleared all their votes. Carries no extra fields.
+message PollUnvoted {}
+
 message PollChangeEvent {
   string chat_guid = 1;
   string poll_message_guid = 2;
-  Message message = 3;
-  PollAction action = 4;
+  PollAction action = 3;
+
+  // When the change was written (the triggering message's dateCreated).
+  google.protobuf.Timestamp at = 4;
+
+  // Who made the change.
+  PollActor actor = 5;
+
+  // Per-action payload. The matching field is always set for a given action.
+  oneof delta {
+    PollCreated     created      = 10;
+    PollOptionAdded option_added = 11;
+    PollVoted       voted        = 12;
+    PollUnvoted     unvoted      = 13;
+  }
 }

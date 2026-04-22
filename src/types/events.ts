@@ -8,9 +8,10 @@
  * to the concrete event shape, enabling type-safe `subscribe()` overloads.
  */
 
-import type { ChatGuid, MessageGuid } from "./branded.ts";
-import type { FindMyFriend } from "./locations.ts";
-import type { Message } from "./messages.ts";
+import type { ChatGuid, MessageGuid } from "./branded.js";
+import type { FindMyFriend } from "./locations.js";
+import type { Message } from "./messages.js";
+import type { PollActor, PollChangeDelta } from "./polls.js";
 
 // ---------------------------------------------------------------------------
 // MessageEvent
@@ -102,12 +103,36 @@ export interface GroupEvent {
 // PollEvent
 // ---------------------------------------------------------------------------
 
-/** An event indicating a poll was created or interacted with. */
+/**
+ * An event indicating a poll was created or interacted with.
+ *
+ * The event is self-contained — the `delta` discriminated union carries the
+ * full post-change data for `created` / `optionAdded`, or the voter's
+ * current full selection for `voted`. No `polls.get()` round-trip is
+ * required for common UI rendering.
+ *
+ * Switch on `delta.type` (or equivalently `action`) to narrow the payload.
+ */
 export interface PollEvent {
-  readonly action: "created" | "voted" | "unvoted" | "optionAdded";
+  /**
+   * Action discriminator — mirrors `delta.type`. Convenience alias for
+   * callers that only need to branch on the action kind.
+   */
+  readonly action: PollChangeDelta["type"];
+  /** Who made the change. */
+  readonly actor: PollActor;
+  /**
+   * When the change was written (the triggering message's dateCreated).
+   * May differ slightly from the event's delivery time.
+   */
+  readonly at: Date;
+  /** Chat the poll belongs to. */
   readonly chatGuid: ChatGuid;
-  readonly message: Message;
+  /** The action and its per-action payload. */
+  readonly delta: PollChangeDelta;
+  /** GUID of the root poll message (stable across the poll's lifetime). */
   readonly pollMessageGuid: MessageGuid;
+  /** The delivery timestamp assigned by the server stream. */
   readonly timestamp: Date;
   readonly type: "poll.changed";
 }
