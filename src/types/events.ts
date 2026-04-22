@@ -8,10 +8,10 @@
  * to the concrete event shape, enabling type-safe `subscribe()` overloads.
  */
 
-import type { ChatGuid, MessageGuid } from "./branded.ts";
-import type { FindMyFriend } from "./locations.ts";
-import type { Message } from "./messages.ts";
-import type { PollActor, PollChangeDelta } from "./polls.ts";
+import type { ChatGuid, MessageGuid } from "./branded.js";
+import type { FindMyFriend } from "./locations.js";
+import type { Message } from "./messages.js";
+import type { PollActor, PollChangeDelta } from "./polls.js";
 
 // ---------------------------------------------------------------------------
 // MessageEvent
