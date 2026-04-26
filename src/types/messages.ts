@@ -199,7 +199,7 @@ export interface SendOptions {
 /** A single part within a multi-part composed message. */
 export interface MessagePart {
   /** GUID returned by `attachments.upload()`. */
-  readonly attachmentGuid?: string;
+  readonly attachmentGuid?: AttachmentGuid;
   /** Display name for the attachment file. */
   readonly attachmentName?: string;
   /** Formatting instructions for the text in this part. */

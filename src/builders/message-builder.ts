@@ -9,7 +9,7 @@
  * This builder powers Tier 3.
  */
 
-import type { MessageGuid } from "../types/branded.js";
+import type { AttachmentGuid, MessageGuid } from "../types/branded.js";
 import type { MessageEffect, TextEffect } from "../types/effects.js";
 import type {
   ComposedMessage,
@@ -86,7 +86,7 @@ export class MessageBuilder {
    * @param guid - GUID returned by a prior `attachments.upload()` call.
    * @param options - Optional display name for the file.
    */
-  addUploadedAttachment(guid: string, options?: { name?: string }): this {
+  addUploadedAttachment(guid: AttachmentGuid, options?: { name?: string }): this {
     this._parts.push({
       attachmentGuid: guid,
       attachmentName: options?.name,

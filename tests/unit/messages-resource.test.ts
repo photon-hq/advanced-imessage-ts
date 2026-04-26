@@ -56,8 +56,8 @@ describe("MessagesResource sticker placement", () => {
 
     await resource.sendMultipart(chatGuidValue, [
       { text: "look at these" },
-      { attachmentGuid: "att-a", attachmentName: "a.jpg" },
-      { attachmentGuid: "att-b", attachmentName: "b.jpg" },
+      { attachmentGuid: "att-a" as AttachmentGuid, attachmentName: "a.jpg" },
+      { attachmentGuid: "att-b" as AttachmentGuid, attachmentName: "b.jpg" },
     ]);
 
     const parts = (capturedRequest?.parts as Array<Record<string, unknown>>);
