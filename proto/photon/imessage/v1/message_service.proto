@@ -166,7 +166,11 @@ message StickerPlacement {
 
 message MessagePart {
   optional string text = 1;
-  optional string attachment_path = 2;
+  // attachment_path is server-internal; SDK clients use attachment_guid.
+  oneof attachment {
+    string attachment_path = 2;
+    string attachment_guid = 8;
+  }
   optional string attachment_name = 3;
   reserved 4;
   optional string mention = 5;
