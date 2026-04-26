@@ -73,7 +73,7 @@ function toProtoMessageParts(
 ): ProtoMessagePart[] {
   return parts.map((p) => ({
     text: p.text,
-    attachmentPath: p.attachmentPath,
+    attachmentGuid: p.attachmentGuid,
     attachmentName: p.attachmentName,
     mention: p.mention,
     partIndex: p.partIndex,

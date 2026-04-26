@@ -45,6 +45,28 @@ describe("MessagesResource sticker placement", () => {
     });
   });
 
+  it("forwards attachmentGuid on each multipart part", async () => {
+    let capturedRequest: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async send(request: Record<string, unknown>) {
+        capturedRequest = request;
+        return { receipt: { guid: "sent-multi" } };
+      },
+    } as any);
+
+    await resource.sendMultipart(chatGuidValue, [
+      { text: "look at these" },
+      { attachmentGuid: "att-a" as AttachmentGuid, attachmentName: "a.jpg" },
+      { attachmentGuid: "att-b" as AttachmentGuid, attachmentName: "b.jpg" },
+    ]);
+
+    const parts = (capturedRequest?.parts as Array<Record<string, unknown>>);
+    expect(parts).toHaveLength(3);
+    expect(parts[0]?.attachmentGuid).toBeUndefined();
+    expect(parts[1]?.attachmentGuid).toBe("att-a");
+    expect(parts[2]?.attachmentGuid).toBe("att-b");
+  });
+
   it("does not forward a removed send service override", async () => {
     let capturedRequest: Record<string, unknown> | undefined;
     const resource = new MessagesResource({

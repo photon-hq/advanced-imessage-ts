@@ -198,10 +198,10 @@ export interface SendOptions {
 
 /** A single part within a multi-part composed message. */
 export interface MessagePart {
+  /** GUID returned by `attachments.upload()`. */
+  readonly attachmentGuid?: AttachmentGuid;
   /** Display name for the attachment file. */
   readonly attachmentName?: string;
-  /** Server-side file path for an attachment. */
-  readonly attachmentPath?: string;
   /** Formatting instructions for the text in this part. */
   readonly formatting?: readonly TextFormatInput[];
   /** Address to mention (e.g. "john@icloud.com"). */

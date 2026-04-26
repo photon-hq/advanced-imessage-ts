@@ -248,6 +248,7 @@ export interface StickerPlacement {
 export interface MessagePart {
   text?: string | undefined;
   attachmentPath?: string | undefined;
+  attachmentGuid?: string | undefined;
   attachmentName?: string | undefined;
   mention?: string | undefined;
   partIndex?: number | undefined;
@@ -2204,6 +2205,7 @@ function createBaseMessagePart(): MessagePart {
   return {
     text: undefined,
     attachmentPath: undefined,
+    attachmentGuid: undefined,
     attachmentName: undefined,
     mention: undefined,
     partIndex: undefined,
@@ -2218,6 +2220,9 @@ export const MessagePart: MessageFns<MessagePart> = {
     }
     if (message.attachmentPath !== undefined) {
       writer.uint32(18).string(message.attachmentPath);
+    }
+    if (message.attachmentGuid !== undefined) {
+      writer.uint32(66).string(message.attachmentGuid);
     }
     if (message.attachmentName !== undefined) {
       writer.uint32(26).string(message.attachmentName);
@@ -2255,6 +2260,14 @@ export const MessagePart: MessageFns<MessagePart> = {
           }
 
           message.attachmentPath = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.attachmentGuid = reader.string();
           continue;
         }
         case 3: {
@@ -2306,6 +2319,11 @@ export const MessagePart: MessageFns<MessagePart> = {
         : isSet(object.attachment_path)
         ? globalThis.String(object.attachment_path)
         : undefined,
+      attachmentGuid: isSet(object.attachmentGuid)
+        ? globalThis.String(object.attachmentGuid)
+        : isSet(object.attachment_guid)
+        ? globalThis.String(object.attachment_guid)
+        : undefined,
       attachmentName: isSet(object.attachmentName)
         ? globalThis.String(object.attachmentName)
         : isSet(object.attachment_name)
@@ -2331,6 +2349,9 @@ export const MessagePart: MessageFns<MessagePart> = {
     if (message.attachmentPath !== undefined) {
       obj.attachmentPath = message.attachmentPath;
     }
+    if (message.attachmentGuid !== undefined) {
+      obj.attachmentGuid = message.attachmentGuid;
+    }
     if (message.attachmentName !== undefined) {
       obj.attachmentName = message.attachmentName;
     }
@@ -2353,6 +2374,7 @@ export const MessagePart: MessageFns<MessagePart> = {
     const message = createBaseMessagePart();
     message.text = object.text ?? undefined;
     message.attachmentPath = object.attachmentPath ?? undefined;
+    message.attachmentGuid = object.attachmentGuid ?? undefined;
     message.attachmentName = object.attachmentName ?? undefined;
     message.mention = object.mention ?? undefined;
     message.partIndex = object.partIndex ?? undefined;

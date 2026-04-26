@@ -9,7 +9,7 @@
  * This builder powers Tier 3.
  */
 
-import type { MessageGuid } from "../types/branded.js";
+import type { AttachmentGuid, MessageGuid } from "../types/branded.js";
 import type { MessageEffect, TextEffect } from "../types/effects.js";
 import type {
   ComposedMessage,
@@ -81,14 +81,14 @@ export class MessageBuilder {
   }
 
   /**
-   * Append an attachment part.
+   * Append an attachment part by GUID returned from `attachments.upload()`.
    *
-   * @param path - Server-side file path for the attachment.
+   * @param guid - GUID returned by a prior `attachments.upload()` call.
    * @param options - Optional display name for the file.
    */
-  addAttachment(path: string, options?: { name?: string }): this {
+  addUploadedAttachment(guid: AttachmentGuid, options?: { name?: string }): this {
     this._parts.push({
-      attachmentPath: path,
+      attachmentGuid: guid,
       attachmentName: options?.name,
       partIndex: this._parts.length,
     });
@@ -202,7 +202,7 @@ export class MessageBuilder {
     if (this._parts.length === 0) {
       throw new Error(
         "MessageBuilder: cannot build an empty message. " +
-          "Add at least one part with addText(), addMention(), or addAttachment()."
+          "Add at least one part with addText(), addMention(), or addUploadedAttachment()."
       );
     }
 
