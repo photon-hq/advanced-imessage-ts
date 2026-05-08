@@ -7,30 +7,26 @@
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
-import { Timestamp } from "../../../google/protobuf/timestamp.js";
-import { Heartbeat } from "./common.js";
-import { AddressInfo, Message, MessageSendReceipt } from "./message_service.js";
+import { Empty } from "../../../google/protobuf/empty.js";
+import { ChatServiceType, chatServiceTypeFromJSON, chatServiceTypeToJSON } from "./address_types.js";
+import { Chat, ChatChangeEvent } from "./chat_types.js";
+import { MessageSendReceipt } from "./message_types.js";
+import { Heartbeat } from "./streaming.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
-export interface Chat {
-  guid: string;
-  chatIdentifier?: string | undefined;
-  groupId?: string | undefined;
-  displayName?: string | undefined;
-  isGroup: boolean;
-  service: string;
-  isArchived: boolean;
-  isFiltered: boolean;
-  unreadCount?: number | undefined;
-  participants: AddressInfo[];
-  lastMessage?: Message | undefined;
-}
-
 export interface CreateChatRequest {
   addresses: string[];
-  message?: string | undefined;
-  service: string;
+  service: ChatServiceType;
+  initialMessage?: CreateChatInitialMessage | undefined;
+}
+
+/**
+ * Optional first message sent atomically with chat creation. When present,
+ * the response carries the resulting send receipt.
+ */
+export interface CreateChatInitialMessage {
+  text: string;
   attributedBody?: Uint8Array | undefined;
   effectId?: string | undefined;
   subject?: string | undefined;
@@ -38,12 +34,56 @@ export interface CreateChatRequest {
 }
 
 export interface CreateChatResponse {
-  chat: Chat | undefined;
+  chat:
+    | Chat
+    | undefined;
+  /**
+   * Receipt of the initial message when one was requested; absent
+   * otherwise.
+   */
   sendReceipt?: MessageSendReceipt | undefined;
 }
 
+export interface MarkChatReadRequest {
+  chatGuid: string;
+}
+
+export interface MarkChatReadResponse {
+}
+
+export interface SetBackgroundRequest {
+  chatGuid: string;
+  data: Uint8Array;
+  /**
+   * MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers MUST
+   * reject unsupported types with `INVALID_ARGUMENT`.
+   */
+  mimeType: string;
+}
+
+export interface SetBackgroundResponse {
+  chat: Chat | undefined;
+}
+
+export interface RemoveBackgroundRequest {
+  chatGuid: string;
+}
+
+export interface RemoveBackgroundResponse {
+  chat: Chat | undefined;
+}
+
+export interface ShareContactInfoRequest {
+  chatGuid: string;
+}
+
+export interface SetTypingRequest {
+  chatGuid: string;
+  isTyping: boolean;
+}
+
 export interface GetChatRequest {
-  guid: string;
+  chatGuid: string;
 }
 
 export interface GetChatResponse {
@@ -58,354 +98,31 @@ export interface GetChatCountResponse {
   count: number;
 }
 
-export interface LeaveChatRequest {
-  guid: string;
-}
-
-export interface LeaveChatResponse {
-}
-
-export interface MarkReadRequest {
+export interface HasBackgroundRequest {
   chatGuid: string;
 }
 
-export interface MarkReadResponse {
-}
-
-export interface ShareContactInfoRequest {
-  chatGuid: string;
-}
-
-export interface ShareContactInfoResponse {
-}
-
-export interface StartTypingRequest {
-  chatGuid: string;
-}
-
-export interface StartTypingResponse {
-}
-
-export interface StopTypingRequest {
-  chatGuid: string;
-}
-
-export interface StopTypingResponse {
-}
-
-export interface GetParticipantsRequest {
-  chatGuid: string;
-}
-
-export interface GetParticipantsResponse {
-  participants: AddressInfo[];
+export interface HasBackgroundResponse {
+  backgroundPresent: boolean;
 }
 
 export interface SubscribeChatEventsRequest {
+  /** Absent = subscribe to every chat the caller can observe. */
+  chatGuid?: string | undefined;
 }
 
 export interface SubscribeChatEventsResponse {
-  timestamp: Date | undefined;
-  chatCreated?: ChatLifecycleEvent | undefined;
-  chatLeft?: ChatLifecycleEvent | undefined;
-  chatReadStatusChanged?: ChatReadStatusEvent | undefined;
-  typingIndicator?: TypingEvent | undefined;
+  /**
+   * Monotonic global sequence shared with `EventService.CatchUpEvents`
+   * and every other `Subscribe*` stream. Absent on heartbeat frames.
+   */
+  sequence?: number | undefined;
+  chatChanged?: ChatChangeEvent | undefined;
   heartbeat?: Heartbeat | undefined;
 }
 
-export interface ChatLifecycleEvent {
-  chatGuid: string;
-}
-
-export interface ChatReadStatusEvent {
-  chatGuid: string;
-  isRead: boolean;
-}
-
-export interface TypingEvent {
-  chatGuid: string;
-  isTyping: boolean;
-  displayName?: string | undefined;
-}
-
-function createBaseChat(): Chat {
-  return {
-    guid: "",
-    chatIdentifier: undefined,
-    groupId: undefined,
-    displayName: undefined,
-    isGroup: false,
-    service: "",
-    isArchived: false,
-    isFiltered: false,
-    unreadCount: undefined,
-    participants: [],
-    lastMessage: undefined,
-  };
-}
-
-export const Chat: MessageFns<Chat> = {
-  encode(message: Chat, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
-    }
-    if (message.chatIdentifier !== undefined) {
-      writer.uint32(18).string(message.chatIdentifier);
-    }
-    if (message.groupId !== undefined) {
-      writer.uint32(26).string(message.groupId);
-    }
-    if (message.displayName !== undefined) {
-      writer.uint32(34).string(message.displayName);
-    }
-    if (message.isGroup !== false) {
-      writer.uint32(40).bool(message.isGroup);
-    }
-    if (message.service !== "") {
-      writer.uint32(50).string(message.service);
-    }
-    if (message.isArchived !== false) {
-      writer.uint32(56).bool(message.isArchived);
-    }
-    if (message.isFiltered !== false) {
-      writer.uint32(64).bool(message.isFiltered);
-    }
-    if (message.unreadCount !== undefined) {
-      writer.uint32(72).int32(message.unreadCount);
-    }
-    for (const v of message.participants) {
-      AddressInfo.encode(v!, writer.uint32(82).fork()).join();
-    }
-    if (message.lastMessage !== undefined) {
-      Message.encode(message.lastMessage, writer.uint32(90).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): Chat {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseChat();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.guid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.chatIdentifier = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.groupId = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.displayName = reader.string();
-          continue;
-        }
-        case 5: {
-          if (tag !== 40) {
-            break;
-          }
-
-          message.isGroup = reader.bool();
-          continue;
-        }
-        case 6: {
-          if (tag !== 50) {
-            break;
-          }
-
-          message.service = reader.string();
-          continue;
-        }
-        case 7: {
-          if (tag !== 56) {
-            break;
-          }
-
-          message.isArchived = reader.bool();
-          continue;
-        }
-        case 8: {
-          if (tag !== 64) {
-            break;
-          }
-
-          message.isFiltered = reader.bool();
-          continue;
-        }
-        case 9: {
-          if (tag !== 72) {
-            break;
-          }
-
-          message.unreadCount = reader.int32();
-          continue;
-        }
-        case 10: {
-          if (tag !== 82) {
-            break;
-          }
-
-          message.participants.push(AddressInfo.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 11: {
-          if (tag !== 90) {
-            break;
-          }
-
-          message.lastMessage = Message.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): Chat {
-    return {
-      guid: isSet(object.guid) ? globalThis.String(object.guid) : "",
-      chatIdentifier: isSet(object.chatIdentifier)
-        ? globalThis.String(object.chatIdentifier)
-        : isSet(object.chat_identifier)
-        ? globalThis.String(object.chat_identifier)
-        : undefined,
-      groupId: isSet(object.groupId)
-        ? globalThis.String(object.groupId)
-        : isSet(object.group_id)
-        ? globalThis.String(object.group_id)
-        : undefined,
-      displayName: isSet(object.displayName)
-        ? globalThis.String(object.displayName)
-        : isSet(object.display_name)
-        ? globalThis.String(object.display_name)
-        : undefined,
-      isGroup: isSet(object.isGroup)
-        ? globalThis.Boolean(object.isGroup)
-        : isSet(object.is_group)
-        ? globalThis.Boolean(object.is_group)
-        : false,
-      service: isSet(object.service) ? globalThis.String(object.service) : "",
-      isArchived: isSet(object.isArchived)
-        ? globalThis.Boolean(object.isArchived)
-        : isSet(object.is_archived)
-        ? globalThis.Boolean(object.is_archived)
-        : false,
-      isFiltered: isSet(object.isFiltered)
-        ? globalThis.Boolean(object.isFiltered)
-        : isSet(object.is_filtered)
-        ? globalThis.Boolean(object.is_filtered)
-        : false,
-      unreadCount: isSet(object.unreadCount)
-        ? globalThis.Number(object.unreadCount)
-        : isSet(object.unread_count)
-        ? globalThis.Number(object.unread_count)
-        : undefined,
-      participants: globalThis.Array.isArray(object?.participants)
-        ? object.participants.map((e: any) => AddressInfo.fromJSON(e))
-        : [],
-      lastMessage: isSet(object.lastMessage)
-        ? Message.fromJSON(object.lastMessage)
-        : isSet(object.last_message)
-        ? Message.fromJSON(object.last_message)
-        : undefined,
-    };
-  },
-
-  toJSON(message: Chat): unknown {
-    const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
-    }
-    if (message.chatIdentifier !== undefined) {
-      obj.chatIdentifier = message.chatIdentifier;
-    }
-    if (message.groupId !== undefined) {
-      obj.groupId = message.groupId;
-    }
-    if (message.displayName !== undefined) {
-      obj.displayName = message.displayName;
-    }
-    if (message.isGroup !== false) {
-      obj.isGroup = message.isGroup;
-    }
-    if (message.service !== "") {
-      obj.service = message.service;
-    }
-    if (message.isArchived !== false) {
-      obj.isArchived = message.isArchived;
-    }
-    if (message.isFiltered !== false) {
-      obj.isFiltered = message.isFiltered;
-    }
-    if (message.unreadCount !== undefined) {
-      obj.unreadCount = Math.round(message.unreadCount);
-    }
-    if (message.participants?.length) {
-      obj.participants = message.participants.map((e) => AddressInfo.toJSON(e));
-    }
-    if (message.lastMessage !== undefined) {
-      obj.lastMessage = Message.toJSON(message.lastMessage);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<Chat>): Chat {
-    return Chat.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<Chat>): Chat {
-    const message = createBaseChat();
-    message.guid = object.guid ?? "";
-    message.chatIdentifier = object.chatIdentifier ?? undefined;
-    message.groupId = object.groupId ?? undefined;
-    message.displayName = object.displayName ?? undefined;
-    message.isGroup = object.isGroup ?? false;
-    message.service = object.service ?? "";
-    message.isArchived = object.isArchived ?? false;
-    message.isFiltered = object.isFiltered ?? false;
-    message.unreadCount = object.unreadCount ?? undefined;
-    message.participants = object.participants?.map((e) => AddressInfo.fromPartial(e)) || [];
-    message.lastMessage = (object.lastMessage !== undefined && object.lastMessage !== null)
-      ? Message.fromPartial(object.lastMessage)
-      : undefined;
-    return message;
-  },
-};
-
 function createBaseCreateChatRequest(): CreateChatRequest {
-  return {
-    addresses: [],
-    message: undefined,
-    service: "",
-    attributedBody: undefined,
-    effectId: undefined,
-    subject: undefined,
-    clientMessageId: undefined,
-  };
+  return { addresses: [], service: 0, initialMessage: undefined };
 }
 
 export const CreateChatRequest: MessageFns<CreateChatRequest> = {
@@ -413,23 +130,11 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
     for (const v of message.addresses) {
       writer.uint32(10).string(v!);
     }
-    if (message.message !== undefined) {
-      writer.uint32(18).string(message.message);
+    if (message.service !== 0) {
+      writer.uint32(16).int32(message.service);
     }
-    if (message.service !== "") {
-      writer.uint32(26).string(message.service);
-    }
-    if (message.attributedBody !== undefined) {
-      writer.uint32(34).bytes(message.attributedBody);
-    }
-    if (message.effectId !== undefined) {
-      writer.uint32(42).string(message.effectId);
-    }
-    if (message.subject !== undefined) {
-      writer.uint32(50).string(message.subject);
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(58).string(message.clientMessageId);
+    if (message.initialMessage !== undefined) {
+      CreateChatInitialMessage.encode(message.initialMessage, writer.uint32(26).fork()).join();
     }
     return writer;
   },
@@ -450,11 +155,11 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
           continue;
         }
         case 2: {
-          if (tag !== 18) {
+          if (tag !== 16) {
             break;
           }
 
-          message.message = reader.string();
+          message.service = reader.int32() as any;
           continue;
         }
         case 3: {
@@ -462,39 +167,7 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
             break;
           }
 
-          message.service = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.attributedBody = reader.bytes();
-          continue;
-        }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.effectId = reader.string();
-          continue;
-        }
-        case 6: {
-          if (tag !== 50) {
-            break;
-          }
-
-          message.subject = reader.string();
-          continue;
-        }
-        case 7: {
-          if (tag !== 58) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
+          message.initialMessage = CreateChatInitialMessage.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -511,8 +184,126 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
       addresses: globalThis.Array.isArray(object?.addresses)
         ? object.addresses.map((e: any) => globalThis.String(e))
         : [],
-      message: isSet(object.message) ? globalThis.String(object.message) : undefined,
-      service: isSet(object.service) ? globalThis.String(object.service) : "",
+      service: isSet(object.service) ? chatServiceTypeFromJSON(object.service) : 0,
+      initialMessage: isSet(object.initialMessage)
+        ? CreateChatInitialMessage.fromJSON(object.initialMessage)
+        : isSet(object.initial_message)
+        ? CreateChatInitialMessage.fromJSON(object.initial_message)
+        : undefined,
+    };
+  },
+
+  toJSON(message: CreateChatRequest): unknown {
+    const obj: any = {};
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    if (message.service !== 0) {
+      obj.service = chatServiceTypeToJSON(message.service);
+    }
+    if (message.initialMessage !== undefined) {
+      obj.initialMessage = CreateChatInitialMessage.toJSON(message.initialMessage);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CreateChatRequest>): CreateChatRequest {
+    return CreateChatRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CreateChatRequest>): CreateChatRequest {
+    const message = createBaseCreateChatRequest();
+    message.addresses = object.addresses?.map((e) => e) || [];
+    message.service = object.service ?? 0;
+    message.initialMessage = (object.initialMessage !== undefined && object.initialMessage !== null)
+      ? CreateChatInitialMessage.fromPartial(object.initialMessage)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseCreateChatInitialMessage(): CreateChatInitialMessage {
+  return { text: "", attributedBody: undefined, effectId: undefined, subject: undefined, clientMessageId: undefined };
+}
+
+export const CreateChatInitialMessage: MessageFns<CreateChatInitialMessage> = {
+  encode(message: CreateChatInitialMessage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.text !== "") {
+      writer.uint32(10).string(message.text);
+    }
+    if (message.attributedBody !== undefined) {
+      writer.uint32(18).bytes(message.attributedBody);
+    }
+    if (message.effectId !== undefined) {
+      writer.uint32(26).string(message.effectId);
+    }
+    if (message.subject !== undefined) {
+      writer.uint32(34).string(message.subject);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(42).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CreateChatInitialMessage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCreateChatInitialMessage();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.attributedBody = reader.bytes();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.effectId = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.subject = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CreateChatInitialMessage {
+    return {
+      text: isSet(object.text) ? globalThis.String(object.text) : "",
       attributedBody: isSet(object.attributedBody)
         ? bytesFromBase64(object.attributedBody)
         : isSet(object.attributed_body)
@@ -532,16 +323,10 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
     };
   },
 
-  toJSON(message: CreateChatRequest): unknown {
+  toJSON(message: CreateChatInitialMessage): unknown {
     const obj: any = {};
-    if (message.addresses?.length) {
-      obj.addresses = message.addresses;
-    }
-    if (message.message !== undefined) {
-      obj.message = message.message;
-    }
-    if (message.service !== "") {
-      obj.service = message.service;
+    if (message.text !== "") {
+      obj.text = message.text;
     }
     if (message.attributedBody !== undefined) {
       obj.attributedBody = base64FromBytes(message.attributedBody);
@@ -558,14 +343,12 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
     return obj;
   },
 
-  create(base?: DeepPartial<CreateChatRequest>): CreateChatRequest {
-    return CreateChatRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<CreateChatInitialMessage>): CreateChatInitialMessage {
+    return CreateChatInitialMessage.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<CreateChatRequest>): CreateChatRequest {
-    const message = createBaseCreateChatRequest();
-    message.addresses = object.addresses?.map((e) => e) || [];
-    message.message = object.message ?? undefined;
-    message.service = object.service ?? "";
+  fromPartial(object: DeepPartial<CreateChatInitialMessage>): CreateChatInitialMessage {
+    const message = createBaseCreateChatInitialMessage();
+    message.text = object.text ?? "";
     message.attributedBody = object.attributedBody ?? undefined;
     message.effectId = object.effectId ?? undefined;
     message.subject = object.subject ?? undefined;
@@ -656,14 +439,549 @@ export const CreateChatResponse: MessageFns<CreateChatResponse> = {
   },
 };
 
+function createBaseMarkChatReadRequest(): MarkChatReadRequest {
+  return { chatGuid: "" };
+}
+
+export const MarkChatReadRequest: MessageFns<MarkChatReadRequest> = {
+  encode(message: MarkChatReadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MarkChatReadRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMarkChatReadRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MarkChatReadRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+    };
+  },
+
+  toJSON(message: MarkChatReadRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MarkChatReadRequest>): MarkChatReadRequest {
+    return MarkChatReadRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MarkChatReadRequest>): MarkChatReadRequest {
+    const message = createBaseMarkChatReadRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    return message;
+  },
+};
+
+function createBaseMarkChatReadResponse(): MarkChatReadResponse {
+  return {};
+}
+
+export const MarkChatReadResponse: MessageFns<MarkChatReadResponse> = {
+  encode(_: MarkChatReadResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MarkChatReadResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMarkChatReadResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): MarkChatReadResponse {
+    return {};
+  },
+
+  toJSON(_: MarkChatReadResponse): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<MarkChatReadResponse>): MarkChatReadResponse {
+    return MarkChatReadResponse.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<MarkChatReadResponse>): MarkChatReadResponse {
+    const message = createBaseMarkChatReadResponse();
+    return message;
+  },
+};
+
+function createBaseSetBackgroundRequest(): SetBackgroundRequest {
+  return { chatGuid: "", data: new Uint8Array(0), mimeType: "" };
+}
+
+export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
+  encode(message: SetBackgroundRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.data.length !== 0) {
+      writer.uint32(18).bytes(message.data);
+    }
+    if (message.mimeType !== "") {
+      writer.uint32(26).string(message.mimeType);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetBackgroundRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetBackgroundRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.data = reader.bytes();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.mimeType = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetBackgroundRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
+      mimeType: isSet(object.mimeType)
+        ? globalThis.String(object.mimeType)
+        : isSet(object.mime_type)
+        ? globalThis.String(object.mime_type)
+        : "",
+    };
+  },
+
+  toJSON(message: SetBackgroundRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.data.length !== 0) {
+      obj.data = base64FromBytes(message.data);
+    }
+    if (message.mimeType !== "") {
+      obj.mimeType = message.mimeType;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetBackgroundRequest>): SetBackgroundRequest {
+    return SetBackgroundRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SetBackgroundRequest>): SetBackgroundRequest {
+    const message = createBaseSetBackgroundRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.data = object.data ?? new Uint8Array(0);
+    message.mimeType = object.mimeType ?? "";
+    return message;
+  },
+};
+
+function createBaseSetBackgroundResponse(): SetBackgroundResponse {
+  return { chat: undefined };
+}
+
+export const SetBackgroundResponse: MessageFns<SetBackgroundResponse> = {
+  encode(message: SetBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chat !== undefined) {
+      Chat.encode(message.chat, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetBackgroundResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetBackgroundResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chat = Chat.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetBackgroundResponse {
+    return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
+  },
+
+  toJSON(message: SetBackgroundResponse): unknown {
+    const obj: any = {};
+    if (message.chat !== undefined) {
+      obj.chat = Chat.toJSON(message.chat);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetBackgroundResponse>): SetBackgroundResponse {
+    return SetBackgroundResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SetBackgroundResponse>): SetBackgroundResponse {
+    const message = createBaseSetBackgroundResponse();
+    message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
+    return message;
+  },
+};
+
+function createBaseRemoveBackgroundRequest(): RemoveBackgroundRequest {
+  return { chatGuid: "" };
+}
+
+export const RemoveBackgroundRequest: MessageFns<RemoveBackgroundRequest> = {
+  encode(message: RemoveBackgroundRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoveBackgroundRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRemoveBackgroundRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RemoveBackgroundRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+    };
+  },
+
+  toJSON(message: RemoveBackgroundRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoveBackgroundRequest>): RemoveBackgroundRequest {
+    return RemoveBackgroundRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoveBackgroundRequest>): RemoveBackgroundRequest {
+    const message = createBaseRemoveBackgroundRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    return message;
+  },
+};
+
+function createBaseRemoveBackgroundResponse(): RemoveBackgroundResponse {
+  return { chat: undefined };
+}
+
+export const RemoveBackgroundResponse: MessageFns<RemoveBackgroundResponse> = {
+  encode(message: RemoveBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chat !== undefined) {
+      Chat.encode(message.chat, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoveBackgroundResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRemoveBackgroundResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chat = Chat.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RemoveBackgroundResponse {
+    return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
+  },
+
+  toJSON(message: RemoveBackgroundResponse): unknown {
+    const obj: any = {};
+    if (message.chat !== undefined) {
+      obj.chat = Chat.toJSON(message.chat);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoveBackgroundResponse>): RemoveBackgroundResponse {
+    return RemoveBackgroundResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoveBackgroundResponse>): RemoveBackgroundResponse {
+    const message = createBaseRemoveBackgroundResponse();
+    message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
+    return message;
+  },
+};
+
+function createBaseShareContactInfoRequest(): ShareContactInfoRequest {
+  return { chatGuid: "" };
+}
+
+export const ShareContactInfoRequest: MessageFns<ShareContactInfoRequest> = {
+  encode(message: ShareContactInfoRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ShareContactInfoRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseShareContactInfoRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ShareContactInfoRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+    };
+  },
+
+  toJSON(message: ShareContactInfoRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ShareContactInfoRequest>): ShareContactInfoRequest {
+    return ShareContactInfoRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ShareContactInfoRequest>): ShareContactInfoRequest {
+    const message = createBaseShareContactInfoRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    return message;
+  },
+};
+
+function createBaseSetTypingRequest(): SetTypingRequest {
+  return { chatGuid: "", isTyping: false };
+}
+
+export const SetTypingRequest: MessageFns<SetTypingRequest> = {
+  encode(message: SetTypingRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.isTyping !== false) {
+      writer.uint32(16).bool(message.isTyping);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetTypingRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetTypingRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.isTyping = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetTypingRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      isTyping: isSet(object.isTyping)
+        ? globalThis.Boolean(object.isTyping)
+        : isSet(object.is_typing)
+        ? globalThis.Boolean(object.is_typing)
+        : false,
+    };
+  },
+
+  toJSON(message: SetTypingRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.isTyping !== false) {
+      obj.isTyping = message.isTyping;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetTypingRequest>): SetTypingRequest {
+    return SetTypingRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SetTypingRequest>): SetTypingRequest {
+    const message = createBaseSetTypingRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.isTyping = object.isTyping ?? false;
+    return message;
+  },
+};
+
 function createBaseGetChatRequest(): GetChatRequest {
-  return { guid: "" };
+  return { chatGuid: "" };
 }
 
 export const GetChatRequest: MessageFns<GetChatRequest> = {
   encode(message: GetChatRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
     }
     return writer;
   },
@@ -680,7 +998,7 @@ export const GetChatRequest: MessageFns<GetChatRequest> = {
             break;
           }
 
-          message.guid = reader.string();
+          message.chatGuid = reader.string();
           continue;
         }
       }
@@ -693,13 +1011,19 @@ export const GetChatRequest: MessageFns<GetChatRequest> = {
   },
 
   fromJSON(object: any): GetChatRequest {
-    return { guid: isSet(object.guid) ? globalThis.String(object.guid) : "" };
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+    };
   },
 
   toJSON(message: GetChatRequest): unknown {
     const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
     }
     return obj;
   },
@@ -709,7 +1033,7 @@ export const GetChatRequest: MessageFns<GetChatRequest> = {
   },
   fromPartial(object: DeepPartial<GetChatRequest>): GetChatRequest {
     const message = createBaseGetChatRequest();
-    message.guid = object.guid ?? "";
+    message.chatGuid = object.chatGuid ?? "";
     return message;
   },
 };
@@ -894,123 +1218,22 @@ export const GetChatCountResponse: MessageFns<GetChatCountResponse> = {
   },
 };
 
-function createBaseLeaveChatRequest(): LeaveChatRequest {
-  return { guid: "" };
-}
-
-export const LeaveChatRequest: MessageFns<LeaveChatRequest> = {
-  encode(message: LeaveChatRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): LeaveChatRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseLeaveChatRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.guid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): LeaveChatRequest {
-    return { guid: isSet(object.guid) ? globalThis.String(object.guid) : "" };
-  },
-
-  toJSON(message: LeaveChatRequest): unknown {
-    const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<LeaveChatRequest>): LeaveChatRequest {
-    return LeaveChatRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<LeaveChatRequest>): LeaveChatRequest {
-    const message = createBaseLeaveChatRequest();
-    message.guid = object.guid ?? "";
-    return message;
-  },
-};
-
-function createBaseLeaveChatResponse(): LeaveChatResponse {
-  return {};
-}
-
-export const LeaveChatResponse: MessageFns<LeaveChatResponse> = {
-  encode(_: LeaveChatResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): LeaveChatResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseLeaveChatResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): LeaveChatResponse {
-    return {};
-  },
-
-  toJSON(_: LeaveChatResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<LeaveChatResponse>): LeaveChatResponse {
-    return LeaveChatResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<LeaveChatResponse>): LeaveChatResponse {
-    const message = createBaseLeaveChatResponse();
-    return message;
-  },
-};
-
-function createBaseMarkReadRequest(): MarkReadRequest {
+function createBaseHasBackgroundRequest(): HasBackgroundRequest {
   return { chatGuid: "" };
 }
 
-export const MarkReadRequest: MessageFns<MarkReadRequest> = {
-  encode(message: MarkReadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const HasBackgroundRequest: MessageFns<HasBackgroundRequest> = {
+  encode(message: HasBackgroundRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.chatGuid !== "") {
       writer.uint32(10).string(message.chatGuid);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): MarkReadRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): HasBackgroundRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMarkReadRequest();
+    const message = createBaseHasBackgroundRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1031,7 +1254,7 @@ export const MarkReadRequest: MessageFns<MarkReadRequest> = {
     return message;
   },
 
-  fromJSON(object: any): MarkReadRequest {
+  fromJSON(object: any): HasBackgroundRequest {
     return {
       chatGuid: isSet(object.chatGuid)
         ? globalThis.String(object.chatGuid)
@@ -1041,7 +1264,7 @@ export const MarkReadRequest: MessageFns<MarkReadRequest> = {
     };
   },
 
-  toJSON(message: MarkReadRequest): unknown {
+  toJSON(message: HasBackgroundRequest): unknown {
     const obj: any = {};
     if (message.chatGuid !== "") {
       obj.chatGuid = message.chatGuid;
@@ -1049,84 +1272,41 @@ export const MarkReadRequest: MessageFns<MarkReadRequest> = {
     return obj;
   },
 
-  create(base?: DeepPartial<MarkReadRequest>): MarkReadRequest {
-    return MarkReadRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<HasBackgroundRequest>): HasBackgroundRequest {
+    return HasBackgroundRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<MarkReadRequest>): MarkReadRequest {
-    const message = createBaseMarkReadRequest();
+  fromPartial(object: DeepPartial<HasBackgroundRequest>): HasBackgroundRequest {
+    const message = createBaseHasBackgroundRequest();
     message.chatGuid = object.chatGuid ?? "";
     return message;
   },
 };
 
-function createBaseMarkReadResponse(): MarkReadResponse {
-  return {};
+function createBaseHasBackgroundResponse(): HasBackgroundResponse {
+  return { backgroundPresent: false };
 }
 
-export const MarkReadResponse: MessageFns<MarkReadResponse> = {
-  encode(_: MarkReadResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MarkReadResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMarkReadResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): MarkReadResponse {
-    return {};
-  },
-
-  toJSON(_: MarkReadResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<MarkReadResponse>): MarkReadResponse {
-    return MarkReadResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<MarkReadResponse>): MarkReadResponse {
-    const message = createBaseMarkReadResponse();
-    return message;
-  },
-};
-
-function createBaseShareContactInfoRequest(): ShareContactInfoRequest {
-  return { chatGuid: "" };
-}
-
-export const ShareContactInfoRequest: MessageFns<ShareContactInfoRequest> = {
-  encode(message: ShareContactInfoRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
+export const HasBackgroundResponse: MessageFns<HasBackgroundResponse> = {
+  encode(message: HasBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.backgroundPresent !== false) {
+      writer.uint32(8).bool(message.backgroundPresent);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ShareContactInfoRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): HasBackgroundResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseShareContactInfoRequest();
+    const message = createBaseHasBackgroundResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.chatGuid = reader.string();
+          message.backgroundPresent = reader.bool();
           continue;
         }
       }
@@ -1138,423 +1318,43 @@ export const ShareContactInfoRequest: MessageFns<ShareContactInfoRequest> = {
     return message;
   },
 
-  fromJSON(object: any): ShareContactInfoRequest {
+  fromJSON(object: any): HasBackgroundResponse {
     return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
+      backgroundPresent: isSet(object.backgroundPresent)
+        ? globalThis.Boolean(object.backgroundPresent)
+        : isSet(object.background_present)
+        ? globalThis.Boolean(object.background_present)
+        : false,
     };
   },
 
-  toJSON(message: ShareContactInfoRequest): unknown {
+  toJSON(message: HasBackgroundResponse): unknown {
     const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
+    if (message.backgroundPresent !== false) {
+      obj.backgroundPresent = message.backgroundPresent;
     }
     return obj;
   },
 
-  create(base?: DeepPartial<ShareContactInfoRequest>): ShareContactInfoRequest {
-    return ShareContactInfoRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<HasBackgroundResponse>): HasBackgroundResponse {
+    return HasBackgroundResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<ShareContactInfoRequest>): ShareContactInfoRequest {
-    const message = createBaseShareContactInfoRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseShareContactInfoResponse(): ShareContactInfoResponse {
-  return {};
-}
-
-export const ShareContactInfoResponse: MessageFns<ShareContactInfoResponse> = {
-  encode(_: ShareContactInfoResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ShareContactInfoResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseShareContactInfoResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): ShareContactInfoResponse {
-    return {};
-  },
-
-  toJSON(_: ShareContactInfoResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<ShareContactInfoResponse>): ShareContactInfoResponse {
-    return ShareContactInfoResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<ShareContactInfoResponse>): ShareContactInfoResponse {
-    const message = createBaseShareContactInfoResponse();
-    return message;
-  },
-};
-
-function createBaseStartTypingRequest(): StartTypingRequest {
-  return { chatGuid: "" };
-}
-
-export const StartTypingRequest: MessageFns<StartTypingRequest> = {
-  encode(message: StartTypingRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): StartTypingRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseStartTypingRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): StartTypingRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: StartTypingRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<StartTypingRequest>): StartTypingRequest {
-    return StartTypingRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<StartTypingRequest>): StartTypingRequest {
-    const message = createBaseStartTypingRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseStartTypingResponse(): StartTypingResponse {
-  return {};
-}
-
-export const StartTypingResponse: MessageFns<StartTypingResponse> = {
-  encode(_: StartTypingResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): StartTypingResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseStartTypingResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): StartTypingResponse {
-    return {};
-  },
-
-  toJSON(_: StartTypingResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<StartTypingResponse>): StartTypingResponse {
-    return StartTypingResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<StartTypingResponse>): StartTypingResponse {
-    const message = createBaseStartTypingResponse();
-    return message;
-  },
-};
-
-function createBaseStopTypingRequest(): StopTypingRequest {
-  return { chatGuid: "" };
-}
-
-export const StopTypingRequest: MessageFns<StopTypingRequest> = {
-  encode(message: StopTypingRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): StopTypingRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseStopTypingRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): StopTypingRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: StopTypingRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<StopTypingRequest>): StopTypingRequest {
-    return StopTypingRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<StopTypingRequest>): StopTypingRequest {
-    const message = createBaseStopTypingRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseStopTypingResponse(): StopTypingResponse {
-  return {};
-}
-
-export const StopTypingResponse: MessageFns<StopTypingResponse> = {
-  encode(_: StopTypingResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): StopTypingResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseStopTypingResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): StopTypingResponse {
-    return {};
-  },
-
-  toJSON(_: StopTypingResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<StopTypingResponse>): StopTypingResponse {
-    return StopTypingResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<StopTypingResponse>): StopTypingResponse {
-    const message = createBaseStopTypingResponse();
-    return message;
-  },
-};
-
-function createBaseGetParticipantsRequest(): GetParticipantsRequest {
-  return { chatGuid: "" };
-}
-
-export const GetParticipantsRequest: MessageFns<GetParticipantsRequest> = {
-  encode(message: GetParticipantsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetParticipantsRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetParticipantsRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetParticipantsRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: GetParticipantsRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetParticipantsRequest>): GetParticipantsRequest {
-    return GetParticipantsRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetParticipantsRequest>): GetParticipantsRequest {
-    const message = createBaseGetParticipantsRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseGetParticipantsResponse(): GetParticipantsResponse {
-  return { participants: [] };
-}
-
-export const GetParticipantsResponse: MessageFns<GetParticipantsResponse> = {
-  encode(message: GetParticipantsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.participants) {
-      AddressInfo.encode(v!, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetParticipantsResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetParticipantsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.participants.push(AddressInfo.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetParticipantsResponse {
-    return {
-      participants: globalThis.Array.isArray(object?.participants)
-        ? object.participants.map((e: any) => AddressInfo.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: GetParticipantsResponse): unknown {
-    const obj: any = {};
-    if (message.participants?.length) {
-      obj.participants = message.participants.map((e) => AddressInfo.toJSON(e));
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetParticipantsResponse>): GetParticipantsResponse {
-    return GetParticipantsResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetParticipantsResponse>): GetParticipantsResponse {
-    const message = createBaseGetParticipantsResponse();
-    message.participants = object.participants?.map((e) => AddressInfo.fromPartial(e)) || [];
+  fromPartial(object: DeepPartial<HasBackgroundResponse>): HasBackgroundResponse {
+    const message = createBaseHasBackgroundResponse();
+    message.backgroundPresent = object.backgroundPresent ?? false;
     return message;
   },
 };
 
 function createBaseSubscribeChatEventsRequest(): SubscribeChatEventsRequest {
-  return {};
+  return { chatGuid: undefined };
 }
 
 export const SubscribeChatEventsRequest: MessageFns<SubscribeChatEventsRequest> = {
-  encode(_: SubscribeChatEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: SubscribeChatEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== undefined) {
+      writer.uint32(10).string(message.chatGuid);
+    }
     return writer;
   },
 
@@ -1565,6 +1365,14 @@ export const SubscribeChatEventsRequest: MessageFns<SubscribeChatEventsRequest> 
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1574,51 +1382,45 @@ export const SubscribeChatEventsRequest: MessageFns<SubscribeChatEventsRequest> 
     return message;
   },
 
-  fromJSON(_: any): SubscribeChatEventsRequest {
-    return {};
+  fromJSON(object: any): SubscribeChatEventsRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : undefined,
+    };
   },
 
-  toJSON(_: SubscribeChatEventsRequest): unknown {
+  toJSON(message: SubscribeChatEventsRequest): unknown {
     const obj: any = {};
+    if (message.chatGuid !== undefined) {
+      obj.chatGuid = message.chatGuid;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<SubscribeChatEventsRequest>): SubscribeChatEventsRequest {
     return SubscribeChatEventsRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<SubscribeChatEventsRequest>): SubscribeChatEventsRequest {
+  fromPartial(object: DeepPartial<SubscribeChatEventsRequest>): SubscribeChatEventsRequest {
     const message = createBaseSubscribeChatEventsRequest();
+    message.chatGuid = object.chatGuid ?? undefined;
     return message;
   },
 };
 
 function createBaseSubscribeChatEventsResponse(): SubscribeChatEventsResponse {
-  return {
-    timestamp: undefined,
-    chatCreated: undefined,
-    chatLeft: undefined,
-    chatReadStatusChanged: undefined,
-    typingIndicator: undefined,
-    heartbeat: undefined,
-  };
+  return { sequence: undefined, chatChanged: undefined, heartbeat: undefined };
 }
 
 export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse> = {
   encode(message: SubscribeChatEventsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.timestamp !== undefined) {
-      Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(10).fork()).join();
+    if (message.sequence !== undefined) {
+      writer.uint32(8).uint64(message.sequence);
     }
-    if (message.chatCreated !== undefined) {
-      ChatLifecycleEvent.encode(message.chatCreated, writer.uint32(98).fork()).join();
-    }
-    if (message.chatLeft !== undefined) {
-      ChatLifecycleEvent.encode(message.chatLeft, writer.uint32(114).fork()).join();
-    }
-    if (message.chatReadStatusChanged !== undefined) {
-      ChatReadStatusEvent.encode(message.chatReadStatusChanged, writer.uint32(82).fork()).join();
-    }
-    if (message.typingIndicator !== undefined) {
-      TypingEvent.encode(message.typingIndicator, writer.uint32(90).fork()).join();
+    if (message.chatChanged !== undefined) {
+      ChatChangeEvent.encode(message.chatChanged, writer.uint32(82).fork()).join();
     }
     if (message.heartbeat !== undefined) {
       Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
@@ -1634,27 +1436,11 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 12: {
-          if (tag !== 98) {
-            break;
-          }
-
-          message.chatCreated = ChatLifecycleEvent.decode(reader, reader.uint32());
-          continue;
-        }
-        case 14: {
-          if (tag !== 114) {
-            break;
-          }
-
-          message.chatLeft = ChatLifecycleEvent.decode(reader, reader.uint32());
+          message.sequence = longToNumber(reader.uint64());
           continue;
         }
         case 10: {
@@ -1662,15 +1448,7 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
             break;
           }
 
-          message.chatReadStatusChanged = ChatReadStatusEvent.decode(reader, reader.uint32());
-          continue;
-        }
-        case 11: {
-          if (tag !== 90) {
-            break;
-          }
-
-          message.typingIndicator = TypingEvent.decode(reader, reader.uint32());
+          message.chatChanged = ChatChangeEvent.decode(reader, reader.uint32());
           continue;
         }
         case 99: {
@@ -1692,26 +1470,11 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
 
   fromJSON(object: any): SubscribeChatEventsResponse {
     return {
-      timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
-      chatCreated: isSet(object.chatCreated)
-        ? ChatLifecycleEvent.fromJSON(object.chatCreated)
-        : isSet(object.chat_created)
-        ? ChatLifecycleEvent.fromJSON(object.chat_created)
-        : undefined,
-      chatLeft: isSet(object.chatLeft)
-        ? ChatLifecycleEvent.fromJSON(object.chatLeft)
-        : isSet(object.chat_left)
-        ? ChatLifecycleEvent.fromJSON(object.chat_left)
-        : undefined,
-      chatReadStatusChanged: isSet(object.chatReadStatusChanged)
-        ? ChatReadStatusEvent.fromJSON(object.chatReadStatusChanged)
-        : isSet(object.chat_read_status_changed)
-        ? ChatReadStatusEvent.fromJSON(object.chat_read_status_changed)
-        : undefined,
-      typingIndicator: isSet(object.typingIndicator)
-        ? TypingEvent.fromJSON(object.typingIndicator)
-        : isSet(object.typing_indicator)
-        ? TypingEvent.fromJSON(object.typing_indicator)
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : undefined,
+      chatChanged: isSet(object.chatChanged)
+        ? ChatChangeEvent.fromJSON(object.chatChanged)
+        : isSet(object.chat_changed)
+        ? ChatChangeEvent.fromJSON(object.chat_changed)
         : undefined,
       heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
@@ -1719,20 +1482,11 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
 
   toJSON(message: SubscribeChatEventsResponse): unknown {
     const obj: any = {};
-    if (message.timestamp !== undefined) {
-      obj.timestamp = message.timestamp.toISOString();
+    if (message.sequence !== undefined) {
+      obj.sequence = Math.round(message.sequence);
     }
-    if (message.chatCreated !== undefined) {
-      obj.chatCreated = ChatLifecycleEvent.toJSON(message.chatCreated);
-    }
-    if (message.chatLeft !== undefined) {
-      obj.chatLeft = ChatLifecycleEvent.toJSON(message.chatLeft);
-    }
-    if (message.chatReadStatusChanged !== undefined) {
-      obj.chatReadStatusChanged = ChatReadStatusEvent.toJSON(message.chatReadStatusChanged);
-    }
-    if (message.typingIndicator !== undefined) {
-      obj.typingIndicator = TypingEvent.toJSON(message.typingIndicator);
+    if (message.chatChanged !== undefined) {
+      obj.chatChanged = ChatChangeEvent.toJSON(message.chatChanged);
     }
     if (message.heartbeat !== undefined) {
       obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
@@ -1745,19 +1499,9 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
   },
   fromPartial(object: DeepPartial<SubscribeChatEventsResponse>): SubscribeChatEventsResponse {
     const message = createBaseSubscribeChatEventsResponse();
-    message.timestamp = object.timestamp ?? undefined;
-    message.chatCreated = (object.chatCreated !== undefined && object.chatCreated !== null)
-      ? ChatLifecycleEvent.fromPartial(object.chatCreated)
-      : undefined;
-    message.chatLeft = (object.chatLeft !== undefined && object.chatLeft !== null)
-      ? ChatLifecycleEvent.fromPartial(object.chatLeft)
-      : undefined;
-    message.chatReadStatusChanged =
-      (object.chatReadStatusChanged !== undefined && object.chatReadStatusChanged !== null)
-        ? ChatReadStatusEvent.fromPartial(object.chatReadStatusChanged)
-        : undefined;
-    message.typingIndicator = (object.typingIndicator !== undefined && object.typingIndicator !== null)
-      ? TypingEvent.fromPartial(object.typingIndicator)
+    message.sequence = object.sequence ?? undefined;
+    message.chatChanged = (object.chatChanged !== undefined && object.chatChanged !== null)
+      ? ChatChangeEvent.fromPartial(object.chatChanged)
       : undefined;
     message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
       ? Heartbeat.fromPartial(object.heartbeat)
@@ -1766,263 +1510,19 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
   },
 };
 
-function createBaseChatLifecycleEvent(): ChatLifecycleEvent {
-  return { chatGuid: "" };
-}
-
-export const ChatLifecycleEvent: MessageFns<ChatLifecycleEvent> = {
-  encode(message: ChatLifecycleEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ChatLifecycleEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseChatLifecycleEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ChatLifecycleEvent {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: ChatLifecycleEvent): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<ChatLifecycleEvent>): ChatLifecycleEvent {
-    return ChatLifecycleEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<ChatLifecycleEvent>): ChatLifecycleEvent {
-    const message = createBaseChatLifecycleEvent();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseChatReadStatusEvent(): ChatReadStatusEvent {
-  return { chatGuid: "", isRead: false };
-}
-
-export const ChatReadStatusEvent: MessageFns<ChatReadStatusEvent> = {
-  encode(message: ChatReadStatusEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    if (message.isRead !== false) {
-      writer.uint32(16).bool(message.isRead);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): ChatReadStatusEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseChatReadStatusEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.isRead = reader.bool();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): ChatReadStatusEvent {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      isRead: isSet(object.isRead)
-        ? globalThis.Boolean(object.isRead)
-        : isSet(object.is_read)
-        ? globalThis.Boolean(object.is_read)
-        : false,
-    };
-  },
-
-  toJSON(message: ChatReadStatusEvent): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    if (message.isRead !== false) {
-      obj.isRead = message.isRead;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<ChatReadStatusEvent>): ChatReadStatusEvent {
-    return ChatReadStatusEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<ChatReadStatusEvent>): ChatReadStatusEvent {
-    const message = createBaseChatReadStatusEvent();
-    message.chatGuid = object.chatGuid ?? "";
-    message.isRead = object.isRead ?? false;
-    return message;
-  },
-};
-
-function createBaseTypingEvent(): TypingEvent {
-  return { chatGuid: "", isTyping: false, displayName: undefined };
-}
-
-export const TypingEvent: MessageFns<TypingEvent> = {
-  encode(message: TypingEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    if (message.isTyping !== false) {
-      writer.uint32(16).bool(message.isTyping);
-    }
-    if (message.displayName !== undefined) {
-      writer.uint32(26).string(message.displayName);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): TypingEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseTypingEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.isTyping = reader.bool();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.displayName = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): TypingEvent {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      isTyping: isSet(object.isTyping)
-        ? globalThis.Boolean(object.isTyping)
-        : isSet(object.is_typing)
-        ? globalThis.Boolean(object.is_typing)
-        : false,
-      displayName: isSet(object.displayName)
-        ? globalThis.String(object.displayName)
-        : isSet(object.display_name)
-        ? globalThis.String(object.display_name)
-        : undefined,
-    };
-  },
-
-  toJSON(message: TypingEvent): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    if (message.isTyping !== false) {
-      obj.isTyping = message.isTyping;
-    }
-    if (message.displayName !== undefined) {
-      obj.displayName = message.displayName;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<TypingEvent>): TypingEvent {
-    return TypingEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<TypingEvent>): TypingEvent {
-    const message = createBaseTypingEvent();
-    message.chatGuid = object.chatGuid ?? "";
-    message.isTyping = object.isTyping ?? false;
-    message.displayName = object.displayName ?? undefined;
-    return message;
-  },
-};
-
+/**
+ * Chat-level reads, mutations, and event streams.
+ *
+ * Every write returns the resulting `Chat` snapshot when chat row state
+ * has changed; transient writes (typing indicator, share contact info)
+ * return `Empty`.
+ */
 export type ChatServiceDefinition = typeof ChatServiceDefinition;
 export const ChatServiceDefinition = {
   name: "ChatService",
   fullName: "photon.imessage.v1.ChatService",
   methods: {
+    /** Writes */
     createChat: {
       name: "CreateChat",
       requestType: CreateChatRequest as typeof CreateChatRequest,
@@ -2031,6 +1531,53 @@ export const ChatServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    markChatRead: {
+      name: "MarkChatRead",
+      requestType: MarkChatReadRequest as typeof MarkChatReadRequest,
+      requestStream: false,
+      responseType: MarkChatReadResponse as typeof MarkChatReadResponse,
+      responseStream: false,
+      options: {},
+    },
+    setBackground: {
+      name: "SetBackground",
+      requestType: SetBackgroundRequest as typeof SetBackgroundRequest,
+      requestStream: false,
+      responseType: SetBackgroundResponse as typeof SetBackgroundResponse,
+      responseStream: false,
+      options: {},
+    },
+    removeBackground: {
+      name: "RemoveBackground",
+      requestType: RemoveBackgroundRequest as typeof RemoveBackgroundRequest,
+      requestStream: false,
+      responseType: RemoveBackgroundResponse as typeof RemoveBackgroundResponse,
+      responseStream: false,
+      options: {},
+    },
+    /**
+     * Pushes the local user's name-and-photo card into the target chat so
+     * the recipient sees it in their contact suggestions. No observable
+     * local state change.
+     */
+    shareContactInfo: {
+      name: "ShareContactInfo",
+      requestType: ShareContactInfoRequest as typeof ShareContactInfoRequest,
+      requestStream: false,
+      responseType: Empty as typeof Empty,
+      responseStream: false,
+      options: {},
+    },
+    /** Transient typing-indicator write. No persisted state. */
+    setTyping: {
+      name: "SetTyping",
+      requestType: SetTypingRequest as typeof SetTypingRequest,
+      requestStream: false,
+      responseType: Empty as typeof Empty,
+      responseStream: false,
+      options: {},
+    },
+    /** Reads */
     getChat: {
       name: "GetChat",
       requestType: GetChatRequest as typeof GetChatRequest,
@@ -2047,51 +1594,11 @@ export const ChatServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    leaveChat: {
-      name: "LeaveChat",
-      requestType: LeaveChatRequest as typeof LeaveChatRequest,
+    hasBackground: {
+      name: "HasBackground",
+      requestType: HasBackgroundRequest as typeof HasBackgroundRequest,
       requestStream: false,
-      responseType: LeaveChatResponse as typeof LeaveChatResponse,
-      responseStream: false,
-      options: {},
-    },
-    markRead: {
-      name: "MarkRead",
-      requestType: MarkReadRequest as typeof MarkReadRequest,
-      requestStream: false,
-      responseType: MarkReadResponse as typeof MarkReadResponse,
-      responseStream: false,
-      options: {},
-    },
-    shareContactInfo: {
-      name: "ShareContactInfo",
-      requestType: ShareContactInfoRequest as typeof ShareContactInfoRequest,
-      requestStream: false,
-      responseType: ShareContactInfoResponse as typeof ShareContactInfoResponse,
-      responseStream: false,
-      options: {},
-    },
-    startTyping: {
-      name: "StartTyping",
-      requestType: StartTypingRequest as typeof StartTypingRequest,
-      requestStream: false,
-      responseType: StartTypingResponse as typeof StartTypingResponse,
-      responseStream: false,
-      options: {},
-    },
-    stopTyping: {
-      name: "StopTyping",
-      requestType: StopTypingRequest as typeof StopTypingRequest,
-      requestStream: false,
-      responseType: StopTypingResponse as typeof StopTypingResponse,
-      responseStream: false,
-      options: {},
-    },
-    getParticipants: {
-      name: "GetParticipants",
-      requestType: GetParticipantsRequest as typeof GetParticipantsRequest,
-      requestStream: false,
-      responseType: GetParticipantsResponse as typeof GetParticipantsResponse,
+      responseType: HasBackgroundResponse as typeof HasBackgroundResponse,
       responseStream: false,
       options: {},
     },
@@ -2107,33 +1614,44 @@ export const ChatServiceDefinition = {
 } as const;
 
 export interface ChatServiceImplementation<CallContextExt = {}> {
+  /** Writes */
   createChat(
     request: CreateChatRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<CreateChatResponse>>;
+  markChatRead(
+    request: MarkChatReadRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<MarkChatReadResponse>>;
+  setBackground(
+    request: SetBackgroundRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<SetBackgroundResponse>>;
+  removeBackground(
+    request: RemoveBackgroundRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<RemoveBackgroundResponse>>;
+  /**
+   * Pushes the local user's name-and-photo card into the target chat so
+   * the recipient sees it in their contact suggestions. No observable
+   * local state change.
+   */
+  shareContactInfo(
+    request: ShareContactInfoRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<Empty>>;
+  /** Transient typing-indicator write. No persisted state. */
+  setTyping(request: SetTypingRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  /** Reads */
   getChat(request: GetChatRequest, context: CallContext & CallContextExt): Promise<DeepPartial<GetChatResponse>>;
   getChatCount(
     request: GetChatCountRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetChatCountResponse>>;
-  leaveChat(request: LeaveChatRequest, context: CallContext & CallContextExt): Promise<DeepPartial<LeaveChatResponse>>;
-  markRead(request: MarkReadRequest, context: CallContext & CallContextExt): Promise<DeepPartial<MarkReadResponse>>;
-  shareContactInfo(
-    request: ShareContactInfoRequest,
+  hasBackground(
+    request: HasBackgroundRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<ShareContactInfoResponse>>;
-  startTyping(
-    request: StartTypingRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<StartTypingResponse>>;
-  stopTyping(
-    request: StopTypingRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<StopTypingResponse>>;
-  getParticipants(
-    request: GetParticipantsRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<GetParticipantsResponse>>;
+  ): Promise<DeepPartial<HasBackgroundResponse>>;
   subscribeChatEvents(
     request: SubscribeChatEventsRequest,
     context: CallContext & CallContextExt,
@@ -2141,33 +1659,44 @@ export interface ChatServiceImplementation<CallContextExt = {}> {
 }
 
 export interface ChatServiceClient<CallOptionsExt = {}> {
+  /** Writes */
   createChat(
     request: DeepPartial<CreateChatRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<CreateChatResponse>;
+  markChatRead(
+    request: DeepPartial<MarkChatReadRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<MarkChatReadResponse>;
+  setBackground(
+    request: DeepPartial<SetBackgroundRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<SetBackgroundResponse>;
+  removeBackground(
+    request: DeepPartial<RemoveBackgroundRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<RemoveBackgroundResponse>;
+  /**
+   * Pushes the local user's name-and-photo card into the target chat so
+   * the recipient sees it in their contact suggestions. No observable
+   * local state change.
+   */
+  shareContactInfo(
+    request: DeepPartial<ShareContactInfoRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<Empty>;
+  /** Transient typing-indicator write. No persisted state. */
+  setTyping(request: DeepPartial<SetTypingRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  /** Reads */
   getChat(request: DeepPartial<GetChatRequest>, options?: CallOptions & CallOptionsExt): Promise<GetChatResponse>;
   getChatCount(
     request: DeepPartial<GetChatCountRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetChatCountResponse>;
-  leaveChat(request: DeepPartial<LeaveChatRequest>, options?: CallOptions & CallOptionsExt): Promise<LeaveChatResponse>;
-  markRead(request: DeepPartial<MarkReadRequest>, options?: CallOptions & CallOptionsExt): Promise<MarkReadResponse>;
-  shareContactInfo(
-    request: DeepPartial<ShareContactInfoRequest>,
+  hasBackground(
+    request: DeepPartial<HasBackgroundRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<ShareContactInfoResponse>;
-  startTyping(
-    request: DeepPartial<StartTypingRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<StartTypingResponse>;
-  stopTyping(
-    request: DeepPartial<StopTypingRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<StopTypingResponse>;
-  getParticipants(
-    request: DeepPartial<GetParticipantsRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<GetParticipantsResponse>;
+  ): Promise<HasBackgroundResponse>;
   subscribeChatEvents(
     request: DeepPartial<SubscribeChatEventsRequest>,
     options?: CallOptions & CallOptionsExt,
@@ -2206,28 +1735,6 @@ export type DeepPartial<T> = T extends Builtin ? T
   : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
   : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
-
-function toTimestamp(date: Date): Timestamp {
-  const seconds = Math.trunc(date.getTime() / 1_000);
-  const nanos = (date.getTime() % 1_000) * 1_000_000;
-  return { seconds, nanos };
-}
-
-function fromTimestamp(t: Timestamp): Date {
-  let millis = (t.seconds || 0) * 1_000;
-  millis += (t.nanos || 0) / 1_000_000;
-  return new globalThis.Date(millis);
-}
-
-function fromJsonTimestamp(o: any): Date {
-  if (o instanceof globalThis.Date) {
-    return o;
-  } else if (typeof o === "string") {
-    return new globalThis.Date(o);
-  } else {
-    return fromTimestamp(Timestamp.fromJSON(o));
-  }
-}
 
 function longToNumber(int64: { toString(): string }): number {
   const num = globalThis.Number(int64.toString());

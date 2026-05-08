@@ -1,22 +1,25 @@
-/**
- * LocationsResource -- Find My Friends location operations.
- *
- * Wraps the gRPC LocationService to provide high-level methods for
- * retrieving friend locations and subscribing to location update events.
- */
-
 import { fromGrpcError } from "../errors/error-handler.ts";
-import type { FindMyEvent } from "../generated/photon/imessage/v1/location_service.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { LocationServiceClient } from "../transport/grpc-client.ts";
-import { mapFindMyFriend } from "../transport/mapper.ts";
-import type { LocationEvent } from "../types/events.ts";
-import type { FindMyFriend } from "../types/locations.ts";
+import {
+  mapSharedFriendLocation,
+  mapSharedFriendLocationUpdated,
+} from "../transport/mapper.ts";
+import type {
+  SharedFriendLocation,
+  SharedFriendLocationUpdated,
+} from "../types/locations.ts";
+import { unwrap } from "../utils/unwrap.ts";
 
-// ---------------------------------------------------------------------------
-// Resource
-// ---------------------------------------------------------------------------
-
+/**
+ * Shared-location APIs.
+ *
+ * - `list()` returns every friend currently sharing a location with this
+ *   account.
+ * - `get(address)` fetches the latest shared-location snapshot for one friend.
+ * - `watch(address?)` streams shared-location updates for all friends, or only
+ *   one address when provided.
+ */
 export class LocationsResource {
   private readonly _client: LocationServiceClient;
 
@@ -24,55 +27,52 @@ export class LocationsResource {
     this._client = client;
   }
 
-  // -------------------------------------------------------------------------
-  // Queries
-  // -------------------------------------------------------------------------
-
   /**
-   * Get the current cached Find My snapshot and trigger a server-side
-   * background refresh.
+   * List every friend currently sharing a location with the local account.
+   *
+   * Returns an empty array when no active shared-location sessions exist.
    */
-  async getFriends(friendIds?: readonly string[]): Promise<FindMyFriend[]> {
+  async list(): Promise<SharedFriendLocation[]> {
     try {
-      const response = await this._client.getFriends({
-        friendIds: friendIds ? [...friendIds] : [],
-      });
-      return response.friends.map(mapFindMyFriend);
-    } catch (error) {
-      throw fromGrpcError(error);
+      const response = await this._client.listSharedFriendLocations({});
+      return response.locations.map(mapSharedFriendLocation);
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Event subscription
-  // -------------------------------------------------------------------------
+  /**
+   * Fetch the latest shared-location snapshot for one address.
+   *
+   * Throws `NotFoundError` when that address is not currently sharing a
+   * location with the local account.
+   */
+  async get(address: string): Promise<SharedFriendLocation> {
+    try {
+      const response = await this._client.getSharedFriendLocation({ address });
+      return mapSharedFriendLocation(unwrap(response.location, "location"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
 
-  /** Subscribe to real-time location update events. Returns a typed stream. */
-  subscribe(): TypedEventStream<LocationEvent> {
-    const rpcStream = this._client.subscribeLocationEvents({});
+  /** Watch updates for every shared friend, or one friend when `address` is set. */
+  watch(address?: string): TypedEventStream<SharedFriendLocationUpdated> {
+    const rpcStream = this._client.watchSharedFriendLocations({ address });
 
-    async function* mapEvents(): AsyncGenerator<LocationEvent> {
+    async function* mapUpdates(): AsyncGenerator<SharedFriendLocationUpdated> {
       try {
-        for await (const proto of rpcStream) {
-          const timestamp = proto.timestamp ?? new Date();
-
-          if (proto.findMyLocationUpdated === undefined) {
+        for await (const frame of rpcStream) {
+          if (!frame.locationUpdated) {
             continue;
           }
-
-          const evt: FindMyEvent = proto.findMyLocationUpdated;
-
-          yield {
-            type: "location.updated" as const,
-            friends: evt.friends.map(mapFindMyFriend),
-            timestamp,
-          };
+          yield mapSharedFriendLocationUpdated(frame.locationUpdated);
         }
       } catch (err) {
         throw fromGrpcError(err);
       }
     }
 
-    return new TypedEventStream<LocationEvent>(mapEvents());
+    return new TypedEventStream(mapUpdates());
   }
 }

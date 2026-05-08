@@ -15,7 +15,7 @@
  *
  * @example
  * ```ts
- * await im.messages.send(chat, "Happy birthday!", {
+ * await im.messages.sendText(chat, "Happy birthday!", {
  *   effect: MessageEffect.confetti,
  * });
  * ```

@@ -1,19 +1,17 @@
 # API Design
 
-TypeScript SDK for [photon-hq/advanced-imessage-server-v2](https://github.com/photon-hq/advanced-imessage-server-v2). This repo is public. The server is private. The `.proto` files vendored here are the single source of truth for the wire protocol.
-
-Inspired by Stripe (auto-pagination, error hierarchy), Vercel AI SDK (streaming result objects), Drizzle (inferred types, `as const`), Hono (multi-runtime), Zod (discriminated unions).
+TypeScript SDK for [photon-hq/advanced-imessage-server-v2](https://github.com/photon-hq/advanced-imessage-server-v2). This repo is public. The server is private. The vendored `.proto` files are the wire contract.
 
 ---
 
 ## It should feel like this
 
 ```ts
-import { createClient, directChat, MessageEffect } from "@photon-ai/advanced-imessage";
+import { createClient, MessageEffect } from "@photon-ai/advanced-imessage";
 
 const im = createClient({ address: "127.0.0.1:50051", token: "..." });
 
-await im.messages.send(directChat("+1234567890"), "Hello!");
+await im.messages.sendText("any;-;+1234567890", "Hello!");
 ```
 
 One import, one line to connect, one line to send. Everything else is opt-in.
@@ -22,67 +20,56 @@ One import, one line to connect, one line to send. Everything else is opt-in.
 
 ## Principles
 
-**Simple things are simple. Complex things are possible.** Every API has three tiers:
+**Follow the server contract.** Resource methods mirror the v2 service/RPC shape:
 
 ```ts
-// Tier 1 — the 80% case. No options, no config.
-await im.messages.send(chat, "Hello!");
+await im.messages.sendText(chat, "Hello!");
 
-// Tier 2 — options object. The 95% case.
-await im.messages.send(chat, "Hello!", {
+await im.messages.sendText(chat, "Hello!", {
   effect: MessageEffect.confetti,
   replyTo: someGuid,
 });
 
-// Tier 3 — builder. When you need multipart, mentions, formatting.
-await im.messages.sendComposed(chat,
-  MessageBuilder.multipart()
-    .addText("Hey ")
-    .addMention("@John", "john@icloud.com")
-    .withEffect(MessageEffect.slam)
-    .build()
-);
+await im.messages.sendMultipart(chat, [
+  { text: "Hey " },
+  { text: "@John", mentionedAddress: "john@icloud.com" },
+]);
 ```
 
-Never force Tier 3 complexity to do a Tier 1 task.
+The handwritten layer should map TypeScript-friendly parameters to proto
+fields, map proto responses back to public result types, and translate
+transport errors. It should not add alternate workflows on top of server
+behavior.
 
-**TypeScript does the work, not the developer.** Branded types prevent swapping a `ChatGuid` for a `MessageGuid` at compile time. Discriminated unions narrow automatically in `if`/`switch`. Overloaded `subscribe()` narrows the event type. The developer writes less, the compiler catches more.
+**TypeScript does the work, not the developer.** Discriminated unions narrow automatically in `if`/`switch`. Explicit stream methods keep each event domain narrow by construction. The developer writes less, the compiler catches more.
 
-**No magic strings.** Apple's effect IDs (`com.apple.messages.effect.CKConfettiEffect`) are hidden behind `MessageEffect.confetti`. Chat GUID format (`any;-;+1234567890`) is hidden behind `directChat("+1234567890")`. The developer never sees protocol internals.
+**Keep protocol rules documented and enforced at the boundary.** Apple's effect IDs (`com.apple.messages.effect.CKConfettiEffect`) are hidden behind `MessageEffect.confetti`. Chat GUIDs stay plain strings for API simplicity, but the SDK validates them before sending.
 
-**Every resource is disposable.** Client, streams, connections — all implement `Symbol.asyncDispose`. No resource leaks. `await using` just works.
+**Lifecycle is explicit.** The client owns the gRPC channel and implements
+`Symbol.asyncDispose`. Streams also implement `Symbol.asyncDispose`. Resource
+namespaces are thin method groups and do not own sockets.
 
-**Strict by default.** The codebase compiles under `strict: true`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `verbatimModuleSyntax`. Generated code must also pass strict. If a codegen tool can't produce strict-clean output, we use a different tool. We never weaken the tsconfig to accommodate generated code.
+**Strict by default.** The codebase compiles under `strict: true`,
+`noUncheckedIndexedAccess`, `noImplicitOverride`, and `verbatimModuleSyntax`.
+Generated code must also pass strict.
 
-**Nullable values are handled, not asserted.** Proto response fields come back as `T | undefined`. We use `unwrap(value, "fieldName")` — a typed guard that throws a clear error — instead of non-null assertions (`!`). No `as any`. No `as unknown as T`. If a cast is needed, the abstraction is wrong.
+**Nullable values are handled, not asserted.** Proto response fields come back as `T | undefined`. We use `unwrap(value, "fieldName")` — a typed guard that throws a clear error — instead of non-null assertions (`!`). Handwritten source should not need `as any` or `as unknown as T` at the transport boundary. If a production cast is needed there, the abstraction is wrong.
 
 ---
 
 ## Core Types
 
-### Branded Identifiers
-
-```ts
-declare const Brand: unique symbol;
-type Brand<T, B extends string> = T & { readonly [Brand]: B };
-
-export type ChatGuid = Brand<string, "ChatGuid">;
-export type MessageGuid = Brand<string, "MessageGuid">;
-export type AttachmentGuid = Brand<string, "AttachmentGuid">;
-```
-
-Zero runtime cost. You cannot pass a `MessageGuid` where a `ChatGuid` is expected. The only way to create one is through constructor functions: `directChat()`, `groupChat()`, `messageGuid()`, `attachmentGuid()`.
-
 ### ChatGuid
 
 ```ts
-directChat("+1234567890")   // ChatGuid: "any;-;+1234567890"
-groupChat("chat123")        // ChatGuid: "any;+;chat123"
-
-parseChatGuid(guid)
-// -> { type: "direct", address: string, raw: ChatGuid }
-// -> { type: "group", identifier: string, raw: ChatGuid }
+"any;-;+1234567890"
+"any;+;chat123"
 ```
+
+Public methods keep `chat` as a plain `string`. The rule lives in docs and
+JSDoc: `chat` must already be a structured chat guid such as
+`"any;-;alice@example.com"` or `"any;+;chat123"`. The SDK validates that at
+the boundary instead of trying to guess caller intent from arbitrary strings.
 
 ### Enums as `as const` Objects
 
@@ -97,72 +84,44 @@ export const MessageEffect = {
 export type MessageEffect = (typeof MessageEffect)[keyof typeof MessageEffect];
 ```
 
-Runtime values + full autocomplete + type narrowing. No TS enums. Same for `TextEffect`, `Reaction`.
-
-### `_raw` Escape Hatch
-
-Every domain type has `readonly _raw?: unknown`. When the SDK doesn't surface a field you need, you don't wait for a release — you reach into the proto.
-
----
-
-## Lists Auto-Paginate
-
-Stolen from Stripe. `list()` returns `Paginated<T>` — both `await`able and `for await`able:
-
-```ts
-// First page
-const page = await im.messages.list({ chatGuid: chat, limit: 25 });
-page.data;   // Message[]
-page.meta;   // { total, offset, limit }
-
-// All messages, lazily
-for await (const message of im.messages.list({ chatGuid: chat })) {
-  console.log(message.text);
-}
-
-// Buffered with safety limit
-const all = await im.messages.list({ chatGuid: chat }).toArray({ limit: 1000 });
-```
-
-```ts
-interface Paginated<T> extends AsyncIterable<T>, PromiseLike<PaginatedPage<T>> {
-  toArray(options?: { limit?: number }): Promise<T[]>;
-}
-```
-
-No pagination API to learn. Standard JS iteration handles it.
-
----
+Runtime values + full autocomplete + type narrowing. No TS enums. Same for `TextEffect`.
 
 ## Events are Discriminated Unions
 
 ```ts
 type MessageEvent =
-  | { type: "message.sent"; message: Message; chatGuid: ChatGuid; cursor?: string }
-  | { type: "message.received"; message: Message; chatGuid: ChatGuid; cursor?: string }
-  | { type: "message.updated"; message: Message; updateType: "edited" | "unsent" | "notified" | "reaction"; chatGuid: ChatGuid; cursor?: string };
+  | { type: "message.received"; sequence: number; message: Message; chatGuid: string }
+  | { type: "message.edited"; sequence: number; messageGuid: string; chatGuid: string }
+  | { type: "message.read"; sequence: number; messageGuid: string; chatGuid: string }
+  | { type: "message.unsent"; sequence: number; messageGuid: string; chatGuid: string }
+  | { type: "message.reactionAdded"; sequence: number; messageGuid: string; chatGuid: string }
+  | { type: "message.reactionRemoved"; sequence: number; messageGuid: string; chatGuid: string }
+  | { type: "message.stickerPlaced"; sequence: number; messageGuid: string; chatGuid: string };
 ```
 
-Each event carries an opaque `cursor` — a position marker for catching up after a disconnect. See [Stream Catch-Up](#stream-catch-up) below.
+Every live event carries a monotonic global `sequence` shared with
+`events.catchUp(...)`.
 
-`subscribe()` is overloaded — passing a type string narrows the return:
+Message streams stay explicit at the resource boundary:
 
 ```ts
 // All events
-for await (const event of im.messages.subscribe()) { ... }
-
-// Only received — TS knows the exact shape
-for await (const event of im.messages.subscribe("message.received")) {
-  event.message.text;  // typed, no cast
+for await (const event of im.messages.subscribeEvents()) {
+  if (event.type === "message.received") {
+    event.message.content.text;  // typed after narrowing, no cast
+  }
 }
 ```
 
 `TypedEventStream<T>` supports: `for await`, `.on(cb)`, `.filter()`, `.map()`, `.take(n)`, `Symbol.asyncDispose`.
 
 ```ts
-const incoming = im.messages.subscribe("message.received")
-  .filter(e => e.message.text !== undefined)
-  .map(e => ({ from: e.message.sender?.address, text: e.message.text! }));
+const incoming = im.messages.subscribeEvents()
+  .filter(
+    (e): e is Extract<typeof e, { type: "message.received" }> =>
+      e.type === "message.received" && e.message.content.text !== undefined
+  )
+  .map(e => ({ from: e.message.sender?.address, text: e.message.content.text! }));
 
 for await (const { from, text } of incoming) {
   console.log(`[${from}] ${text}`);
@@ -173,31 +132,35 @@ for await (const { from, text } of incoming) {
 
 ## Stream Catch-Up
 
-When a stream disconnects, messages keep arriving on the server. The SDK exposes cursor-based catch-up so you never lose messages:
+When a stream disconnects, events can keep arriving on the server. The SDK
+exposes explicit sequence-based catch-up; it does not hide a reconnect loop
+inside live streams.
 
 ```ts
-let cursor = loadPersistedCursor(); // your storage
+let since = loadPersistedSequence(); // your storage
 
-// 1. Catch up on anything missed while disconnected
-if (cursor) {
-  for await (const msg of im.messages.fetchMissed(cursor)) {
-    processMissedMessage(msg);
+// 1. Drain missed durable events.
+for await (const event of im.events.catchUp(since)) {
+  if (event.type === "catchup.complete") {
+    since = event.headSequence;
+    break;
   }
-}
 
-// 2. Resume live stream, tracking cursor for next time
-for await (const event of im.messages.subscribe()) {
-  if (event.cursor) cursor = event.cursor;
   processEvent(event);
+  since = event.sequence;
 }
 
-// 3. Persist cursor when done (or periodically)
-persistCursor(cursor);
+// 2. Resume live streams and keep persisting the latest sequence.
+for await (const event of im.messages.subscribeEvents()) {
+  processEvent(event);
+  since = event.sequence;
+  persistSequence(since);
+}
 ```
 
-`fetchMissed(cursor)` returns `Paginated<Message>` — same auto-pagination as `list()`. It fetches every message after the cursor position, ordered chronologically, with full chat and attachment metadata.
-
-The cursor is opaque — treat it as a string, persist it, pass it back. The server handles the rest.
+`catchUp(since)` yields durable events where `event.sequence > since`, then a
+terminal `catchup.complete` frame with the current `headSequence`. Persist the
+last event sequence you have fully handled.
 
 ---
 
@@ -221,7 +184,7 @@ class ConnectionError extends IMessageError {}
 
 ```ts
 try {
-  await im.messages.send(chat, "Hello!");
+  await im.messages.sendText(chat, "Hello!");
 } catch (err) {
   if (err instanceof RateLimitError) { /* back off */ }
   if (err instanceof NotFoundError) { /* chat doesn't exist */ }
@@ -234,10 +197,14 @@ try {
 ## Streaming Downloads
 
 ```ts
-const dl = await im.attachments.download(guid);
-dl.totalBytes;          // known upfront from first chunk
-dl.stream;              // ReadableStream<Uint8Array>
-await dl.arrayBuffer(); // or just buffer it
+for await (const frame of im.attachments.downloadStream(guid)) {
+  if (frame.type === "header") {
+    frame.info.totalBytes;
+  }
+  if (frame.type === "primaryChunk") {
+    frame.data;
+  }
+}
 ```
 
 ---
@@ -274,16 +241,15 @@ Factory function returns an interface. The class is an implementation detail.
 
 ## Proto and Codegen
 
-`proto/photon/imessage/v1/*.proto` — committed, versioned, the contract. `src/generated/` — also committed. Both are checked in so the repo is clone-and-build with no codegen step required.
+`proto/photon/imessage/v1/*.proto` is the contract. `src/generated/` is also
+committed so the repo is clone-and-build with no codegen step required.
 
 We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-definitions`. ts-proto generates:
-- Native nice-grpc `ServiceDefinition` objects — no adapter layer
-- Typed `ServiceClient` interfaces where unary methods return `Promise<Response>` and streaming methods return `AsyncIterable<Response>` — no wrapper types
-- `oneof` fields as plain optional properties — just `if (proto.field)`, no discriminated `oneofKind` ceremony
+- Native nice-grpc `ServiceDefinition` objects
+- Typed `ServiceClient` interfaces where unary methods return `Promise<Response>` and streaming methods return `AsyncIterable<Response>`
+- `oneof` fields as plain optional properties
 - `Date` for Timestamp fields — no manual conversion
 - Code that compiles under full strict mode
-
-The previous codegen (protobuf-ts) required an adapter to bridge its `ServiceType` to nice-grpc, produced `UnaryCall` wrapper types that needed destructuring, used `oneofKind` discriminated unions that broke under `strict: false`, and couldn't compile with `noUncheckedIndexedAccess`. We switched rather than weakening the tsconfig.
 
 Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` bridges generated types to public types. Same Mapper pattern the server uses.
 
@@ -301,11 +267,12 @@ Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` 
 - **No TS enums** — `as const` objects only
 - **No exposed generated types** — handwritten public layer with mappers
 - **No `new Class()`** for the entry point — factory functions
-- **No query builders** — options objects for reads, builders only for writes
+- **No query builders** — direct methods plus small options objects
 - **No getter booleans on errors** — class hierarchy with `instanceof`
 - **No Bun-only APIs** in library code — Web standards only
 - **Generated code is committed** — clone-and-build, no codegen step. Proto changes show their TypeScript impact in the diff
-- **No raw streams** — result objects with multiple consumption paths
+- **No hidden reconnect loops** — streams are explicit `TypedEventStream`s; use
+  `events.catchUp(sequence)` for recovery
 - **No forced complexity** — simple things are always simple
 - **No weakened tsconfig** — generated code must compile strict. Pick a different tool if it can't
 - **No non-null assertions** — `unwrap()` with a clear error message, not `!`

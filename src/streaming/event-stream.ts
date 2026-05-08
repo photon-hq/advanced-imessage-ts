@@ -1,9 +1,9 @@
 /**
- * TypedEventStream -- the core streaming primitive for the SDK.
+ * Core streaming primitive used by every server-streaming SDK method.
  *
  * Wraps an async iterable source (typically from a gRPC server-streaming RPC)
- * and exposes multiple consumption patterns: `for await`, `.on()`, `.filter()`,
- * `.map()`, `.take()`, and `Symbol.asyncDispose`.
+ * Exposes `for await`, `.on()`, `.filter()`, `.map()`, `.take()`, `.close()`,
+ * and `Symbol.asyncDispose`.
  *
  * Only one consumer is allowed per stream instance. Calling `.on()` or
  * iterating a stream that is already being consumed throws an error.
@@ -58,9 +58,13 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
    *
    * The callback may be synchronous or async. If async, back-pressure is
    * applied -- the next event is not delivered until the previous callback
-   * resolves.
+   * resolves. Pass `onError` to handle callback or source errors; otherwise
+   * errors are rethrown on the next microtask.
    */
-  on(callback: (event: T) => void | Promise<void>): () => void {
+  on(
+    callback: (event: T) => void | Promise<void>,
+    onError?: (error: unknown) => void
+  ): () => void {
     this._claimConsumer();
 
     let stopped = false;
@@ -81,10 +85,15 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
       }
     };
 
-    // Fire-and-forget; errors are silently swallowed since there is no
-    // caller to propagate to. In production the caller wraps the callback
-    // with their own error handling.
-    run();
+    run().catch((error) => {
+      if (onError) {
+        onError(error);
+        return;
+      }
+      queueMicrotask(() => {
+        throw error;
+      });
+    });
 
     return () => {
       stopped = true;
@@ -125,15 +134,20 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
     return new TypedEventStream<U>(mapped(), () => parent.close());
   }
 
-  /** Yield the first `count` events then auto-close. */
+  /**
+   * Yield the first `count` events, then close the parent stream.
+   *
+   * `count <= 0` returns an empty stream without consuming the parent.
+   */
   take(count: number): TypedEventStream<T> {
     const parent = this;
     async function* taken(): AsyncGenerator<T> {
+      if (count <= 0) {
+        return;
+      }
+
       let remaining = count;
       for await (const event of parent) {
-        if (remaining <= 0) {
-          break;
-        }
         yield event;
         remaining--;
         if (remaining <= 0) {
@@ -206,7 +220,8 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
         const result = await Promise.race([nextPromise, this._cancelPromise()]);
 
         if (result === undefined || this._closed) {
-          // Cancelled -- break out of the loop.
+          // Cancelled -- ignore a later source rejection caused by teardown.
+          nextPromise.catch(() => undefined);
           break;
         }
 
@@ -216,8 +231,12 @@ export class TypedEventStream<T> implements AsyncIterable<T>, AsyncDisposable {
         yield result.value;
       }
     } finally {
-      // Always clean up the source iterator.
-      await iterator.return?.(undefined);
+      const cleanup = iterator.return?.(undefined);
+      if (cleanup && this._closed) {
+        cleanup.catch(() => undefined);
+      } else if (cleanup) {
+        await cleanup;
+      }
     }
   }
 

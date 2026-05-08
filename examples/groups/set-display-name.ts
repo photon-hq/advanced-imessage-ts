@@ -1,0 +1,16 @@
+import { createClient } from "@photon-ai/advanced-imessage";
+
+const im = createClient({
+  address: "127.0.0.1:50051",
+  token: "dev-token",
+  tls: false,
+});
+
+const chat = "any;+;group-chat-guid";
+
+const renamed = await im.groups.setDisplayName(chat, "Weekend Plan");
+
+console.log("guid:", renamed.guid);
+console.log("displayName:", renamed.displayName);
+
+await im.close();

@@ -1,190 +1,159 @@
 /**
- * Event types for the iMessage event stream.
- *
- * All events are modelled as discriminated unions with `readonly` properties
- * so that TypeScript narrows the type automatically in `if`/`switch` blocks.
- *
- * The {@link EventTypeMap} provides a mapping from event-type string literal
- * to the concrete event shape, enabling type-safe `subscribe()` overloads.
+ * Event types for live subscriptions and durable catch-up replay.
  */
 
-import type { ChatGuid, MessageGuid } from "./branded.js";
-import type { FindMyFriend } from "./locations.js";
-import type { Message } from "./messages.js";
-import type { PollActor, PollChangeDelta } from "./polls.js";
+import type { SingleServiceAddressInfo } from "./addresses.js";
+import type { Message, MessageReaction, StickerPlacement } from "./messages.js";
+import type { PollChangeDelta } from "./polls.js";
 
-// ---------------------------------------------------------------------------
-// MessageEvent
-// ---------------------------------------------------------------------------
+export interface EventContext {
+  readonly actor?: SingleServiceAddressInfo;
+  readonly chatGuid: string;
+  readonly occurredAt: Date;
+}
 
-/** Events related to individual messages. */
-export type MessageEvent =
-  | {
-      readonly type: "message.sent";
-      readonly timestamp: Date;
-      readonly message: Message;
-      readonly clientMessageId?: string;
-      readonly chatGuid: ChatGuid;
-      readonly cursor?: string;
-    }
-  | {
-      readonly type: "message.received";
-      readonly timestamp: Date;
-      readonly message: Message;
-      readonly chatGuid: ChatGuid;
-      readonly cursor?: string;
-    }
-  | {
-      readonly type: "message.updated";
-      readonly timestamp: Date;
-      readonly message: Message;
-      readonly updateType: "edited" | "unsent" | "notified" | "reaction";
-      readonly chatGuid: ChatGuid;
-      readonly cursor?: string;
-    };
-
-// ---------------------------------------------------------------------------
-// ChatEvent
-// ---------------------------------------------------------------------------
-
-/** Events related to chat-level state changes. */
 export type ChatEvent =
-  | {
-      readonly type: "chat.created";
-      readonly timestamp: Date;
-      readonly chatGuid: ChatGuid;
-    }
-  | {
-      readonly type: "chat.left";
-      readonly timestamp: Date;
-      readonly chatGuid: ChatGuid;
-    }
-  | {
-      readonly type: "chat.readStatusChanged";
-      readonly timestamp: Date;
-      readonly chatGuid: ChatGuid;
-      readonly isRead: boolean;
-    }
-  | {
-      readonly type: "chat.typingIndicator";
-      readonly timestamp: Date;
-      readonly chatGuid: ChatGuid;
-      readonly isTyping: boolean;
-      readonly displayName?: string;
-    };
+  | (EventContext & {
+      readonly type: "chat.backgroundChanged";
+      readonly sequence: number;
+    })
+  | (EventContext & {
+      readonly type: "chat.backgroundRemoved";
+      readonly sequence: number;
+    })
+  | (EventContext & {
+      readonly type: "chat.markedRead";
+      readonly sequence: number;
+    })
+  | (EventContext & {
+      readonly type: "chat.archived";
+      readonly sequence: number;
+    })
+  | (EventContext & {
+      readonly type: "chat.unarchived";
+      readonly sequence: number;
+    });
 
-// ---------------------------------------------------------------------------
-// GroupChange
-// ---------------------------------------------------------------------------
-
-/** Discriminated union describing the specific change within a group chat. */
 export type GroupChange =
-  | { readonly type: "renamed"; readonly name: string }
-  | { readonly type: "participantAdded"; readonly address: string }
-  | { readonly type: "participantRemoved"; readonly address: string }
+  | { readonly type: "displayNameChanged"; readonly displayName: string }
+  | {
+      readonly type: "participantAdded";
+      readonly participant: SingleServiceAddressInfo;
+    }
+  | {
+      readonly type: "participantRemoved";
+      readonly participant: SingleServiceAddressInfo;
+    }
+  | {
+      readonly type: "participantLeft";
+      readonly participant: SingleServiceAddressInfo;
+    }
   | { readonly type: "iconChanged" }
-  | { readonly type: "iconRemoved" }
-  | { readonly type: "backgroundChanged" }
-  | { readonly type: "backgroundRemoved" };
+  | { readonly type: "iconRemoved" };
 
-// ---------------------------------------------------------------------------
-// GroupEvent
-// ---------------------------------------------------------------------------
-
-/** An event indicating a group chat property was changed. */
-export interface GroupEvent {
+export interface GroupEvent extends EventContext {
   readonly change: GroupChange;
-  readonly chatGuid: ChatGuid;
-  readonly timestamp: Date;
+  readonly sequence: number;
   readonly type: "group.changed";
 }
 
-// ---------------------------------------------------------------------------
-// PollEvent
-// ---------------------------------------------------------------------------
+export type MessageEvent =
+  | (EventContext & {
+      readonly type: "message.received";
+      readonly sequence: number;
+      readonly message: Message;
+    })
+  | (EventContext & {
+      readonly type: "message.edited";
+      readonly sequence: number;
+      readonly messageGuid: string;
+      readonly content: Message["content"];
+      readonly editedAt: Date;
+    })
+  | (EventContext & {
+      readonly type: "message.read";
+      readonly sequence: number;
+      readonly messageGuid: string;
+      readonly readAt: Date;
+    })
+  | (EventContext & {
+      readonly type: "message.unsent";
+      readonly sequence: number;
+      readonly messageGuid: string;
+      readonly retractedAt: Date;
+    })
+  | (EventContext & {
+      readonly type: "message.reactionAdded";
+      readonly sequence: number;
+      readonly messageGuid: string;
+      readonly reaction: MessageReaction;
+      readonly targetPartIndex?: number;
+    })
+  | (EventContext & {
+      readonly type: "message.reactionRemoved";
+      readonly sequence: number;
+      readonly messageGuid: string;
+      readonly reaction: MessageReaction;
+      readonly targetPartIndex?: number;
+    })
+  | (EventContext & {
+      readonly type: "message.stickerPlaced";
+      readonly sequence: number;
+      readonly messageGuid: string;
+      readonly sticker?: Message["placedStickers"][number]["sticker"];
+      readonly placement?: StickerPlacement;
+      readonly targetPartIndex?: number;
+    });
 
-/**
- * An event indicating a poll was created or interacted with.
- *
- * The event is self-contained — the `delta` discriminated union carries the
- * full post-change data for `created` / `optionAdded`, or the voter's
- * current full selection for `voted`. No `polls.get()` round-trip is
- * required for common UI rendering.
- *
- * Switch on `delta.type` (or equivalently `action`) to narrow the payload.
- */
-export interface PollEvent {
-  /**
-   * Action discriminator — mirrors `delta.type`. Convenience alias for
-   * callers that only need to branch on the action kind.
-   */
-  readonly action: PollChangeDelta["type"];
-  /** Who made the change. */
-  readonly actor: PollActor;
-  /**
-   * When the change was written (the triggering message's dateCreated).
-   * May differ slightly from the event's delivery time.
-   */
-  readonly at: Date;
-  /** Chat the poll belongs to. */
-  readonly chatGuid: ChatGuid;
-  /** The action and its per-action payload. */
+export interface PollEvent extends EventContext {
   readonly delta: PollChangeDelta;
-  /** GUID of the root poll message (stable across the poll's lifetime). */
-  readonly pollMessageGuid: MessageGuid;
-  /** The delivery timestamp assigned by the server stream. */
-  readonly timestamp: Date;
+  readonly pollMessageGuid: string;
+  readonly sequence: number;
   readonly type: "poll.changed";
 }
 
-// ---------------------------------------------------------------------------
-// LocationEvent
-// ---------------------------------------------------------------------------
+// Note: location updates are NOT in `LiveEvent` / `CatchUpEvent`. They live
+// on a separate dedicated stream (`im.locations.watch(...)`) and never flow
+// through the durable event log.
+export type LiveEvent = MessageEvent | ChatEvent | GroupEvent | PollEvent;
 
-/** An event containing updated FindMy friend locations. */
-export interface LocationEvent {
-  readonly friends: readonly FindMyFriend[];
-  readonly timestamp: Date;
-  readonly type: "location.updated";
-}
+export type CatchUpEvent =
+  | LiveEvent
+  | {
+      readonly type: "catchup.complete";
+      readonly headSequence: number;
+    };
 
-// ---------------------------------------------------------------------------
-// IMessageEvent (top-level union)
-// ---------------------------------------------------------------------------
-
-/** Union of every possible event emitted by the iMessage event stream. */
-export type IMessageEvent =
-  | MessageEvent
-  | ChatEvent
-  | GroupEvent
-  | PollEvent
-  | LocationEvent;
-
-// ---------------------------------------------------------------------------
-// EventTypeMap
-// ---------------------------------------------------------------------------
-
-/**
- * Maps each event-type string literal to its concrete event shape.
- *
- * Used by `subscribe()` overloads to narrow the returned event type when a
- * specific event type string is provided.
- */
 export interface EventTypeMap {
-  "chat.created": Extract<ChatEvent, { type: "chat.created" }>;
-  "chat.left": Extract<ChatEvent, { type: "chat.left" }>;
-  "chat.readStatusChanged": Extract<
+  "chat.archived": Extract<ChatEvent, { type: "chat.archived" }>;
+  "chat.backgroundChanged": Extract<
     ChatEvent,
-    { type: "chat.readStatusChanged" }
+    { type: "chat.backgroundChanged" }
   >;
-  "chat.typingIndicator": Extract<ChatEvent, { type: "chat.typingIndicator" }>;
+  "chat.backgroundRemoved": Extract<
+    ChatEvent,
+    { type: "chat.backgroundRemoved" }
+  >;
+  "chat.markedRead": Extract<ChatEvent, { type: "chat.markedRead" }>;
+  "chat.unarchived": Extract<ChatEvent, { type: "chat.unarchived" }>;
   "group.changed": GroupEvent;
-  "location.updated": LocationEvent;
+  "message.edited": Extract<MessageEvent, { type: "message.edited" }>;
+  "message.reactionAdded": Extract<
+    MessageEvent,
+    { type: "message.reactionAdded" }
+  >;
+  "message.reactionRemoved": Extract<
+    MessageEvent,
+    { type: "message.reactionRemoved" }
+  >;
+  "message.read": Extract<MessageEvent, { type: "message.read" }>;
   "message.received": Extract<MessageEvent, { type: "message.received" }>;
-  "message.sent": Extract<MessageEvent, { type: "message.sent" }>;
-  "message.updated": Extract<MessageEvent, { type: "message.updated" }>;
+  "message.stickerPlaced": Extract<
+    MessageEvent,
+    { type: "message.stickerPlaced" }
+  >;
+  "message.unsent": Extract<MessageEvent, { type: "message.unsent" }>;
   "poll.changed": PollEvent;
 }
 
-/** Union of all known event-type string literals. */
 export type EventType = keyof EventTypeMap;

@@ -49,18 +49,36 @@ export function authMiddleware(
 // Idempotency middleware
 // ---------------------------------------------------------------------------
 
-/**
- * Method paths that are considered safe (read-only) and should not have an
- * idempotency key injected. We match on the method-level idempotency option
- * when available, and fall back to heuristic name matching for methods
- * whose proto definition does not set the option.
- */
-const READ_PREFIXES = ["get", "list", "check", "subscribe", "can"] as const;
+const MUTATING_METHODS: ReadonlySet<string> = new Set([
+  "/photon.imessage.v1.AttachmentService/UploadAttachment",
+  "/photon.imessage.v1.ChatService/CreateChat",
+  "/photon.imessage.v1.ChatService/MarkChatRead",
+  "/photon.imessage.v1.ChatService/RemoveBackground",
+  "/photon.imessage.v1.ChatService/SetBackground",
+  "/photon.imessage.v1.ChatService/SetTyping",
+  "/photon.imessage.v1.ChatService/ShareContactInfo",
+  "/photon.imessage.v1.GroupService/AddParticipants",
+  "/photon.imessage.v1.GroupService/LeaveGroup",
+  "/photon.imessage.v1.GroupService/RemoveIcon",
+  "/photon.imessage.v1.GroupService/RemoveParticipants",
+  "/photon.imessage.v1.GroupService/SetDisplayName",
+  "/photon.imessage.v1.GroupService/SetIcon",
+  "/photon.imessage.v1.MessageService/EditMessage",
+  "/photon.imessage.v1.MessageService/NotifySilencedMessage",
+  "/photon.imessage.v1.MessageService/PlaceSticker",
+  "/photon.imessage.v1.MessageService/SendAttachmentMessage",
+  "/photon.imessage.v1.MessageService/SendMultipartMessage",
+  "/photon.imessage.v1.MessageService/SendTextMessage",
+  "/photon.imessage.v1.MessageService/SetReaction",
+  "/photon.imessage.v1.MessageService/UnsendMessage",
+  "/photon.imessage.v1.PollService/AddPollOption",
+  "/photon.imessage.v1.PollService/CreatePoll",
+  "/photon.imessage.v1.PollService/UnvotePoll",
+  "/photon.imessage.v1.PollService/VotePoll",
+] as const);
 
 function isMutatingMethod(path: string): boolean {
-  // path looks like "/photon.imessage.v1.MessageService/Send"
-  const methodName = path.split("/").pop()?.toLowerCase() ?? "";
-  return !READ_PREFIXES.some((prefix) => methodName.startsWith(prefix));
+  return MUTATING_METHODS.has(path);
 }
 
 /**
@@ -68,7 +86,7 @@ function isMutatingMethod(path: string): boolean {
  * metadata header on mutating (non-read) RPC calls.
  *
  * The key is a v4 UUID generated per call via `crypto.randomUUID()`.
- * Read-only methods (Get*, List*, Check*, Subscribe*, Can*) are skipped.
+ * Read-only methods are skipped.
  */
 export function idempotencyMiddleware(): ClientMiddleware {
   return async function* idempotencyMw(call, options) {
@@ -157,7 +175,7 @@ export function retryMiddleware(opts: RetryOptions = {}): ClientMiddleware {
  * nice-grpc wraps `@grpc/grpc-js` errors into `ClientError`, **dropping
  * trailing metadata** in the process (see `wrapClientError.ts`).  This
  * middleware intercepts the `onTrailer` callback to capture trailing metadata
- * and re-attaches it to errors in a format compatible with `readMetadataValue`.
+ * and re-attaches the original metadata object to thrown errors.
  *
  * It should always be the **innermost** middleware so that outer middleware
  * (retry, error handlers) can read server-sent headers like `error-code`
@@ -181,16 +199,8 @@ export function trailingMetadataCaptureMiddleware(): ClientMiddleware {
       await Promise.resolve();
 
       if (trailer && error instanceof Error) {
-        // Attach an adapter matching the shape readMetadataValue expects:
-        // { get(key): unknown[] }
-        const captured = trailer;
         Object.defineProperty(error, "metadata", {
-          value: {
-            get(key: string): unknown[] {
-              const val = captured.get(key);
-              return val === undefined ? [] : [val];
-            },
-          },
+          value: trailer,
           writable: true,
           configurable: true,
         });

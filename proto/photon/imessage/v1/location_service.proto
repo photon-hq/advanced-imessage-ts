@@ -1,76 +1,88 @@
 syntax = "proto3";
+
 package photon.imessage.v1;
+
+import "photon/imessage/v1/location_types.proto";
+import "photon/imessage/v1/streaming.proto";
 
 option swift_prefix = "PIMsg_";
 
-import "google/protobuf/timestamp.proto";
-import "photon/imessage/v1/common.proto";
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
+// Find My friend-location queries and live updates backed by the Helper.
+// Reads issue one-shot helper queries; the watch stream forwards helper-pushed
+// observations and is not server-polled on a timer.
 service LocationService {
-  // Returns the current cached snapshot and triggers a background refresh.
-  rpc GetFriends(GetFriendsRequest) returns (GetFriendsResponse);
 
-  // Forwards real helper push events. While at least one subscriber is active,
-  // the server triggers periodic background refreshes.
-  rpc SubscribeLocationEvents(SubscribeLocationEventsRequest) returns (stream SubscribeLocationEventsResponse);
+  rpc ListSharedFriendLocations(ListSharedFriendLocationsRequest)
+      returns (ListSharedFriendLocationsResponse);
+
+  rpc GetSharedFriendLocation(GetSharedFriendLocationRequest)
+      returns (GetSharedFriendLocationResponse);
+
+  rpc WatchSharedFriendLocations(WatchSharedFriendLocationsRequest)
+      returns (stream WatchSharedFriendLocationsResponse);
+
 }
 
+
 // ---------------------------------------------------------------------------
-// Types
+// Reads
 // ---------------------------------------------------------------------------
 
-enum FindMyLocationType {
-  FIND_MY_LOCATION_TYPE_UNSPECIFIED = 0;
-  FIND_MY_LOCATION_TYPE_LIVE = 1;
-  FIND_MY_LOCATION_TYPE_SHALLOW = 2;
-  FIND_MY_LOCATION_TYPE_LEGACY = 3;
+message ListSharedFriendLocationsRequest {}
+
+
+message ListSharedFriendLocationsResponse {
+
+  repeated SharedFriendLocation locations = 1;
+
 }
 
-message FindMyFriend {
-  string id = 1;
-  optional string name = 2;
-  optional double latitude = 3;
-  optional double longitude = 4;
-  optional double accuracy = 5;
-  optional google.protobuf.Timestamp location_timestamp = 6;
-  optional string long_address = 7;
-  optional string short_address = 8;
-  bool is_locating_in_progress = 9;
-  FindMyLocationType location_type = 10;
-  optional google.protobuf.Timestamp expires_at = 11;
+
+// Returns the current shared location for one address.
+//
+// Errors:
+//   INVALID_ARGUMENT  malformed address
+//   NOT_FOUND         address is valid but not currently sharing a location
+message GetSharedFriendLocationRequest {
+
+  string address = 1;
+
 }
 
-// ---------------------------------------------------------------------------
-// Request / Response messages
-// ---------------------------------------------------------------------------
 
-message GetFriendsRequest {
-  // Filter by specific friend IDs. Empty = return all friends.
-  repeated string friend_ids = 1;
+message GetSharedFriendLocationResponse {
+
+  SharedFriendLocation location = 1;
+
 }
 
-message GetFriendsResponse {
-  repeated FindMyFriend friends = 1;
+
+// ---------------------------------------------------------------------------
+// Streams
+// ---------------------------------------------------------------------------
+
+// Absent `address` = watch every shared location update. Present
+// `address` = watch updates for one address only.
+message WatchSharedFriendLocationsRequest {
+
+  optional string address = 1;
+
 }
 
-// ---------------------------------------------------------------------------
-// Event streaming
-// ---------------------------------------------------------------------------
 
-message SubscribeLocationEventsRequest {}
+message WatchSharedFriendLocationsResponse {
 
-message SubscribeLocationEventsResponse {
-  google.protobuf.Timestamp timestamp = 1;
   oneof payload {
-    FindMyEvent find_my_location_updated = 10;
-    Heartbeat heartbeat = 99;
-  }
-}
 
-message FindMyEvent {
-  repeated FindMyFriend friends = 1;
+    SharedFriendLocationUpdated location_updated = 10;
+
+    Heartbeat heartbeat = 99;
+
+  }
+
 }

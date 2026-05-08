@@ -7,77 +7,77 @@
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
-import { AttachmentInfo } from "./message_service.js";
+import { AttachmentInfo, Companion, CompanionInfo } from "./attachment_types.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
-export interface GetAttachmentRequest {
-  guid: string;
+export interface GetAttachmentInfoRequest {
+  attachmentGuid: string;
 }
 
-export interface GetAttachmentResponse {
+export interface GetAttachmentInfoResponse {
   attachment: AttachmentInfo | undefined;
 }
 
-export interface GetAttachmentCountRequest {
-}
-
-export interface GetAttachmentCountResponse {
-  count: number;
-}
-
-export interface UploadRequest {
-  fileName: string;
-  mimeType: string;
-  data: Uint8Array;
+export interface UploadAttachmentRequest {
   /**
-   * Optional Live Photo companion video (.mov).
-   * When present the server writes a sibling .mov file next to the image,
-   * enabling getLivePhoto() to find it via the existing naming convention.
+   * Plain file name. Server normalizes: strips path components, replaces
+   * path separators (`/`, `\`) with `_`, drops control characters,
+   * truncates to a fixed UTF-8 byte budget while preserving the
+   * extension, and falls back to `attachment` if the result is empty.
    */
-  livePhotoVideo?: Uint8Array | undefined;
+  fileName: string;
+  data: Uint8Array;
+  companion?: Companion | undefined;
 }
 
-export interface UploadResponse {
+export interface UploadAttachmentResponse {
+  attachment:
+    | AttachmentInfo
+    | undefined;
+  /** Set iff the request carried a companion. */
+  companion?: CompanionInfo | undefined;
+}
+
+export interface DownloadAttachmentRequest {
+  attachmentGuid: string;
+}
+
+export interface DownloadHeader {
   attachment: AttachmentInfo | undefined;
+  companion?: CompanionInfo | undefined;
 }
 
-export interface DownloadRequest {
-  attachmentGuid: string;
+/**
+ * Server-stream frame contract:
+ *
+ *   Frame 0       exactly one `header`
+ *   Frames 1..N   `primary_chunk*`
+ *   Frames N+1..M `companion_chunk*` — emitted only when a companion exists
+ *   Close         gRPC half-close, no sentinel frame
+ */
+export interface DownloadAttachmentResponse {
+  header?: DownloadHeader | undefined;
+  primaryChunk?: Uint8Array | undefined;
+  companionChunk?: Uint8Array | undefined;
 }
 
-export interface DownloadResponse {
-  data: Uint8Array;
-  totalBytes: number;
-  offset: number;
+function createBaseGetAttachmentInfoRequest(): GetAttachmentInfoRequest {
+  return { attachmentGuid: "" };
 }
 
-export interface GetLivePhotoRequest {
-  attachmentGuid: string;
-}
-
-export interface GetLivePhotoResponse {
-  data: Uint8Array;
-  totalBytes: number;
-  offset: number;
-}
-
-function createBaseGetAttachmentRequest(): GetAttachmentRequest {
-  return { guid: "" };
-}
-
-export const GetAttachmentRequest: MessageFns<GetAttachmentRequest> = {
-  encode(message: GetAttachmentRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
+export const GetAttachmentInfoRequest: MessageFns<GetAttachmentInfoRequest> = {
+  encode(message: GetAttachmentInfoRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.attachmentGuid !== "") {
+      writer.uint32(10).string(message.attachmentGuid);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): GetAttachmentRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): GetAttachmentInfoRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetAttachmentRequest();
+    const message = createBaseGetAttachmentInfoRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -86,7 +86,7 @@ export const GetAttachmentRequest: MessageFns<GetAttachmentRequest> = {
             break;
           }
 
-          message.guid = reader.string();
+          message.attachmentGuid = reader.string();
           continue;
         }
       }
@@ -98,44 +98,50 @@ export const GetAttachmentRequest: MessageFns<GetAttachmentRequest> = {
     return message;
   },
 
-  fromJSON(object: any): GetAttachmentRequest {
-    return { guid: isSet(object.guid) ? globalThis.String(object.guid) : "" };
+  fromJSON(object: any): GetAttachmentInfoRequest {
+    return {
+      attachmentGuid: isSet(object.attachmentGuid)
+        ? globalThis.String(object.attachmentGuid)
+        : isSet(object.attachment_guid)
+        ? globalThis.String(object.attachment_guid)
+        : "",
+    };
   },
 
-  toJSON(message: GetAttachmentRequest): unknown {
+  toJSON(message: GetAttachmentInfoRequest): unknown {
     const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
+    if (message.attachmentGuid !== "") {
+      obj.attachmentGuid = message.attachmentGuid;
     }
     return obj;
   },
 
-  create(base?: DeepPartial<GetAttachmentRequest>): GetAttachmentRequest {
-    return GetAttachmentRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<GetAttachmentInfoRequest>): GetAttachmentInfoRequest {
+    return GetAttachmentInfoRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<GetAttachmentRequest>): GetAttachmentRequest {
-    const message = createBaseGetAttachmentRequest();
-    message.guid = object.guid ?? "";
+  fromPartial(object: DeepPartial<GetAttachmentInfoRequest>): GetAttachmentInfoRequest {
+    const message = createBaseGetAttachmentInfoRequest();
+    message.attachmentGuid = object.attachmentGuid ?? "";
     return message;
   },
 };
 
-function createBaseGetAttachmentResponse(): GetAttachmentResponse {
+function createBaseGetAttachmentInfoResponse(): GetAttachmentInfoResponse {
   return { attachment: undefined };
 }
 
-export const GetAttachmentResponse: MessageFns<GetAttachmentResponse> = {
-  encode(message: GetAttachmentResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const GetAttachmentInfoResponse: MessageFns<GetAttachmentInfoResponse> = {
+  encode(message: GetAttachmentInfoResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.attachment !== undefined) {
       AttachmentInfo.encode(message.attachment, writer.uint32(10).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): GetAttachmentResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): GetAttachmentInfoResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetAttachmentResponse();
+    const message = createBaseGetAttachmentInfoResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -156,11 +162,11 @@ export const GetAttachmentResponse: MessageFns<GetAttachmentResponse> = {
     return message;
   },
 
-  fromJSON(object: any): GetAttachmentResponse {
+  fromJSON(object: any): GetAttachmentInfoResponse {
     return { attachment: isSet(object.attachment) ? AttachmentInfo.fromJSON(object.attachment) : undefined };
   },
 
-  toJSON(message: GetAttachmentResponse): unknown {
+  toJSON(message: GetAttachmentInfoResponse): unknown {
     const obj: any = {};
     if (message.attachment !== undefined) {
       obj.attachment = AttachmentInfo.toJSON(message.attachment);
@@ -168,11 +174,11 @@ export const GetAttachmentResponse: MessageFns<GetAttachmentResponse> = {
     return obj;
   },
 
-  create(base?: DeepPartial<GetAttachmentResponse>): GetAttachmentResponse {
-    return GetAttachmentResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<GetAttachmentInfoResponse>): GetAttachmentInfoResponse {
+    return GetAttachmentInfoResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<GetAttachmentResponse>): GetAttachmentResponse {
-    const message = createBaseGetAttachmentResponse();
+  fromPartial(object: DeepPartial<GetAttachmentInfoResponse>): GetAttachmentInfoResponse {
+    const message = createBaseGetAttachmentInfoResponse();
     message.attachment = (object.attachment !== undefined && object.attachment !== null)
       ? AttachmentInfo.fromPartial(object.attachment)
       : undefined;
@@ -180,132 +186,28 @@ export const GetAttachmentResponse: MessageFns<GetAttachmentResponse> = {
   },
 };
 
-function createBaseGetAttachmentCountRequest(): GetAttachmentCountRequest {
-  return {};
+function createBaseUploadAttachmentRequest(): UploadAttachmentRequest {
+  return { fileName: "", data: new Uint8Array(0), companion: undefined };
 }
 
-export const GetAttachmentCountRequest: MessageFns<GetAttachmentCountRequest> = {
-  encode(_: GetAttachmentCountRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetAttachmentCountRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetAttachmentCountRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): GetAttachmentCountRequest {
-    return {};
-  },
-
-  toJSON(_: GetAttachmentCountRequest): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetAttachmentCountRequest>): GetAttachmentCountRequest {
-    return GetAttachmentCountRequest.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<GetAttachmentCountRequest>): GetAttachmentCountRequest {
-    const message = createBaseGetAttachmentCountRequest();
-    return message;
-  },
-};
-
-function createBaseGetAttachmentCountResponse(): GetAttachmentCountResponse {
-  return { count: 0 };
-}
-
-export const GetAttachmentCountResponse: MessageFns<GetAttachmentCountResponse> = {
-  encode(message: GetAttachmentCountResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.count !== 0) {
-      writer.uint32(8).int64(message.count);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetAttachmentCountResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetAttachmentCountResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 8) {
-            break;
-          }
-
-          message.count = longToNumber(reader.int64());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetAttachmentCountResponse {
-    return { count: isSet(object.count) ? globalThis.Number(object.count) : 0 };
-  },
-
-  toJSON(message: GetAttachmentCountResponse): unknown {
-    const obj: any = {};
-    if (message.count !== 0) {
-      obj.count = Math.round(message.count);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetAttachmentCountResponse>): GetAttachmentCountResponse {
-    return GetAttachmentCountResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetAttachmentCountResponse>): GetAttachmentCountResponse {
-    const message = createBaseGetAttachmentCountResponse();
-    message.count = object.count ?? 0;
-    return message;
-  },
-};
-
-function createBaseUploadRequest(): UploadRequest {
-  return { fileName: "", mimeType: "", data: new Uint8Array(0), livePhotoVideo: undefined };
-}
-
-export const UploadRequest: MessageFns<UploadRequest> = {
-  encode(message: UploadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const UploadAttachmentRequest: MessageFns<UploadAttachmentRequest> = {
+  encode(message: UploadAttachmentRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.fileName !== "") {
       writer.uint32(10).string(message.fileName);
     }
-    if (message.mimeType !== "") {
-      writer.uint32(18).string(message.mimeType);
-    }
     if (message.data.length !== 0) {
-      writer.uint32(26).bytes(message.data);
+      writer.uint32(18).bytes(message.data);
     }
-    if (message.livePhotoVideo !== undefined) {
-      writer.uint32(34).bytes(message.livePhotoVideo);
+    if (message.companion !== undefined) {
+      Companion.encode(message.companion, writer.uint32(26).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): UploadRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): UploadAttachmentRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseUploadRequest();
+    const message = createBaseUploadAttachmentRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -322,7 +224,7 @@ export const UploadRequest: MessageFns<UploadRequest> = {
             break;
           }
 
-          message.mimeType = reader.string();
+          message.data = reader.bytes();
           continue;
         }
         case 3: {
@@ -330,15 +232,7 @@ export const UploadRequest: MessageFns<UploadRequest> = {
             break;
           }
 
-          message.data = reader.bytes();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.livePhotoVideo = reader.bytes();
+          message.companion = Companion.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -350,73 +244,65 @@ export const UploadRequest: MessageFns<UploadRequest> = {
     return message;
   },
 
-  fromJSON(object: any): UploadRequest {
+  fromJSON(object: any): UploadAttachmentRequest {
     return {
       fileName: isSet(object.fileName)
         ? globalThis.String(object.fileName)
         : isSet(object.file_name)
         ? globalThis.String(object.file_name)
         : "",
-      mimeType: isSet(object.mimeType)
-        ? globalThis.String(object.mimeType)
-        : isSet(object.mime_type)
-        ? globalThis.String(object.mime_type)
-        : "",
       data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-      livePhotoVideo: isSet(object.livePhotoVideo)
-        ? bytesFromBase64(object.livePhotoVideo)
-        : isSet(object.live_photo_video)
-        ? bytesFromBase64(object.live_photo_video)
-        : undefined,
+      companion: isSet(object.companion) ? Companion.fromJSON(object.companion) : undefined,
     };
   },
 
-  toJSON(message: UploadRequest): unknown {
+  toJSON(message: UploadAttachmentRequest): unknown {
     const obj: any = {};
     if (message.fileName !== "") {
       obj.fileName = message.fileName;
     }
-    if (message.mimeType !== "") {
-      obj.mimeType = message.mimeType;
-    }
     if (message.data.length !== 0) {
       obj.data = base64FromBytes(message.data);
     }
-    if (message.livePhotoVideo !== undefined) {
-      obj.livePhotoVideo = base64FromBytes(message.livePhotoVideo);
+    if (message.companion !== undefined) {
+      obj.companion = Companion.toJSON(message.companion);
     }
     return obj;
   },
 
-  create(base?: DeepPartial<UploadRequest>): UploadRequest {
-    return UploadRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<UploadAttachmentRequest>): UploadAttachmentRequest {
+    return UploadAttachmentRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<UploadRequest>): UploadRequest {
-    const message = createBaseUploadRequest();
+  fromPartial(object: DeepPartial<UploadAttachmentRequest>): UploadAttachmentRequest {
+    const message = createBaseUploadAttachmentRequest();
     message.fileName = object.fileName ?? "";
-    message.mimeType = object.mimeType ?? "";
     message.data = object.data ?? new Uint8Array(0);
-    message.livePhotoVideo = object.livePhotoVideo ?? undefined;
+    message.companion = (object.companion !== undefined && object.companion !== null)
+      ? Companion.fromPartial(object.companion)
+      : undefined;
     return message;
   },
 };
 
-function createBaseUploadResponse(): UploadResponse {
-  return { attachment: undefined };
+function createBaseUploadAttachmentResponse(): UploadAttachmentResponse {
+  return { attachment: undefined, companion: undefined };
 }
 
-export const UploadResponse: MessageFns<UploadResponse> = {
-  encode(message: UploadResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const UploadAttachmentResponse: MessageFns<UploadAttachmentResponse> = {
+  encode(message: UploadAttachmentResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.attachment !== undefined) {
       AttachmentInfo.encode(message.attachment, writer.uint32(10).fork()).join();
+    }
+    if (message.companion !== undefined) {
+      CompanionInfo.encode(message.companion, writer.uint32(18).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): UploadResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): UploadAttachmentResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseUploadResponse();
+    const message = createBaseUploadAttachmentResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -428,6 +314,14 @@ export const UploadResponse: MessageFns<UploadResponse> = {
           message.attachment = AttachmentInfo.decode(reader, reader.uint32());
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.companion = CompanionInfo.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -437,46 +331,55 @@ export const UploadResponse: MessageFns<UploadResponse> = {
     return message;
   },
 
-  fromJSON(object: any): UploadResponse {
-    return { attachment: isSet(object.attachment) ? AttachmentInfo.fromJSON(object.attachment) : undefined };
+  fromJSON(object: any): UploadAttachmentResponse {
+    return {
+      attachment: isSet(object.attachment) ? AttachmentInfo.fromJSON(object.attachment) : undefined,
+      companion: isSet(object.companion) ? CompanionInfo.fromJSON(object.companion) : undefined,
+    };
   },
 
-  toJSON(message: UploadResponse): unknown {
+  toJSON(message: UploadAttachmentResponse): unknown {
     const obj: any = {};
     if (message.attachment !== undefined) {
       obj.attachment = AttachmentInfo.toJSON(message.attachment);
     }
+    if (message.companion !== undefined) {
+      obj.companion = CompanionInfo.toJSON(message.companion);
+    }
     return obj;
   },
 
-  create(base?: DeepPartial<UploadResponse>): UploadResponse {
-    return UploadResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<UploadAttachmentResponse>): UploadAttachmentResponse {
+    return UploadAttachmentResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<UploadResponse>): UploadResponse {
-    const message = createBaseUploadResponse();
+  fromPartial(object: DeepPartial<UploadAttachmentResponse>): UploadAttachmentResponse {
+    const message = createBaseUploadAttachmentResponse();
     message.attachment = (object.attachment !== undefined && object.attachment !== null)
       ? AttachmentInfo.fromPartial(object.attachment)
+      : undefined;
+    message.companion = (object.companion !== undefined && object.companion !== null)
+      ? CompanionInfo.fromPartial(object.companion)
       : undefined;
     return message;
   },
 };
 
-function createBaseDownloadRequest(): DownloadRequest {
+function createBaseDownloadAttachmentRequest(): DownloadAttachmentRequest {
   return { attachmentGuid: "" };
 }
 
-export const DownloadRequest: MessageFns<DownloadRequest> = {
-  encode(message: DownloadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const DownloadAttachmentRequest: MessageFns<DownloadAttachmentRequest> = {
+  encode(message: DownloadAttachmentRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.attachmentGuid !== "") {
       writer.uint32(10).string(message.attachmentGuid);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): DownloadRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): DownloadAttachmentRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseDownloadRequest();
+    const message = createBaseDownloadAttachmentRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -497,7 +400,7 @@ export const DownloadRequest: MessageFns<DownloadRequest> = {
     return message;
   },
 
-  fromJSON(object: any): DownloadRequest {
+  fromJSON(object: any): DownloadAttachmentRequest {
     return {
       attachmentGuid: isSet(object.attachmentGuid)
         ? globalThis.String(object.attachmentGuid)
@@ -507,7 +410,7 @@ export const DownloadRequest: MessageFns<DownloadRequest> = {
     };
   },
 
-  toJSON(message: DownloadRequest): unknown {
+  toJSON(message: DownloadAttachmentRequest): unknown {
     const obj: any = {};
     if (message.attachmentGuid !== "") {
       obj.attachmentGuid = message.attachmentGuid;
@@ -515,38 +418,35 @@ export const DownloadRequest: MessageFns<DownloadRequest> = {
     return obj;
   },
 
-  create(base?: DeepPartial<DownloadRequest>): DownloadRequest {
-    return DownloadRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<DownloadAttachmentRequest>): DownloadAttachmentRequest {
+    return DownloadAttachmentRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<DownloadRequest>): DownloadRequest {
-    const message = createBaseDownloadRequest();
+  fromPartial(object: DeepPartial<DownloadAttachmentRequest>): DownloadAttachmentRequest {
+    const message = createBaseDownloadAttachmentRequest();
     message.attachmentGuid = object.attachmentGuid ?? "";
     return message;
   },
 };
 
-function createBaseDownloadResponse(): DownloadResponse {
-  return { data: new Uint8Array(0), totalBytes: 0, offset: 0 };
+function createBaseDownloadHeader(): DownloadHeader {
+  return { attachment: undefined, companion: undefined };
 }
 
-export const DownloadResponse: MessageFns<DownloadResponse> = {
-  encode(message: DownloadResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.data.length !== 0) {
-      writer.uint32(10).bytes(message.data);
+export const DownloadHeader: MessageFns<DownloadHeader> = {
+  encode(message: DownloadHeader, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.attachment !== undefined) {
+      AttachmentInfo.encode(message.attachment, writer.uint32(10).fork()).join();
     }
-    if (message.totalBytes !== 0) {
-      writer.uint32(16).int64(message.totalBytes);
-    }
-    if (message.offset !== 0) {
-      writer.uint32(24).int64(message.offset);
+    if (message.companion !== undefined) {
+      CompanionInfo.encode(message.companion, writer.uint32(18).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): DownloadResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): DownloadHeader {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseDownloadResponse();
+    const message = createBaseDownloadHeader();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -555,23 +455,15 @@ export const DownloadResponse: MessageFns<DownloadResponse> = {
             break;
           }
 
-          message.data = reader.bytes();
+          message.attachment = AttachmentInfo.decode(reader, reader.uint32());
           continue;
         }
         case 2: {
-          if (tag !== 16) {
+          if (tag !== 18) {
             break;
           }
 
-          message.totalBytes = longToNumber(reader.int64());
-          continue;
-        }
-        case 3: {
-          if (tag !== 24) {
-            break;
-          }
-
-          message.offset = longToNumber(reader.int64());
+          message.companion = CompanionInfo.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -583,60 +475,61 @@ export const DownloadResponse: MessageFns<DownloadResponse> = {
     return message;
   },
 
-  fromJSON(object: any): DownloadResponse {
+  fromJSON(object: any): DownloadHeader {
     return {
-      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-      totalBytes: isSet(object.totalBytes)
-        ? globalThis.Number(object.totalBytes)
-        : isSet(object.total_bytes)
-        ? globalThis.Number(object.total_bytes)
-        : 0,
-      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      attachment: isSet(object.attachment) ? AttachmentInfo.fromJSON(object.attachment) : undefined,
+      companion: isSet(object.companion) ? CompanionInfo.fromJSON(object.companion) : undefined,
     };
   },
 
-  toJSON(message: DownloadResponse): unknown {
+  toJSON(message: DownloadHeader): unknown {
     const obj: any = {};
-    if (message.data.length !== 0) {
-      obj.data = base64FromBytes(message.data);
+    if (message.attachment !== undefined) {
+      obj.attachment = AttachmentInfo.toJSON(message.attachment);
     }
-    if (message.totalBytes !== 0) {
-      obj.totalBytes = Math.round(message.totalBytes);
-    }
-    if (message.offset !== 0) {
-      obj.offset = Math.round(message.offset);
+    if (message.companion !== undefined) {
+      obj.companion = CompanionInfo.toJSON(message.companion);
     }
     return obj;
   },
 
-  create(base?: DeepPartial<DownloadResponse>): DownloadResponse {
-    return DownloadResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<DownloadHeader>): DownloadHeader {
+    return DownloadHeader.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<DownloadResponse>): DownloadResponse {
-    const message = createBaseDownloadResponse();
-    message.data = object.data ?? new Uint8Array(0);
-    message.totalBytes = object.totalBytes ?? 0;
-    message.offset = object.offset ?? 0;
+  fromPartial(object: DeepPartial<DownloadHeader>): DownloadHeader {
+    const message = createBaseDownloadHeader();
+    message.attachment = (object.attachment !== undefined && object.attachment !== null)
+      ? AttachmentInfo.fromPartial(object.attachment)
+      : undefined;
+    message.companion = (object.companion !== undefined && object.companion !== null)
+      ? CompanionInfo.fromPartial(object.companion)
+      : undefined;
     return message;
   },
 };
 
-function createBaseGetLivePhotoRequest(): GetLivePhotoRequest {
-  return { attachmentGuid: "" };
+function createBaseDownloadAttachmentResponse(): DownloadAttachmentResponse {
+  return { header: undefined, primaryChunk: undefined, companionChunk: undefined };
 }
 
-export const GetLivePhotoRequest: MessageFns<GetLivePhotoRequest> = {
-  encode(message: GetLivePhotoRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.attachmentGuid !== "") {
-      writer.uint32(10).string(message.attachmentGuid);
+export const DownloadAttachmentResponse: MessageFns<DownloadAttachmentResponse> = {
+  encode(message: DownloadAttachmentResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.header !== undefined) {
+      DownloadHeader.encode(message.header, writer.uint32(10).fork()).join();
+    }
+    if (message.primaryChunk !== undefined) {
+      writer.uint32(18).bytes(message.primaryChunk);
+    }
+    if (message.companionChunk !== undefined) {
+      writer.uint32(26).bytes(message.companionChunk);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): GetLivePhotoRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): DownloadAttachmentResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetLivePhotoRequest();
+    const message = createBaseDownloadAttachmentResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -645,93 +538,23 @@ export const GetLivePhotoRequest: MessageFns<GetLivePhotoRequest> = {
             break;
           }
 
-          message.attachmentGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetLivePhotoRequest {
-    return {
-      attachmentGuid: isSet(object.attachmentGuid)
-        ? globalThis.String(object.attachmentGuid)
-        : isSet(object.attachment_guid)
-        ? globalThis.String(object.attachment_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: GetLivePhotoRequest): unknown {
-    const obj: any = {};
-    if (message.attachmentGuid !== "") {
-      obj.attachmentGuid = message.attachmentGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetLivePhotoRequest>): GetLivePhotoRequest {
-    return GetLivePhotoRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetLivePhotoRequest>): GetLivePhotoRequest {
-    const message = createBaseGetLivePhotoRequest();
-    message.attachmentGuid = object.attachmentGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseGetLivePhotoResponse(): GetLivePhotoResponse {
-  return { data: new Uint8Array(0), totalBytes: 0, offset: 0 };
-}
-
-export const GetLivePhotoResponse: MessageFns<GetLivePhotoResponse> = {
-  encode(message: GetLivePhotoResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.data.length !== 0) {
-      writer.uint32(10).bytes(message.data);
-    }
-    if (message.totalBytes !== 0) {
-      writer.uint32(16).int64(message.totalBytes);
-    }
-    if (message.offset !== 0) {
-      writer.uint32(24).int64(message.offset);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetLivePhotoResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetLivePhotoResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.data = reader.bytes();
+          message.header = DownloadHeader.decode(reader, reader.uint32());
           continue;
         }
         case 2: {
-          if (tag !== 16) {
+          if (tag !== 18) {
             break;
           }
 
-          message.totalBytes = longToNumber(reader.int64());
+          message.primaryChunk = reader.bytes();
           continue;
         }
         case 3: {
-          if (tag !== 24) {
+          if (tag !== 26) {
             break;
           }
 
-          message.offset = longToNumber(reader.int64());
+          message.companionChunk = reader.bytes();
           continue;
         }
       }
@@ -743,86 +566,90 @@ export const GetLivePhotoResponse: MessageFns<GetLivePhotoResponse> = {
     return message;
   },
 
-  fromJSON(object: any): GetLivePhotoResponse {
+  fromJSON(object: any): DownloadAttachmentResponse {
     return {
-      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-      totalBytes: isSet(object.totalBytes)
-        ? globalThis.Number(object.totalBytes)
-        : isSet(object.total_bytes)
-        ? globalThis.Number(object.total_bytes)
-        : 0,
-      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      header: isSet(object.header) ? DownloadHeader.fromJSON(object.header) : undefined,
+      primaryChunk: isSet(object.primaryChunk)
+        ? bytesFromBase64(object.primaryChunk)
+        : isSet(object.primary_chunk)
+        ? bytesFromBase64(object.primary_chunk)
+        : undefined,
+      companionChunk: isSet(object.companionChunk)
+        ? bytesFromBase64(object.companionChunk)
+        : isSet(object.companion_chunk)
+        ? bytesFromBase64(object.companion_chunk)
+        : undefined,
     };
   },
 
-  toJSON(message: GetLivePhotoResponse): unknown {
+  toJSON(message: DownloadAttachmentResponse): unknown {
     const obj: any = {};
-    if (message.data.length !== 0) {
-      obj.data = base64FromBytes(message.data);
+    if (message.header !== undefined) {
+      obj.header = DownloadHeader.toJSON(message.header);
     }
-    if (message.totalBytes !== 0) {
-      obj.totalBytes = Math.round(message.totalBytes);
+    if (message.primaryChunk !== undefined) {
+      obj.primaryChunk = base64FromBytes(message.primaryChunk);
     }
-    if (message.offset !== 0) {
-      obj.offset = Math.round(message.offset);
+    if (message.companionChunk !== undefined) {
+      obj.companionChunk = base64FromBytes(message.companionChunk);
     }
     return obj;
   },
 
-  create(base?: DeepPartial<GetLivePhotoResponse>): GetLivePhotoResponse {
-    return GetLivePhotoResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<DownloadAttachmentResponse>): DownloadAttachmentResponse {
+    return DownloadAttachmentResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<GetLivePhotoResponse>): GetLivePhotoResponse {
-    const message = createBaseGetLivePhotoResponse();
-    message.data = object.data ?? new Uint8Array(0);
-    message.totalBytes = object.totalBytes ?? 0;
-    message.offset = object.offset ?? 0;
+  fromPartial(object: DeepPartial<DownloadAttachmentResponse>): DownloadAttachmentResponse {
+    const message = createBaseDownloadAttachmentResponse();
+    message.header = (object.header !== undefined && object.header !== null)
+      ? DownloadHeader.fromPartial(object.header)
+      : undefined;
+    message.primaryChunk = object.primaryChunk ?? undefined;
+    message.companionChunk = object.companionChunk ?? undefined;
     return message;
   },
 };
 
+/**
+ * Attachment metadata reads, uploads, and downloads. All transfers are
+ * end-to-end on this gRPC channel; no external blob store is involved.
+ */
 export type AttachmentServiceDefinition = typeof AttachmentServiceDefinition;
 export const AttachmentServiceDefinition = {
   name: "AttachmentService",
   fullName: "photon.imessage.v1.AttachmentService",
   methods: {
-    getAttachment: {
-      name: "GetAttachment",
-      requestType: GetAttachmentRequest as typeof GetAttachmentRequest,
+    /** Metadata-only lookup. Cheap; never touches attachment bytes. */
+    getAttachmentInfo: {
+      name: "GetAttachmentInfo",
+      requestType: GetAttachmentInfoRequest as typeof GetAttachmentInfoRequest,
       requestStream: false,
-      responseType: GetAttachmentResponse as typeof GetAttachmentResponse,
+      responseType: GetAttachmentInfoResponse as typeof GetAttachmentInfoResponse,
       responseStream: false,
       options: {},
     },
-    getAttachmentCount: {
-      name: "GetAttachmentCount",
-      requestType: GetAttachmentCountRequest as typeof GetAttachmentCountRequest,
+    /**
+     * Atomic upload of one primary file plus an optional sidecar. The
+     * server persists both before responding; on failure neither is visible
+     * to subsequent reads.
+     */
+    uploadAttachment: {
+      name: "UploadAttachment",
+      requestType: UploadAttachmentRequest as typeof UploadAttachmentRequest,
       requestStream: false,
-      responseType: GetAttachmentCountResponse as typeof GetAttachmentCountResponse,
+      responseType: UploadAttachmentResponse as typeof UploadAttachmentResponse,
       responseStream: false,
       options: {},
     },
-    upload: {
-      name: "Upload",
-      requestType: UploadRequest as typeof UploadRequest,
+    /**
+     * Server-streaming bytes. See `DownloadAttachmentResponse` for the
+     * frame contract.
+     */
+    downloadAttachment: {
+      name: "DownloadAttachment",
+      requestType: DownloadAttachmentRequest as typeof DownloadAttachmentRequest,
       requestStream: false,
-      responseType: UploadResponse as typeof UploadResponse,
-      responseStream: false,
-      options: {},
-    },
-    download: {
-      name: "Download",
-      requestType: DownloadRequest as typeof DownloadRequest,
-      requestStream: false,
-      responseType: DownloadResponse as typeof DownloadResponse,
-      responseStream: true,
-      options: {},
-    },
-    getLivePhoto: {
-      name: "GetLivePhoto",
-      requestType: GetLivePhotoRequest as typeof GetLivePhotoRequest,
-      requestStream: false,
-      responseType: GetLivePhotoResponse as typeof GetLivePhotoResponse,
+      responseType: DownloadAttachmentResponse as typeof DownloadAttachmentResponse,
       responseStream: true,
       options: {},
     },
@@ -830,43 +657,53 @@ export const AttachmentServiceDefinition = {
 } as const;
 
 export interface AttachmentServiceImplementation<CallContextExt = {}> {
-  getAttachment(
-    request: GetAttachmentRequest,
+  /** Metadata-only lookup. Cheap; never touches attachment bytes. */
+  getAttachmentInfo(
+    request: GetAttachmentInfoRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<GetAttachmentResponse>>;
-  getAttachmentCount(
-    request: GetAttachmentCountRequest,
+  ): Promise<DeepPartial<GetAttachmentInfoResponse>>;
+  /**
+   * Atomic upload of one primary file plus an optional sidecar. The
+   * server persists both before responding; on failure neither is visible
+   * to subsequent reads.
+   */
+  uploadAttachment(
+    request: UploadAttachmentRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<GetAttachmentCountResponse>>;
-  upload(request: UploadRequest, context: CallContext & CallContextExt): Promise<DeepPartial<UploadResponse>>;
-  download(
-    request: DownloadRequest,
+  ): Promise<DeepPartial<UploadAttachmentResponse>>;
+  /**
+   * Server-streaming bytes. See `DownloadAttachmentResponse` for the
+   * frame contract.
+   */
+  downloadAttachment(
+    request: DownloadAttachmentRequest,
     context: CallContext & CallContextExt,
-  ): ServerStreamingMethodResult<DeepPartial<DownloadResponse>>;
-  getLivePhoto(
-    request: GetLivePhotoRequest,
-    context: CallContext & CallContextExt,
-  ): ServerStreamingMethodResult<DeepPartial<GetLivePhotoResponse>>;
+  ): ServerStreamingMethodResult<DeepPartial<DownloadAttachmentResponse>>;
 }
 
 export interface AttachmentServiceClient<CallOptionsExt = {}> {
-  getAttachment(
-    request: DeepPartial<GetAttachmentRequest>,
+  /** Metadata-only lookup. Cheap; never touches attachment bytes. */
+  getAttachmentInfo(
+    request: DeepPartial<GetAttachmentInfoRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<GetAttachmentResponse>;
-  getAttachmentCount(
-    request: DeepPartial<GetAttachmentCountRequest>,
+  ): Promise<GetAttachmentInfoResponse>;
+  /**
+   * Atomic upload of one primary file plus an optional sidecar. The
+   * server persists both before responding; on failure neither is visible
+   * to subsequent reads.
+   */
+  uploadAttachment(
+    request: DeepPartial<UploadAttachmentRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<GetAttachmentCountResponse>;
-  upload(request: DeepPartial<UploadRequest>, options?: CallOptions & CallOptionsExt): Promise<UploadResponse>;
-  download(
-    request: DeepPartial<DownloadRequest>,
+  ): Promise<UploadAttachmentResponse>;
+  /**
+   * Server-streaming bytes. See `DownloadAttachmentResponse` for the
+   * frame contract.
+   */
+  downloadAttachment(
+    request: DeepPartial<DownloadAttachmentRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): AsyncIterable<DownloadResponse>;
-  getLivePhoto(
-    request: DeepPartial<GetLivePhotoRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): AsyncIterable<GetLivePhotoResponse>;
+  ): AsyncIterable<DownloadAttachmentResponse>;
 }
 
 function bytesFromBase64(b64: string): Uint8Array {
@@ -901,17 +738,6 @@ export type DeepPartial<T> = T extends Builtin ? T
   : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
   : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
-
-function longToNumber(int64: { toString(): string }): number {
-  const num = globalThis.Number(int64.toString());
-  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
-  }
-  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
-    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
-  }
-  return num;
-}
 
 function isSet(value: any): boolean {
   return value !== null && value !== undefined;

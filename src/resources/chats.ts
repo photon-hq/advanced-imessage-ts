@@ -1,30 +1,52 @@
-/**
- * ChatsResource -- manages conversations (direct and group), including
- * creation, typing indicators, contact info sharing, participants, and
- * real-time event subscription.
- */
-
 import { fromGrpcError } from "../errors/error-handler.ts";
-import type {
-  ChatLifecycleEvent,
-  ChatReadStatusEvent,
-  TypingEvent,
-} from "../generated/photon/imessage/v1/chat_service.ts";
+import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ChatServiceClient } from "../transport/grpc-client.ts";
-import { mapAddressInfo, mapChat } from "../transport/mapper.ts";
-import type { AddressInfo } from "../types/addresses.ts";
-import type { ChatGuid } from "../types/branded.ts";
-import { chatGuid, messageGuid } from "../types/branded.ts";
-import type { Chat, CreateChatOptions } from "../types/chats.ts";
-import type { SendReceipt } from "../types/common.ts";
+import { mapChat, mapChatEvent } from "../transport/mapper.ts";
+import { normalizeChatGuid } from "../types/chat-guid.ts";
+import type {
+  Chat,
+  CreateChatOptions,
+  CreateChatResult,
+} from "../types/chats.ts";
 import type { ChatEvent } from "../types/events.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
-// ---------------------------------------------------------------------------
-// ChatsResource
-// ---------------------------------------------------------------------------
+// Wire enum is the single source of truth for ordinal values; routing through
+// the named constant keeps reorderings in proto from silently misaligning.
+function toProtoService(
+  service?: CreateChatOptions["service"]
+): ProtoChatServiceType {
+  switch (service) {
+    case undefined:
+    case "iMessage":
+      return ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE;
+    case "SMS":
+      return ProtoChatServiceType.CHAT_SERVICE_TYPE_SMS;
+    case "RCS":
+      return ProtoChatServiceType.CHAT_SERVICE_TYPE_RCS;
+    default:
+      throw new TypeError(`Unsupported chat service: ${String(service)}`);
+  }
+}
 
+/**
+ * Chat APIs.
+ *
+ * - `create(addresses, options)` creates a direct or group chat; can send an
+ *   opening text message in the same server call.
+ * - `get(chat)` fetches one chat by its `any;-;...` or `any;+;...` guid.
+ * - `count(options)` returns the number of visible chats, optionally including
+ *   archived chats.
+ * - `hasBackground(chat)` checks whether a chat has a custom background.
+ * - `setBackground(chat, data, mimeType)` replaces the chat background image.
+ * - `removeBackground(chat)` clears the chat background image.
+ * - `markRead(chat)` marks every unread message in the chat as read.
+ * - `shareContactInfo(chat)` sends the local user's contact card to the chat.
+ * - `setTyping(chat, isTyping)` starts or stops the transient typing indicator.
+ * - `subscribeEvents(filter)` streams chat archive, background, and read-state
+ *   changes; use `events.catchUp(since)` for disconnect recovery.
+ */
 export class ChatsResource {
   private readonly _client: ChatServiceClient;
 
@@ -32,62 +54,67 @@ export class ChatsResource {
     this._client = client;
   }
 
-  // -------------------------------------------------------------------------
-  // CRUD
-  // -------------------------------------------------------------------------
-
   /**
-   * Create a new chat with one or more participants.
+   * Create a chat with one or more peers, optionally sending an opening
+   * message in the same round-trip.
    *
-   * Returns the created chat and an optional send receipt if an initial
-   * message was provided.
+   * Pass `options.message` to send the initial message in the same request.
+   *
+   * @param addresses - One or more peer addresses (email or phone). One
+   *                    address creates a 1:1 chat; two or more create a
+   *                    group.
    */
   async create(
     addresses: string[],
     options?: CreateChatOptions
-  ): Promise<{ chat: Chat; sendReceipt?: SendReceipt }> {
+  ): Promise<CreateChatResult> {
     try {
       const response = await this._client.createChat({
         addresses,
-        message: options?.message,
-        service: options?.service ?? "iMessage",
-        effectId: options?.effectId,
-        subject: options?.subject,
-        clientMessageId: options?.clientMessageId,
+        service: toProtoService(options?.service),
+        initialMessage: options?.message
+          ? {
+              attributedBody: options.attributedBody,
+              text: options.message,
+              effectId: options.effect,
+              subject: options.subject,
+              clientMessageId: options.clientMessageId,
+            }
+          : undefined,
       });
 
-      const chat = mapChat(unwrap(response.chat, "chat"));
-
-      const sendReceipt = response.sendReceipt
-        ? {
-            guid: messageGuid(response.sendReceipt.guid),
-            clientMessageId: response.sendReceipt.clientMessageId,
-          }
-        : undefined;
-
-      return { chat, sendReceipt };
+      return {
+        chat: mapChat(unwrap(response.chat, "chat")),
+        sendReceipt: response.sendReceipt
+          ? {
+              messageGuid: response.sendReceipt.messageGuid,
+              clientMessageId: response.sendReceipt.clientMessageId,
+            }
+          : undefined,
+      };
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
   /**
-   * Retrieve a single chat by GUID.
+   * Fetch a chat by reference.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid` from a previous SDK call.
    */
-  async get(guid: ChatGuid): Promise<Chat> {
+  async get(chat: string): Promise<Chat> {
     try {
-      const response = await this._client.getChat({ guid });
+      const response = await this._client.getChat({
+        chatGuid: normalizeChatGuid(chat),
+      });
       return mapChat(unwrap(response.chat, "chat"));
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
-  /**
-   * Get the total number of chats.
-   *
-   * @param includeArchived - Whether to include archived chats in the count.
-   */
+  /** Count chats accessible to the current account. */
   async count(options?: { includeArchived?: boolean }): Promise<number> {
     try {
       const response = await this._client.getChatCount({
@@ -100,160 +127,138 @@ export class ChatsResource {
   }
 
   /**
-   * Leave a group chat.
+   * Whether `chat` has a custom background set.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
    */
-  async leave(guid: ChatGuid): Promise<void> {
+  async hasBackground(chat: string): Promise<boolean> {
     try {
-      await this._client.leaveChat({ guid });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Read receipts
-  // -------------------------------------------------------------------------
-
-  /**
-   * Mark all messages in a chat as read.
-   */
-  async markRead(chat: ChatGuid): Promise<void> {
-    try {
-      await this._client.markRead({ chatGuid: chat });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Contact info sharing
-  // -------------------------------------------------------------------------
-
-  /**
-   * Share the local user's contact info (Name and Photo) with a chat.
-   */
-  async shareContactInfo(chat: ChatGuid): Promise<void> {
-    try {
-      await this._client.shareContactInfo({ chatGuid: chat });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Typing indicators
-  // -------------------------------------------------------------------------
-
-  /**
-   * Show a typing indicator in a chat.
-   */
-  async startTyping(chat: ChatGuid): Promise<void> {
-    try {
-      await this._client.startTyping({ chatGuid: chat });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Remove the typing indicator from a chat.
-   */
-  async stopTyping(chat: ChatGuid): Promise<void> {
-    try {
-      await this._client.stopTyping({ chatGuid: chat });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Participants
-  // -------------------------------------------------------------------------
-
-  /**
-   * Get the list of participants in a chat.
-   */
-  async getParticipants(chat: ChatGuid): Promise<AddressInfo[]> {
-    try {
-      const response = await this._client.getParticipants({
-        chatGuid: chat,
+      const response = await this._client.hasBackground({
+        chatGuid: normalizeChatGuid(chat),
       });
-      return response.participants.map(mapAddressInfo);
+      return response.backgroundPresent;
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Event subscription
-  // -------------------------------------------------------------------------
+  /**
+   * Replace `chat`'s background with the supplied image bytes.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async setBackground(
+    chat: string,
+    data: Uint8Array,
+    mimeType: string
+  ): Promise<Chat> {
+    try {
+      const response = await this._client.setBackground({
+        chatGuid: normalizeChatGuid(chat),
+        data,
+        mimeType,
+      });
+      return mapChat(unwrap(response.chat, "chat"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
 
   /**
-   * Subscribe to all chat events.
+   * Clear `chat`'s custom background.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
    */
-  subscribe(): TypedEventStream<ChatEvent>;
+  async removeBackground(chat: string): Promise<Chat> {
+    try {
+      const response = await this._client.removeBackground({
+        chatGuid: normalizeChatGuid(chat),
+      });
+      return mapChat(unwrap(response.chat, "chat"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
   /**
-   * Subscribe to a specific type of chat event. The returned stream is
-   * narrowed to only that event type.
+   * Mark every unread message in `chat` as read.
+   *
+   * Resolves once the server has accepted and executed the command.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
    */
-  subscribe<T extends ChatEvent["type"]>(
-    type: T
-  ): TypedEventStream<Extract<ChatEvent, { type: T }>>;
-  subscribe(type?: ChatEvent["type"]): TypedEventStream<ChatEvent> {
-    const rpcStream = this._client.subscribeChatEvents({});
+  async markRead(chat: string): Promise<void> {
+    try {
+      await this._client.markChatRead({ chatGuid: normalizeChatGuid(chat) });
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Send your contact card to `chat`.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async shareContactInfo(chat: string): Promise<void> {
+    try {
+      await this._client.shareContactInfo({
+        chatGuid: normalizeChatGuid(chat),
+      });
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Set the transient typing indicator in `chat`.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async setTyping(chat: string, isTyping: boolean): Promise<void> {
+    try {
+      await this._client.setTyping({
+        chatGuid: normalizeChatGuid(chat),
+        isTyping,
+      });
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Subscribe to chat-level durable change events (background changed,
+   * marked-read, archive state).
+   *
+   * Pass `filter.chat` to scope the stream to a single chat.
+   */
+  subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent> {
+    const rpcStream = this._client.subscribeChatEvents({
+      chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
+    });
 
     async function* mapEvents(): AsyncGenerator<ChatEvent> {
       try {
-        for await (const proto of rpcStream) {
-          const timestamp = proto.timestamp ?? new Date();
-
-          if (proto.chatCreated !== undefined) {
-            const evt: ChatLifecycleEvent = proto.chatCreated;
-            yield {
-              type: "chat.created" as const,
-              timestamp,
-              chatGuid: chatGuid(evt.chatGuid),
-            };
-          } else if (proto.chatLeft !== undefined) {
-            const evt: ChatLifecycleEvent = proto.chatLeft;
-            yield {
-              type: "chat.left" as const,
-              timestamp,
-              chatGuid: chatGuid(evt.chatGuid),
-            };
-          } else if (proto.chatReadStatusChanged !== undefined) {
-            const evt: ChatReadStatusEvent = proto.chatReadStatusChanged;
-            yield {
-              type: "chat.readStatusChanged" as const,
-              timestamp,
-              chatGuid: chatGuid(evt.chatGuid),
-              isRead: evt.isRead,
-            };
-          } else if (proto.typingIndicator !== undefined) {
-            const evt: TypingEvent = proto.typingIndicator;
-            yield {
-              type: "chat.typingIndicator" as const,
-              timestamp,
-              chatGuid: chatGuid(evt.chatGuid),
-              isTyping: evt.isTyping,
-              displayName: evt.displayName,
-            };
+        for await (const frame of rpcStream) {
+          if (frame.sequence === undefined || !frame.chatChanged) {
+            continue;
           }
-          // Unknown payload kinds are silently skipped.
+          const event = mapChatEvent(frame.sequence, frame.chatChanged);
+          if (event) {
+            yield event;
+          }
         }
       } catch (err) {
         throw fromGrpcError(err);
       }
     }
 
-    const stream = new TypedEventStream<ChatEvent>(mapEvents());
-
-    if (type) {
-      return stream.filter(
-        (e): e is Extract<ChatEvent, { type: typeof type }> => e.type === type
-      );
-    }
-
-    return stream;
+    return new TypedEventStream(mapEvents());
   }
 }
