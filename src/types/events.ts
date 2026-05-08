@@ -9,6 +9,7 @@ import type { PollChangeDelta } from "./polls.js";
 export interface EventContext {
   readonly actor?: SingleServiceAddressInfo;
   readonly chatGuid: string;
+  readonly isFromMe: boolean;
   readonly occurredAt: Date;
 }
 

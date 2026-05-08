@@ -4,7 +4,7 @@
 
 import type { SingleServiceAddressInfo } from "./addresses.js";
 import type { MessageEffect } from "./effects.js";
-import type { ChatServiceType, SendableChatServiceType } from "./enums.js";
+import type { ChatServiceType } from "./enums.js";
 import type { Message } from "./messages.js";
 
 // ---------------------------------------------------------------------------
@@ -35,8 +35,6 @@ export interface CreateChatOptions {
   readonly effect?: MessageEffect;
   /** Optional opening text sent in the same server call that creates the chat. */
   readonly message?: string;
-  /** Transport service to use for the new chat. Defaults to `"iMessage"`. */
-  readonly service?: SendableChatServiceType;
   /** Optional subject line for the opening message. */
   readonly subject?: string;
 }

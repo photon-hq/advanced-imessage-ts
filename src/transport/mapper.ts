@@ -25,20 +25,20 @@ import {
   type MessageAppliedReaction as ProtoMessageAppliedReaction,
   type MessageChangeEvent as ProtoMessageChangeEvent,
   type MessageContent as ProtoMessageContent,
+  type MessageEdited as ProtoMessageEdited,
   MessageItemType as ProtoMessageItemType,
   type MessageMention as ProtoMessageMention,
   type MessagePart as ProtoMessagePart,
   type MessagePlacedSticker as ProtoMessagePlacedSticker,
   type MessageReaction as ProtoMessageReaction,
-  MessageReactionKind as ProtoMessageReactionKind,
-  type MessageEdited as ProtoMessageEdited,
   type MessageReactionAdded as ProtoMessageReactionAdded,
+  MessageReactionKind as ProtoMessageReactionKind,
   type MessageReactionRemoved as ProtoMessageReactionRemoved,
   type MessageRead as ProtoMessageRead,
   type MessageReceived as ProtoMessageReceived,
   type MessageUnsent as ProtoMessageUnsent,
-  type StickerPlaced as ProtoStickerPlaced,
   type ReplyTarget as ProtoReplyTarget,
+  type StickerPlaced as ProtoStickerPlaced,
   type StickerPlacement as ProtoStickerPlacement,
   type TextFormat as ProtoTextFormat,
 } from "../generated/photon/imessage/v1/message_types.ts";
@@ -484,11 +484,13 @@ export function mapEmbeddedMedia(proto: ProtoEmbeddedMedia): EmbeddedMedia {
 export function mapEventContext(
   chatGuidValue: string,
   occurredAt: Date,
+  isFromMe: boolean,
   actor?: ProtoSingleServiceAddressInfo
 ): EventContext {
   return {
     actor: actor ? mapSingleServiceAddressInfo(actor) : undefined,
     chatGuid: chatGuidValue,
+    isFromMe,
     occurredAt,
   };
 }
@@ -500,6 +502,7 @@ export function mapChatEvent(
   const context = mapEventContext(
     proto.chatGuid,
     unwrap(proto.occurredAt, "occurredAt"),
+    proto.isFromMe,
     proto.actor
   );
   if (proto.backgroundChanged) {
@@ -576,6 +579,7 @@ export function mapGroupEvent(
     ...mapEventContext(
       proto.chatGuid,
       unwrap(proto.occurredAt, "occurredAt"),
+      proto.isFromMe,
       proto.actor
     ),
     change,
@@ -693,6 +697,7 @@ export function mapMessageEvent(
   const context = mapEventContext(
     proto.chatGuid,
     unwrap(proto.occurredAt, "occurredAt"),
+    proto.isFromMe,
     proto.actor
   );
   if (proto.messageReceived) {
@@ -733,6 +738,7 @@ export function mapPollEvent(
     ...mapEventContext(
       proto.chatGuid,
       unwrap(proto.occurredAt, "occurredAt"),
+      proto.isFromMe,
       proto.actor
     ),
     delta,

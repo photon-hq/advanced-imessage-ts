@@ -35,6 +35,15 @@ const STRUCTURED_CHAT_GUID_HELP =
  *                           `any;-;` or `any;+;`.
  */
 export function normalizeChatGuid(chat: string): string {
+  if (typeof chat !== "string") {
+    throw new ValidationError(STRUCTURED_CHAT_GUID_HELP, {
+      code: "invalidArgument",
+      context: { field: "chat", value: String(chat) },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
   const normalized = chat.trim();
 
   if (!normalized) {

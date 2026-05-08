@@ -1,4 +1,5 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
+import { ValidationError } from "../errors/imessage-error.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { EventServiceClient } from "../transport/grpc-client.ts";
 import {
@@ -8,6 +9,26 @@ import {
   mapPollEvent,
 } from "../transport/mapper.ts";
 import type { CatchUpEvent } from "../types/events.ts";
+
+function normalizeSequenceCursor(
+  cursor: number | undefined,
+  field: string
+): number | undefined {
+  if (cursor === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isSafeInteger(cursor) || cursor < 0) {
+    throw new ValidationError(`${field} must be a non-negative safe integer.`, {
+      code: "invalidArgument",
+      context: { field, value: String(cursor) },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  return cursor;
+}
 
 function mapCatchUpFrame(frame: {
   complete?: { headSequence: number };
@@ -70,7 +91,12 @@ export class EventsResource {
    * disconnect. Omit `since` to replay from the beginning of the retained log.
    */
   catchUp(since?: number): TypedEventStream<CatchUpEvent> {
-    const rpcStream = this._client.catchUpEvents({ afterSequence: since });
+    const afterSequence = normalizeSequenceCursor(since, "since");
+    const abort = new AbortController();
+    const rpcStream = this._client.catchUpEvents(
+      { afterSequence },
+      { signal: abort.signal }
+    );
 
     async function* mapEvents(): AsyncGenerator<CatchUpEvent> {
       try {
@@ -85,6 +111,6 @@ export class EventsResource {
       }
     }
 
-    return new TypedEventStream(mapEvents());
+    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }

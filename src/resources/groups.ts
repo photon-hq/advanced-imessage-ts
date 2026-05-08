@@ -1,4 +1,5 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
+import { ValidationError } from "../errors/imessage-error.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { GroupServiceClient } from "../transport/grpc-client.ts";
 import { mapChat, mapGroupEvent } from "../transport/mapper.ts";
@@ -11,6 +12,87 @@ import { unwrap } from "../utils/unwrap.ts";
 export interface GroupIcon {
   readonly data: Uint8Array;
   readonly mimeType: string;
+}
+
+function normalizeDisplayName(displayName: string): string {
+  if (typeof displayName !== "string") {
+    throw new ValidationError("display_name must be a string.", {
+      code: "invalidArgument",
+      context: { field: "display_name", value: String(displayName) },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  const normalized = displayName.trim();
+
+  if (!normalized) {
+    throw new ValidationError("display_name must not be empty", {
+      code: "invalidArgument",
+      context: { field: "display_name" },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  return normalized;
+}
+
+function normalizeParticipantAddresses(addresses: string[]): string[] {
+  if (!Array.isArray(addresses)) {
+    throw new ValidationError("addresses must be an array.", {
+      code: "invalidArgument",
+      context: { field: "addresses", value: String(addresses) },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  if (addresses.length === 0) {
+    throw new ValidationError("addresses must not be empty", {
+      code: "invalidArgument",
+      context: { field: "addresses" },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  return addresses.map((address, index) => {
+    if (typeof address !== "string") {
+      throw new ValidationError(`addresses[${index}] must be a string.`, {
+        code: "invalidArgument",
+        context: { field: `addresses[${index}]`, value: String(address) },
+        grpcCode: 3,
+        retryable: false,
+      });
+    }
+
+    const normalized = address.trim();
+
+    if (!normalized) {
+      throw new ValidationError(`addresses[${index}] must not be empty`, {
+        code: "invalidArgument",
+        context: { field: `addresses[${index}]` },
+        grpcCode: 3,
+        retryable: false,
+      });
+    }
+
+    return normalized;
+  });
+}
+
+function normalizeIconData(data: Uint8Array): Uint8Array {
+  if (!(data instanceof Uint8Array)) {
+    throw new ValidationError("data must be a Uint8Array.", {
+      code: "invalidArgument",
+      context: { field: "data", value: String(data) },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  return data;
 }
 
 /**
@@ -50,7 +132,7 @@ export class GroupsResource {
     try {
       const response = await this._client.setDisplayName({
         chatGuid: normalizeChatGuid(chat),
-        displayName,
+        displayName: normalizeDisplayName(displayName),
         clientMessageId: options?.clientMessageId,
       });
       return mapChat(unwrap(response.chat, "chat"));
@@ -74,7 +156,7 @@ export class GroupsResource {
     try {
       const response = await this._client.addParticipants({
         chatGuid: normalizeChatGuid(chat),
-        addresses,
+        addresses: normalizeParticipantAddresses(addresses),
         clientMessageId: options?.clientMessageId,
       });
       return mapChat(unwrap(response.chat, "chat"));
@@ -98,7 +180,7 @@ export class GroupsResource {
     try {
       const response = await this._client.removeParticipants({
         chatGuid: normalizeChatGuid(chat),
-        addresses,
+        addresses: normalizeParticipantAddresses(addresses),
         clientMessageId: options?.clientMessageId,
       });
       return mapChat(unwrap(response.chat, "chat"));
@@ -138,7 +220,7 @@ export class GroupsResource {
     try {
       await this._client.setIcon({
         chatGuid: normalizeChatGuid(chat),
-        data,
+        data: normalizeIconData(data),
         clientMessageId: options?.clientMessageId,
       });
     } catch (err) {
@@ -189,9 +271,13 @@ export class GroupsResource {
    * Pass `filter.chat` to scope the stream to a single group.
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent> {
-    const rpcStream = this._client.subscribeGroupEvents({
-      chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
-    });
+    const abort = new AbortController();
+    const rpcStream = this._client.subscribeGroupEvents(
+      {
+        chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
+      },
+      { signal: abort.signal }
+    );
 
     async function* mapEvents(): AsyncGenerator<GroupEvent> {
       try {
@@ -209,6 +295,6 @@ export class GroupsResource {
       }
     }
 
-    return new TypedEventStream(mapEvents());
+    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }

@@ -52,7 +52,6 @@ export { MessageEffect, TextEffect } from "./types/effects.js";
 export type {
   ChatServiceType,
   MessageItemType,
-  SendableChatServiceType,
   TransferState,
 } from "./types/enums.js";
 // Error codes

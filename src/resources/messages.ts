@@ -264,6 +264,8 @@ export class MessagesResource {
     isSet: boolean,
     options?: { readonly clientMessageId?: string; readonly partIndex?: number }
   ): Promise<Message> {
+    const kind = toReactionKind(reaction.kind);
+
     try {
       const response = await this._client.setReaction({
         target: {
@@ -272,7 +274,7 @@ export class MessagesResource {
           targetPartIndex: options?.partIndex,
         },
         reaction: {
-          kind: toReactionKind(reaction.kind),
+          kind,
           emoji: reaction.emoji,
         },
         isSet,
@@ -449,9 +451,13 @@ export class MessagesResource {
    * Pass `filter.chat` to scope the stream to a single chat.
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<MessageEvent> {
-    const rpcStream = this._client.subscribeMessageEvents({
-      chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
-    });
+    const abort = new AbortController();
+    const rpcStream = this._client.subscribeMessageEvents(
+      {
+        chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
+      },
+      { signal: abort.signal }
+    );
 
     async function* mapEvents(): AsyncGenerator<MessageEvent> {
       try {
@@ -469,6 +475,6 @@ export class MessagesResource {
       }
     }
 
-    return new TypedEventStream(mapEvents());
+    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }
