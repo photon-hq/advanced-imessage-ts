@@ -11,13 +11,14 @@ option swift_prefix = "PIMsg_";
 //
 // Write RPC semantics
 //
-//   Every write RPC is synchronous to chat.db: the response is sent only
-//   after Apple's stack has accepted the change AND the resulting row(s)
-//   have been observed in the local database. The response carries the
-//   resulting resource snapshot — `Message`, `Chat`, `PollInfo`, etc. —
-//   so the caller never has to re-query. Writes whose effect is fully
-//   captured by the request itself (typing indicators, leave group,
-//   share-contact-info) return `google.protobuf.Empty`.
+//   Write RPCs are synchronous to the command path: the response is sent
+//   after Apple's stack, helper, or backing service reports success.
+//
+//   Writes that return a resource snapshot (`Message`, `Chat`, `PollInfo`,
+//   etc.) perform the reads needed to build that response. Writes whose
+//   effect is fully captured by the request itself return
+//   `google.protobuf.Empty`; callers that need projected state should issue
+//   an explicit read RPC.
 //
 //   `Subscribe*` streams emit durable state changes observed from local
 //   storage. Callers must not assume locally initiated writes are always
@@ -28,7 +29,7 @@ option swift_prefix = "PIMsg_";
 //
 //   Watch*      transient state (typing, live location). Each frame is
 //               a fresh snapshot; not resumable.
-//   Subscribe*  durable peer-event log. Each frame carries a global
+//   Subscribe*  durable event log. Each frame carries a global
 //               `sequence`; pair with `EventService.CatchUpEvents` for
 //               gap-free reconnect.
 //   CatchUp*    finite replay stream, terminated by a sentinel frame.

@@ -5,7 +5,6 @@ package photon.imessage.v1;
 import "photon/imessage/v1/address_types.proto";
 import "photon/imessage/v1/chat_types.proto";
 import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
 import "photon/imessage/v1/message_types.proto";
 import "photon/imessage/v1/streaming.proto";
 
@@ -17,20 +16,16 @@ option swift_prefix = "PIMsg_";
 // ---------------------------------------------------------------------------
 
 // Chat-level reads, mutations, and event streams.
-//
-// Every write returns the resulting `Chat` snapshot when chat row state
-// has changed; transient writes (typing indicator, share contact info)
-// return `Empty`.
 service ChatService {
 
   // Writes
   rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
 
-  rpc MarkChatRead(MarkChatReadRequest) returns (MarkChatReadResponse);
+  rpc MarkChatRead(MarkChatReadRequest) returns (google.protobuf.Empty);
 
-  rpc SetBackground(SetBackgroundRequest) returns (SetBackgroundResponse);
+  rpc SetBackground(SetBackgroundRequest) returns (google.protobuf.Empty);
 
-  rpc RemoveBackground(RemoveBackgroundRequest) returns (RemoveBackgroundResponse);
+  rpc RemoveBackground(RemoveBackgroundRequest) returns (google.protobuf.Empty);
 
   // Pushes the local user's name-and-photo card into the target chat so
   // the recipient sees it in their contact suggestions. No observable
@@ -65,11 +60,11 @@ message CreateChatRequest {
 
   optional CreateChatInitialMessage initial_message = 3;
 
+  optional string client_message_id = 100;
+
 }
 
 
-// Optional first message sent atomically with chat creation. When present,
-// the response carries the resulting send receipt.
 message CreateChatInitialMessage {
 
   string text = 1;
@@ -80,8 +75,6 @@ message CreateChatInitialMessage {
 
   optional string subject = 4;
 
-  optional string client_message_id = 5;
-
 }
 
 
@@ -89,9 +82,7 @@ message CreateChatResponse {
 
   Chat chat = 1;
 
-  // Receipt of the initial message when one was requested; absent
-  // otherwise.
-  optional MessageSendReceipt send_receipt = 2;
+  optional Message initial_message = 2;
 
 }
 
@@ -103,26 +94,15 @@ message MarkChatReadRequest {
 }
 
 
-message MarkChatReadResponse {
-}
-
-
 message SetBackgroundRequest {
 
   string chat_guid = 1;
 
   bytes data = 2;
 
-  // MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers MUST
+  // MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers must
   // reject unsupported types with `INVALID_ARGUMENT`.
   string mime_type = 3;
-
-}
-
-
-message SetBackgroundResponse {
-
-  Chat chat = 1;
 
 }
 
@@ -130,13 +110,6 @@ message SetBackgroundResponse {
 message RemoveBackgroundRequest {
 
   string chat_guid = 1;
-
-}
-
-
-message RemoveBackgroundResponse {
-
-  Chat chat = 1;
 
 }
 
@@ -222,8 +195,11 @@ message SubscribeChatEventsResponse {
   optional uint64 sequence = 1;
 
   oneof payload {
+
     ChatChangeEvent chat_changed = 10;
+
     Heartbeat heartbeat = 99;
+
   }
 
 }

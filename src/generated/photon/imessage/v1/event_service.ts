@@ -16,15 +16,20 @@ import { Heartbeat } from "./streaming.js";
 export const protobufPackage = "photon.imessage.v1";
 
 export interface CatchUpEventsRequest {
-  /** Last fully handled sequence; absent = replay every event the server still holds. */
+  /** Resume cursor; absent = replay every event the server still holds. */
   afterSequence?: number | undefined;
 }
 
 /**
- * Terminal frame. `head_sequence` is the fixed global head captured when
- * this catch-up started. This stream replays every event with
- * `after_sequence < sequence <= head_sequence`, then terminates; the caller
- * resumes live by opening a fresh `Subscribe*` stream.
+ * Terminal frame.
+ *
+ * `head_sequence` is the fixed global head captured when this catch-up
+ * started. This stream replays every event with:
+ *
+ *   after_sequence < sequence <= head_sequence
+ *
+ * Then it terminates. The caller resumes live by passing `head_sequence`
+ * as `after_sequence` to a `Subscribe*` stream.
  */
 export interface CatchUpEventsComplete {
   headSequence: number;
@@ -365,11 +370,12 @@ export const CatchUpEventsResponse: MessageFns<CatchUpEventsResponse> = {
 };
 
 /**
- * Unified finite replay across every durable event domain
- * (messages, group state, polls, chats). Drains everything newer than
- * `after_sequence` and terminates with `CatchUpEventsComplete`, after
- * which the caller hands off to the live `Subscribe*` streams without
- * gaps.
+ * Unified finite replay across every durable event domain:
+ * messages, group state, polls, and chats.
+ *
+ * Drains everything newer than `after_sequence` and terminates with
+ * `CatchUpEventsComplete`, after which the caller hands off to the live
+ * `Subscribe*` streams without gaps.
  *
  * All `sequence` values returned here share the same global event log
  * as `SubscribeMessageEvents`, `SubscribeGroupEvents`, `SubscribePollEvents`,

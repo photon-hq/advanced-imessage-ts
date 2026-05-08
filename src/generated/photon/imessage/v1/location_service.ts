@@ -413,8 +413,8 @@ export const WatchSharedFriendLocationsResponse: MessageFns<WatchSharedFriendLoc
 };
 
 /**
- * Find My friend-location queries and live updates backed by the Helper.
- * Reads issue one-shot helper queries; the watch stream forwards helper-pushed
+ * Find My friend-location queries and live updates.
+ * Reads issue one-shot source queries; the watch stream forwards pushed
  * observations and is not server-polled on a timer.
  */
 export type LocationServiceDefinition = typeof LocationServiceDefinition;

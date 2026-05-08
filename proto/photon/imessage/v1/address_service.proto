@@ -15,8 +15,8 @@ option swift_prefix = "PIMsg_";
 //
 //   - accept an E.164 phone number such as `+14155550123`
 //   - accept a full email such as `alice@example.com`
-//   - the server trims whitespace and lowercases email queries before
-//     matching
+//   - the server trims whitespace and lowercases email queries before lookup
+//     or external availability checks
 //   - empty or malformed inputs are rejected with `INVALID_ARGUMENT`
 service AddressService {
 
@@ -26,8 +26,7 @@ service AddressService {
   // iMessage history.
   rpc GetAddressInfo(GetAddressInfoRequest) returns (GetAddressInfoResponse);
 
-  // Returns whether the address is currently silenced by the local user's
-  // Focus mode.
+  // Returns whether Messages currently reports this address as Focus-silenced.
   rpc GetFocusStatus(GetFocusStatusRequest) returns (GetFocusStatusResponse);
 
   // Returns whether the address is reachable via iMessage at query time.
@@ -63,8 +62,8 @@ message GetFocusStatusRequest {
 
 message GetFocusStatusResponse {
 
-  // Reflects this device's Focus configuration only — the peer's Focus
-  // state is never observable here.
+  // True when Messages currently shows this address as silenced by Focus.
+  // False also covers unknown, not shared, and not silenced.
   bool is_silenced_by_focus = 1;
 
 }

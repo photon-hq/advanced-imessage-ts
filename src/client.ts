@@ -119,12 +119,12 @@ export interface ChatsResource {
   get(chat: string): Promise<Chat>;
   hasBackground(chat: string): Promise<boolean>;
   markRead(chat: string): Promise<void>;
-  removeBackground(chat: string): Promise<Chat>;
+  removeBackground(chat: string): Promise<void>;
   setBackground(
     chat: string,
     data: Uint8Array,
     mimeType: string
-  ): Promise<Chat>;
+  ): Promise<void>;
   setTyping(chat: string, isTyping: boolean): Promise<void>;
   shareContactInfo(chat: string): Promise<void>;
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent>;
@@ -164,7 +164,7 @@ export interface GroupsResource {
   ): Promise<Chat>;
   getIcon(chat: string): Promise<GroupIcon>;
   leave(chat: string, options?: IdempotencyOptions): Promise<void>;
-  removeIcon(chat: string, options?: IdempotencyOptions): Promise<Chat>;
+  removeIcon(chat: string, options?: IdempotencyOptions): Promise<void>;
   removeParticipants(
     chat: string,
     addresses: string[],
@@ -179,7 +179,7 @@ export interface GroupsResource {
     chat: string,
     data: Uint8Array,
     options?: IdempotencyOptions
-  ): Promise<Chat>;
+  ): Promise<void>;
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent>;
 }
 
@@ -241,7 +241,7 @@ export interface MessagesResource {
   notifySilenced(
     chat: string,
     message: string,
-    options?: { readonly clientMessageId?: string; readonly partIndex?: number }
+    options?: { readonly clientMessageId?: string }
   ): Promise<void>;
   placeSticker(
     chat: string,
@@ -265,7 +265,7 @@ export interface MessagesResource {
     parts: readonly MessagePart[],
     options?: {
       readonly clientMessageId?: string;
-      readonly ddScan?: boolean;
+      readonly enableDataDetection?: boolean;
       readonly effect?: MessageEffect;
       readonly replyTo?: SendOptions["replyTo"];
       readonly subject?: string;
@@ -284,7 +284,7 @@ export interface MessagesResource {
     chat: string,
     message: string,
     options?: { readonly clientMessageId?: string; readonly partIndex?: number }
-  ): Promise<Message>;
+  ): Promise<void>;
 }
 
 /**
@@ -399,7 +399,7 @@ export interface AdvancedIMessage extends AsyncDisposable {
    * Message APIs.
    *
    * - `sendText(chat, text, options)` sends text with replies, subjects,
-   *   effects, rich links, data-detector scanning, and formatting.
+   *   effects, link previews, data-detector scanning, and formatting.
    * - `sendAttachment(chat, attachment, options)` sends an uploaded attachment
    *   by GUID with replies, effects, and audio-message mode.
    * - `sendMultipart(chat, parts, options)` sends multiple text / attachment /

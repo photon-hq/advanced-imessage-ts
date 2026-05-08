@@ -10,7 +10,7 @@ import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Empty } from "../../../google/protobuf/empty.js";
 import { ChatServiceType, chatServiceTypeFromJSON, chatServiceTypeToJSON } from "./address_types.js";
 import { Chat, ChatChangeEvent } from "./chat_types.js";
-import { MessageSendReceipt } from "./message_types.js";
+import { Message } from "./message_types.js";
 import { Heartbeat } from "./streaming.js";
 
 export const protobufPackage = "photon.imessage.v1";
@@ -19,58 +19,37 @@ export interface CreateChatRequest {
   addresses: string[];
   service: ChatServiceType;
   initialMessage?: CreateChatInitialMessage | undefined;
+  clientMessageId?: string | undefined;
 }
 
-/**
- * Optional first message sent atomically with chat creation. When present,
- * the response carries the resulting send receipt.
- */
 export interface CreateChatInitialMessage {
   text: string;
   attributedBody?: Uint8Array | undefined;
   effectId?: string | undefined;
   subject?: string | undefined;
-  clientMessageId?: string | undefined;
 }
 
 export interface CreateChatResponse {
-  chat:
-    | Chat
-    | undefined;
-  /**
-   * Receipt of the initial message when one was requested; absent
-   * otherwise.
-   */
-  sendReceipt?: MessageSendReceipt | undefined;
+  chat: Chat | undefined;
+  initialMessage?: Message | undefined;
 }
 
 export interface MarkChatReadRequest {
   chatGuid: string;
 }
 
-export interface MarkChatReadResponse {
-}
-
 export interface SetBackgroundRequest {
   chatGuid: string;
   data: Uint8Array;
   /**
-   * MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers MUST
+   * MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers must
    * reject unsupported types with `INVALID_ARGUMENT`.
    */
   mimeType: string;
 }
 
-export interface SetBackgroundResponse {
-  chat: Chat | undefined;
-}
-
 export interface RemoveBackgroundRequest {
   chatGuid: string;
-}
-
-export interface RemoveBackgroundResponse {
-  chat: Chat | undefined;
 }
 
 export interface ShareContactInfoRequest {
@@ -122,7 +101,7 @@ export interface SubscribeChatEventsResponse {
 }
 
 function createBaseCreateChatRequest(): CreateChatRequest {
-  return { addresses: [], service: 0, initialMessage: undefined };
+  return { addresses: [], service: 0, initialMessage: undefined, clientMessageId: undefined };
 }
 
 export const CreateChatRequest: MessageFns<CreateChatRequest> = {
@@ -135,6 +114,9 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
     }
     if (message.initialMessage !== undefined) {
       CreateChatInitialMessage.encode(message.initialMessage, writer.uint32(26).fork()).join();
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
@@ -170,6 +152,14 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
           message.initialMessage = CreateChatInitialMessage.decode(reader, reader.uint32());
           continue;
         }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -190,6 +180,11 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
         : isSet(object.initial_message)
         ? CreateChatInitialMessage.fromJSON(object.initial_message)
         : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
@@ -204,6 +199,9 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
     if (message.initialMessage !== undefined) {
       obj.initialMessage = CreateChatInitialMessage.toJSON(message.initialMessage);
     }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
     return obj;
   },
 
@@ -217,12 +215,13 @@ export const CreateChatRequest: MessageFns<CreateChatRequest> = {
     message.initialMessage = (object.initialMessage !== undefined && object.initialMessage !== null)
       ? CreateChatInitialMessage.fromPartial(object.initialMessage)
       : undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
 function createBaseCreateChatInitialMessage(): CreateChatInitialMessage {
-  return { text: "", attributedBody: undefined, effectId: undefined, subject: undefined, clientMessageId: undefined };
+  return { text: "", attributedBody: undefined, effectId: undefined, subject: undefined };
 }
 
 export const CreateChatInitialMessage: MessageFns<CreateChatInitialMessage> = {
@@ -238,9 +237,6 @@ export const CreateChatInitialMessage: MessageFns<CreateChatInitialMessage> = {
     }
     if (message.subject !== undefined) {
       writer.uint32(34).string(message.subject);
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(42).string(message.clientMessageId);
     }
     return writer;
   },
@@ -284,14 +280,6 @@ export const CreateChatInitialMessage: MessageFns<CreateChatInitialMessage> = {
           message.subject = reader.string();
           continue;
         }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
-          continue;
-        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -315,11 +303,6 @@ export const CreateChatInitialMessage: MessageFns<CreateChatInitialMessage> = {
         ? globalThis.String(object.effect_id)
         : undefined,
       subject: isSet(object.subject) ? globalThis.String(object.subject) : undefined,
-      clientMessageId: isSet(object.clientMessageId)
-        ? globalThis.String(object.clientMessageId)
-        : isSet(object.client_message_id)
-        ? globalThis.String(object.client_message_id)
-        : undefined,
     };
   },
 
@@ -337,9 +320,6 @@ export const CreateChatInitialMessage: MessageFns<CreateChatInitialMessage> = {
     if (message.subject !== undefined) {
       obj.subject = message.subject;
     }
-    if (message.clientMessageId !== undefined) {
-      obj.clientMessageId = message.clientMessageId;
-    }
     return obj;
   },
 
@@ -352,13 +332,12 @@ export const CreateChatInitialMessage: MessageFns<CreateChatInitialMessage> = {
     message.attributedBody = object.attributedBody ?? undefined;
     message.effectId = object.effectId ?? undefined;
     message.subject = object.subject ?? undefined;
-    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
 function createBaseCreateChatResponse(): CreateChatResponse {
-  return { chat: undefined, sendReceipt: undefined };
+  return { chat: undefined, initialMessage: undefined };
 }
 
 export const CreateChatResponse: MessageFns<CreateChatResponse> = {
@@ -366,8 +345,8 @@ export const CreateChatResponse: MessageFns<CreateChatResponse> = {
     if (message.chat !== undefined) {
       Chat.encode(message.chat, writer.uint32(10).fork()).join();
     }
-    if (message.sendReceipt !== undefined) {
-      MessageSendReceipt.encode(message.sendReceipt, writer.uint32(18).fork()).join();
+    if (message.initialMessage !== undefined) {
+      Message.encode(message.initialMessage, writer.uint32(18).fork()).join();
     }
     return writer;
   },
@@ -392,7 +371,7 @@ export const CreateChatResponse: MessageFns<CreateChatResponse> = {
             break;
           }
 
-          message.sendReceipt = MessageSendReceipt.decode(reader, reader.uint32());
+          message.initialMessage = Message.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -407,10 +386,10 @@ export const CreateChatResponse: MessageFns<CreateChatResponse> = {
   fromJSON(object: any): CreateChatResponse {
     return {
       chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined,
-      sendReceipt: isSet(object.sendReceipt)
-        ? MessageSendReceipt.fromJSON(object.sendReceipt)
-        : isSet(object.send_receipt)
-        ? MessageSendReceipt.fromJSON(object.send_receipt)
+      initialMessage: isSet(object.initialMessage)
+        ? Message.fromJSON(object.initialMessage)
+        : isSet(object.initial_message)
+        ? Message.fromJSON(object.initial_message)
         : undefined,
     };
   },
@@ -420,8 +399,8 @@ export const CreateChatResponse: MessageFns<CreateChatResponse> = {
     if (message.chat !== undefined) {
       obj.chat = Chat.toJSON(message.chat);
     }
-    if (message.sendReceipt !== undefined) {
-      obj.sendReceipt = MessageSendReceipt.toJSON(message.sendReceipt);
+    if (message.initialMessage !== undefined) {
+      obj.initialMessage = Message.toJSON(message.initialMessage);
     }
     return obj;
   },
@@ -432,8 +411,8 @@ export const CreateChatResponse: MessageFns<CreateChatResponse> = {
   fromPartial(object: DeepPartial<CreateChatResponse>): CreateChatResponse {
     const message = createBaseCreateChatResponse();
     message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
-    message.sendReceipt = (object.sendReceipt !== undefined && object.sendReceipt !== null)
-      ? MessageSendReceipt.fromPartial(object.sendReceipt)
+    message.initialMessage = (object.initialMessage !== undefined && object.initialMessage !== null)
+      ? Message.fromPartial(object.initialMessage)
       : undefined;
     return message;
   },
@@ -499,49 +478,6 @@ export const MarkChatReadRequest: MessageFns<MarkChatReadRequest> = {
   fromPartial(object: DeepPartial<MarkChatReadRequest>): MarkChatReadRequest {
     const message = createBaseMarkChatReadRequest();
     message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseMarkChatReadResponse(): MarkChatReadResponse {
-  return {};
-}
-
-export const MarkChatReadResponse: MessageFns<MarkChatReadResponse> = {
-  encode(_: MarkChatReadResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MarkChatReadResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMarkChatReadResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): MarkChatReadResponse {
-    return {};
-  },
-
-  toJSON(_: MarkChatReadResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<MarkChatReadResponse>): MarkChatReadResponse {
-    return MarkChatReadResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<MarkChatReadResponse>): MarkChatReadResponse {
-    const message = createBaseMarkChatReadResponse();
     return message;
   },
 };
@@ -646,64 +582,6 @@ export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
   },
 };
 
-function createBaseSetBackgroundResponse(): SetBackgroundResponse {
-  return { chat: undefined };
-}
-
-export const SetBackgroundResponse: MessageFns<SetBackgroundResponse> = {
-  encode(message: SetBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chat !== undefined) {
-      Chat.encode(message.chat, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SetBackgroundResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSetBackgroundResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chat = Chat.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): SetBackgroundResponse {
-    return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
-  },
-
-  toJSON(message: SetBackgroundResponse): unknown {
-    const obj: any = {};
-    if (message.chat !== undefined) {
-      obj.chat = Chat.toJSON(message.chat);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<SetBackgroundResponse>): SetBackgroundResponse {
-    return SetBackgroundResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<SetBackgroundResponse>): SetBackgroundResponse {
-    const message = createBaseSetBackgroundResponse();
-    message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
-    return message;
-  },
-};
-
 function createBaseRemoveBackgroundRequest(): RemoveBackgroundRequest {
   return { chatGuid: "" };
 }
@@ -764,64 +642,6 @@ export const RemoveBackgroundRequest: MessageFns<RemoveBackgroundRequest> = {
   fromPartial(object: DeepPartial<RemoveBackgroundRequest>): RemoveBackgroundRequest {
     const message = createBaseRemoveBackgroundRequest();
     message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseRemoveBackgroundResponse(): RemoveBackgroundResponse {
-  return { chat: undefined };
-}
-
-export const RemoveBackgroundResponse: MessageFns<RemoveBackgroundResponse> = {
-  encode(message: RemoveBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chat !== undefined) {
-      Chat.encode(message.chat, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveBackgroundResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveBackgroundResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chat = Chat.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): RemoveBackgroundResponse {
-    return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
-  },
-
-  toJSON(message: RemoveBackgroundResponse): unknown {
-    const obj: any = {};
-    if (message.chat !== undefined) {
-      obj.chat = Chat.toJSON(message.chat);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<RemoveBackgroundResponse>): RemoveBackgroundResponse {
-    return RemoveBackgroundResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<RemoveBackgroundResponse>): RemoveBackgroundResponse {
-    const message = createBaseRemoveBackgroundResponse();
-    message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
     return message;
   },
 };
@@ -1510,13 +1330,7 @@ export const SubscribeChatEventsResponse: MessageFns<SubscribeChatEventsResponse
   },
 };
 
-/**
- * Chat-level reads, mutations, and event streams.
- *
- * Every write returns the resulting `Chat` snapshot when chat row state
- * has changed; transient writes (typing indicator, share contact info)
- * return `Empty`.
- */
+/** Chat-level reads, mutations, and event streams. */
 export type ChatServiceDefinition = typeof ChatServiceDefinition;
 export const ChatServiceDefinition = {
   name: "ChatService",
@@ -1535,7 +1349,7 @@ export const ChatServiceDefinition = {
       name: "MarkChatRead",
       requestType: MarkChatReadRequest as typeof MarkChatReadRequest,
       requestStream: false,
-      responseType: MarkChatReadResponse as typeof MarkChatReadResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
@@ -1543,7 +1357,7 @@ export const ChatServiceDefinition = {
       name: "SetBackground",
       requestType: SetBackgroundRequest as typeof SetBackgroundRequest,
       requestStream: false,
-      responseType: SetBackgroundResponse as typeof SetBackgroundResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
@@ -1551,7 +1365,7 @@ export const ChatServiceDefinition = {
       name: "RemoveBackground",
       requestType: RemoveBackgroundRequest as typeof RemoveBackgroundRequest,
       requestStream: false,
-      responseType: RemoveBackgroundResponse as typeof RemoveBackgroundResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
@@ -1619,18 +1433,12 @@ export interface ChatServiceImplementation<CallContextExt = {}> {
     request: CreateChatRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<CreateChatResponse>>;
-  markChatRead(
-    request: MarkChatReadRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<MarkChatReadResponse>>;
-  setBackground(
-    request: SetBackgroundRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<SetBackgroundResponse>>;
+  markChatRead(request: MarkChatReadRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  setBackground(request: SetBackgroundRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
   removeBackground(
     request: RemoveBackgroundRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<RemoveBackgroundResponse>>;
+  ): Promise<DeepPartial<Empty>>;
   /**
    * Pushes the local user's name-and-photo card into the target chat so
    * the recipient sees it in their contact suggestions. No observable
@@ -1664,18 +1472,12 @@ export interface ChatServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<CreateChatRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<CreateChatResponse>;
-  markChatRead(
-    request: DeepPartial<MarkChatReadRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<MarkChatReadResponse>;
-  setBackground(
-    request: DeepPartial<SetBackgroundRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<SetBackgroundResponse>;
+  markChatRead(request: DeepPartial<MarkChatReadRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  setBackground(request: DeepPartial<SetBackgroundRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
   removeBackground(
     request: DeepPartial<RemoveBackgroundRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<RemoveBackgroundResponse>;
+  ): Promise<Empty>;
   /**
    * Pushes the local user's name-and-photo card into the target chat so
    * the recipient sees it in their contact suggestions. No observable

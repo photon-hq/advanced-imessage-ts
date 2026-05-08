@@ -170,7 +170,7 @@ export interface SendOptions {
   /** Stable idempotency key for this logical send. */
   readonly clientMessageId?: string;
   /** Enable Apple's data-detector pass for links, dates, addresses, and similar text. */
-  readonly ddScan?: boolean;
+  readonly enableDataDetection?: boolean;
   /** Full-screen or bubble effect to apply to the outgoing message. */
   readonly effect?: MessageEffect;
   /** UTF-16 ranges for bold, italic, underline, strikethrough, or text effects. */
@@ -180,7 +180,7 @@ export interface SendOptions {
     | string
     | { readonly guid: string; readonly partIndex?: number };
   /** Ask Messages to generate rich URL previews when possible. */
-  readonly richLink?: boolean;
+  readonly enableLinkPreview?: boolean;
   /** Optional subject line for the outgoing message. */
   readonly subject?: string;
 }

@@ -56,7 +56,7 @@ export function chatServiceTypeToJSON(object: ChatServiceType): string {
 
 /**
  * An address bound to one concrete transport service. Used when the server
- * must identify a specific (handle, service) pair — message sender, chat
+ * must identify a specific (handle, service) pair: message sender, chat
  * participant, etc.
  */
 export interface SingleServiceAddressInfo {
@@ -66,12 +66,11 @@ export interface SingleServiceAddressInfo {
 }
 
 /**
- * An address paired with every service it has been observed on.
+ * An address paired with every service observed for it.
  *
  * `services` is emitted in canonical (iMessage, SMS, RCS) order. Clients
- * should treat it as a set, not a sequence. Always non-empty when this
- * message is returned — an address with no observed services produces
- * NOT_FOUND instead.
+ * should treat it as a set, not a sequence. GetAddressInfo returns NOT_FOUND
+ * instead of this message when the address has no observed handle rows.
  */
 export interface MultiServiceAddressInfo {
   /**
@@ -81,8 +80,8 @@ export interface MultiServiceAddressInfo {
   address: string;
   services: ChatServiceType[];
   /**
-   * ISO 3166-1 alpha-2, uppercased (e.g. "US"). Absent when chat.db has no
-   * country for this address.
+   * ISO 3166-1 alpha-2, when known. The chat.db address lookup normalizes it
+   * to uppercase; mappers preserve the value they receive.
    */
   country?: string | undefined;
 }

@@ -2,7 +2,7 @@ import { fromGrpcError } from "../errors/error-handler.ts";
 import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ChatServiceClient } from "../transport/grpc-client.ts";
-import { mapChat, mapChatEvent } from "../transport/mapper.ts";
+import { mapChat, mapChatEvent, mapMessage } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
 import type {
   Chat,
@@ -71,6 +71,7 @@ export class ChatsResource {
     try {
       const response = await this._client.createChat({
         addresses,
+        clientMessageId: options?.clientMessageId,
         service: toProtoService(options?.service),
         initialMessage: options?.message
           ? {
@@ -78,18 +79,14 @@ export class ChatsResource {
               text: options.message,
               effectId: options.effect,
               subject: options.subject,
-              clientMessageId: options.clientMessageId,
             }
           : undefined,
       });
 
       return {
         chat: mapChat(unwrap(response.chat, "chat")),
-        sendReceipt: response.sendReceipt
-          ? {
-              messageGuid: response.sendReceipt.messageGuid,
-              clientMessageId: response.sendReceipt.clientMessageId,
-            }
+        initialMessage: response.initialMessage
+          ? mapMessage(response.initialMessage)
           : undefined,
       };
     } catch (err) {
@@ -153,14 +150,13 @@ export class ChatsResource {
     chat: string,
     data: Uint8Array,
     mimeType: string
-  ): Promise<Chat> {
+  ): Promise<void> {
     try {
-      const response = await this._client.setBackground({
+      await this._client.setBackground({
         chatGuid: normalizeChatGuid(chat),
         data,
         mimeType,
       });
-      return mapChat(unwrap(response.chat, "chat"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -172,12 +168,11 @@ export class ChatsResource {
    * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
    *               `chat.guid`.
    */
-  async removeBackground(chat: string): Promise<Chat> {
+  async removeBackground(chat: string): Promise<void> {
     try {
-      const response = await this._client.removeBackground({
+      await this._client.removeBackground({
         chatGuid: normalizeChatGuid(chat),
       });
-      return mapChat(unwrap(response.chat, "chat"));
     } catch (err) {
       throw fromGrpcError(err);
     }

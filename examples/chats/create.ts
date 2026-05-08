@@ -15,6 +15,6 @@ const greeting = await im.chats.create([address], {
   message: "hello from SDK",
 });
 
-console.log("opening message:", greeting.sendReceipt?.messageGuid);
+console.log("opening message:", greeting.initialMessage?.guid);
 
 await im.close();

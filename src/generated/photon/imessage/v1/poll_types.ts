@@ -77,6 +77,7 @@ export interface PollChangeEvent {
   pollMessageGuid: string;
   occurredAt: Date | undefined;
   actor?: SingleServiceAddressInfo | undefined;
+  isFromMe: boolean;
   created?: PollCreated | undefined;
   optionAdded?: PollOptionAdded | undefined;
   voted?: PollVoted | undefined;
@@ -664,6 +665,7 @@ function createBasePollChangeEvent(): PollChangeEvent {
     pollMessageGuid: "",
     occurredAt: undefined,
     actor: undefined,
+    isFromMe: false,
     created: undefined,
     optionAdded: undefined,
     voted: undefined,
@@ -684,6 +686,9 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     }
     if (message.actor !== undefined) {
       SingleServiceAddressInfo.encode(message.actor, writer.uint32(34).fork()).join();
+    }
+    if (message.isFromMe !== false) {
+      writer.uint32(40).bool(message.isFromMe);
     }
     if (message.created !== undefined) {
       PollCreated.encode(message.created, writer.uint32(82).fork()).join();
@@ -737,6 +742,14 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
           }
 
           message.actor = SingleServiceAddressInfo.decode(reader, reader.uint32());
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.isFromMe = reader.bool();
           continue;
         }
         case 10: {
@@ -798,6 +811,11 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
         ? fromJsonTimestamp(object.occurred_at)
         : undefined,
       actor: isSet(object.actor) ? SingleServiceAddressInfo.fromJSON(object.actor) : undefined,
+      isFromMe: isSet(object.isFromMe)
+        ? globalThis.Boolean(object.isFromMe)
+        : isSet(object.is_from_me)
+        ? globalThis.Boolean(object.is_from_me)
+        : false,
       created: isSet(object.created) ? PollCreated.fromJSON(object.created) : undefined,
       optionAdded: isSet(object.optionAdded)
         ? PollOptionAdded.fromJSON(object.optionAdded)
@@ -822,6 +840,9 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     }
     if (message.actor !== undefined) {
       obj.actor = SingleServiceAddressInfo.toJSON(message.actor);
+    }
+    if (message.isFromMe !== false) {
+      obj.isFromMe = message.isFromMe;
     }
     if (message.created !== undefined) {
       obj.created = PollCreated.toJSON(message.created);
@@ -849,6 +870,7 @@ export const PollChangeEvent: MessageFns<PollChangeEvent> = {
     message.actor = (object.actor !== undefined && object.actor !== null)
       ? SingleServiceAddressInfo.fromPartial(object.actor)
       : undefined;
+    message.isFromMe = object.isFromMe ?? false;
     message.created = (object.created !== undefined && object.created !== null)
       ? PollCreated.fromPartial(object.created)
       : undefined;

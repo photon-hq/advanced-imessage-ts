@@ -31,13 +31,13 @@ import {
   type MessagePlacedSticker as ProtoMessagePlacedSticker,
   type MessageReaction as ProtoMessageReaction,
   MessageReactionKind as ProtoMessageReactionKind,
-  type PeerMessageEdited as ProtoPeerMessageEdited,
-  type PeerMessageReactionAdded as ProtoPeerMessageReactionAdded,
-  type PeerMessageReactionRemoved as ProtoPeerMessageReactionRemoved,
-  type PeerMessageRead as ProtoPeerMessageRead,
-  type PeerMessageReceived as ProtoPeerMessageReceived,
-  type PeerMessageUnsent as ProtoPeerMessageUnsent,
-  type PeerStickerPlaced as ProtoPeerStickerPlaced,
+  type MessageEdited as ProtoMessageEdited,
+  type MessageReactionAdded as ProtoMessageReactionAdded,
+  type MessageReactionRemoved as ProtoMessageReactionRemoved,
+  type MessageRead as ProtoMessageRead,
+  type MessageReceived as ProtoMessageReceived,
+  type MessageUnsent as ProtoMessageUnsent,
+  type StickerPlaced as ProtoStickerPlaced,
   type ReplyTarget as ProtoReplyTarget,
   type StickerPlacement as ProtoStickerPlacement,
   type TextFormat as ProtoTextFormat,
@@ -585,7 +585,7 @@ export function mapGroupEvent(
 function mapReceivedMessage(
   sequence: number,
   context: EventContext,
-  proto: ProtoPeerMessageReceived
+  proto: ProtoMessageReceived
 ): MessageEvent {
   return {
     type: "message.received",
@@ -598,7 +598,7 @@ function mapReceivedMessage(
 function mapEditedMessage(
   sequence: number,
   context: EventContext,
-  proto: ProtoPeerMessageEdited
+  proto: ProtoMessageEdited
 ): MessageEvent {
   return {
     type: "message.edited",
@@ -613,7 +613,7 @@ function mapEditedMessage(
 function mapReadMessage(
   sequence: number,
   context: EventContext,
-  proto: ProtoPeerMessageRead
+  proto: ProtoMessageRead
 ): MessageEvent {
   return {
     type: "message.read",
@@ -627,7 +627,7 @@ function mapReadMessage(
 function mapUnsentMessage(
   sequence: number,
   context: EventContext,
-  proto: ProtoPeerMessageUnsent
+  proto: ProtoMessageUnsent
 ): MessageEvent {
   return {
     type: "message.unsent",
@@ -641,7 +641,7 @@ function mapUnsentMessage(
 function mapReactionAdded(
   sequence: number,
   context: EventContext,
-  proto: ProtoPeerMessageReactionAdded
+  proto: ProtoMessageReactionAdded
 ): MessageEvent {
   return {
     type: "message.reactionAdded",
@@ -656,7 +656,7 @@ function mapReactionAdded(
 function mapReactionRemoved(
   sequence: number,
   context: EventContext,
-  proto: ProtoPeerMessageReactionRemoved
+  proto: ProtoMessageReactionRemoved
 ): MessageEvent {
   return {
     type: "message.reactionRemoved",
@@ -671,7 +671,7 @@ function mapReactionRemoved(
 function mapStickerPlacedEvent(
   sequence: number,
   context: EventContext,
-  proto: ProtoPeerStickerPlaced
+  proto: ProtoStickerPlaced
 ): MessageEvent {
   return {
     type: "message.stickerPlaced",

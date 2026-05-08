@@ -17,8 +17,8 @@ const tinyPng = Uint8Array.from([
   0xae, 0x42, 0x60, 0x82,
 ]);
 
-const updated = await im.chats.setBackground(chat, tinyPng, "image/png");
-console.log("background set:", updated.guid);
+await im.chats.setBackground(chat, tinyPng, "image/png");
+console.log("background set");
 
 await im.chats.removeBackground(chat);
 

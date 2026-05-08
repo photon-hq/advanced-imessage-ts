@@ -30,12 +30,12 @@ describe("ChatsResource", () => {
       subject: "subject-1",
     });
 
+    expect(capturedRequest?.clientMessageId).toBe("client-1");
     expect(capturedRequest?.initialMessage).toEqual({
       attributedBody,
       text: "hello",
       effectId: "effect-1",
       subject: "subject-1",
-      clientMessageId: "client-1",
     });
   });
 

@@ -87,6 +87,7 @@ export interface ChatChangeEvent {
   chatGuid: string;
   occurredAt: Date | undefined;
   actor?: SingleServiceAddressInfo | undefined;
+  isFromMe: boolean;
   backgroundChanged?: ChatBackgroundChanged | undefined;
   backgroundRemoved?: ChatBackgroundRemoved | undefined;
   markedRead?: ChatMarkedRead | undefined;
@@ -582,6 +583,7 @@ function createBaseChatChangeEvent(): ChatChangeEvent {
     chatGuid: "",
     occurredAt: undefined,
     actor: undefined,
+    isFromMe: false,
     backgroundChanged: undefined,
     backgroundRemoved: undefined,
     markedRead: undefined,
@@ -600,6 +602,9 @@ export const ChatChangeEvent: MessageFns<ChatChangeEvent> = {
     }
     if (message.actor !== undefined) {
       SingleServiceAddressInfo.encode(message.actor, writer.uint32(26).fork()).join();
+    }
+    if (message.isFromMe !== false) {
+      writer.uint32(32).bool(message.isFromMe);
     }
     if (message.backgroundChanged !== undefined) {
       ChatBackgroundChanged.encode(message.backgroundChanged, writer.uint32(82).fork()).join();
@@ -648,6 +653,14 @@ export const ChatChangeEvent: MessageFns<ChatChangeEvent> = {
           }
 
           message.actor = SingleServiceAddressInfo.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.isFromMe = reader.bool();
           continue;
         }
         case 10: {
@@ -712,6 +725,11 @@ export const ChatChangeEvent: MessageFns<ChatChangeEvent> = {
         ? fromJsonTimestamp(object.occurred_at)
         : undefined,
       actor: isSet(object.actor) ? SingleServiceAddressInfo.fromJSON(object.actor) : undefined,
+      isFromMe: isSet(object.isFromMe)
+        ? globalThis.Boolean(object.isFromMe)
+        : isSet(object.is_from_me)
+        ? globalThis.Boolean(object.is_from_me)
+        : false,
       backgroundChanged: isSet(object.backgroundChanged)
         ? ChatBackgroundChanged.fromJSON(object.backgroundChanged)
         : isSet(object.background_changed)
@@ -743,6 +761,9 @@ export const ChatChangeEvent: MessageFns<ChatChangeEvent> = {
     if (message.actor !== undefined) {
       obj.actor = SingleServiceAddressInfo.toJSON(message.actor);
     }
+    if (message.isFromMe !== false) {
+      obj.isFromMe = message.isFromMe;
+    }
     if (message.backgroundChanged !== undefined) {
       obj.backgroundChanged = ChatBackgroundChanged.toJSON(message.backgroundChanged);
     }
@@ -771,6 +792,7 @@ export const ChatChangeEvent: MessageFns<ChatChangeEvent> = {
     message.actor = (object.actor !== undefined && object.actor !== null)
       ? SingleServiceAddressInfo.fromPartial(object.actor)
       : undefined;
+    message.isFromMe = object.isFromMe ?? false;
     message.backgroundChanged = (object.backgroundChanged !== undefined && object.backgroundChanged !== null)
       ? ChatBackgroundChanged.fromPartial(object.backgroundChanged)
       : undefined;

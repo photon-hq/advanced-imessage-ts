@@ -36,7 +36,7 @@ export interface GroupParticipantLeft {
 }
 
 /**
- * Icon mutations carry no payload — fetch the new bytes via
+ * Icon mutations carry no payload. Fetch the new bytes via
  * `GroupService.GetIcon` after observing the event.
  */
 export interface GroupIconChanged {
@@ -56,6 +56,7 @@ export interface GroupChangeEvent {
   chatGuid: string;
   occurredAt: Date | undefined;
   actor?: SingleServiceAddressInfo | undefined;
+  isFromMe: boolean;
   displayNameChanged?: GroupDisplayNameChanged | undefined;
   participantAdded?: GroupParticipantAdded | undefined;
   participantRemoved?: GroupParticipantRemoved | undefined;
@@ -405,6 +406,7 @@ function createBaseGroupChangeEvent(): GroupChangeEvent {
     chatGuid: "",
     occurredAt: undefined,
     actor: undefined,
+    isFromMe: false,
     displayNameChanged: undefined,
     participantAdded: undefined,
     participantRemoved: undefined,
@@ -424,6 +426,9 @@ export const GroupChangeEvent: MessageFns<GroupChangeEvent> = {
     }
     if (message.actor !== undefined) {
       SingleServiceAddressInfo.encode(message.actor, writer.uint32(26).fork()).join();
+    }
+    if (message.isFromMe !== false) {
+      writer.uint32(32).bool(message.isFromMe);
     }
     if (message.displayNameChanged !== undefined) {
       GroupDisplayNameChanged.encode(message.displayNameChanged, writer.uint32(82).fork()).join();
@@ -475,6 +480,14 @@ export const GroupChangeEvent: MessageFns<GroupChangeEvent> = {
           }
 
           message.actor = SingleServiceAddressInfo.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.isFromMe = reader.bool();
           continue;
         }
         case 10: {
@@ -547,6 +560,11 @@ export const GroupChangeEvent: MessageFns<GroupChangeEvent> = {
         ? fromJsonTimestamp(object.occurred_at)
         : undefined,
       actor: isSet(object.actor) ? SingleServiceAddressInfo.fromJSON(object.actor) : undefined,
+      isFromMe: isSet(object.isFromMe)
+        ? globalThis.Boolean(object.isFromMe)
+        : isSet(object.is_from_me)
+        ? globalThis.Boolean(object.is_from_me)
+        : false,
       displayNameChanged: isSet(object.displayNameChanged)
         ? GroupDisplayNameChanged.fromJSON(object.displayNameChanged)
         : isSet(object.display_name_changed)
@@ -591,6 +609,9 @@ export const GroupChangeEvent: MessageFns<GroupChangeEvent> = {
     if (message.actor !== undefined) {
       obj.actor = SingleServiceAddressInfo.toJSON(message.actor);
     }
+    if (message.isFromMe !== false) {
+      obj.isFromMe = message.isFromMe;
+    }
     if (message.displayNameChanged !== undefined) {
       obj.displayNameChanged = GroupDisplayNameChanged.toJSON(message.displayNameChanged);
     }
@@ -622,6 +643,7 @@ export const GroupChangeEvent: MessageFns<GroupChangeEvent> = {
     message.actor = (object.actor !== undefined && object.actor !== null)
       ? SingleServiceAddressInfo.fromPartial(object.actor)
       : undefined;
+    message.isFromMe = object.isFromMe ?? false;
     message.displayNameChanged = (object.displayNameChanged !== undefined && object.displayNameChanged !== null)
       ? GroupDisplayNameChanged.fromPartial(object.displayNameChanged)
       : undefined;

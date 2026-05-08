@@ -134,14 +134,13 @@ export class GroupsResource {
     chat: string,
     data: Uint8Array,
     options?: IdempotencyOptions
-  ): Promise<Chat> {
+  ): Promise<void> {
     try {
-      const response = await this._client.setIcon({
+      await this._client.setIcon({
         chatGuid: normalizeChatGuid(chat),
         data,
         clientMessageId: options?.clientMessageId,
       });
-      return mapChat(unwrap(response.chat, "chat"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -173,13 +172,12 @@ export class GroupsResource {
    * @param chat - An `any;+;...` group chat guid. In practice, pass
    *               `chat.guid`.
    */
-  async removeIcon(chat: string, options?: IdempotencyOptions): Promise<Chat> {
+  async removeIcon(chat: string, options?: IdempotencyOptions): Promise<void> {
     try {
-      const response = await this._client.removeIcon({
+      await this._client.removeIcon({
         chatGuid: normalizeChatGuid(chat),
         clientMessageId: options?.clientMessageId,
       });
-      return mapChat(unwrap(response.chat, "chat"));
     } catch (err) {
       throw fromGrpcError(err);
     }

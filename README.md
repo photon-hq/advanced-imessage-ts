@@ -62,7 +62,7 @@ const chatGuid = "any;-;alice@example.com";
 const sent = await im.messages.sendText(chatGuid, "Happy birthday", {
   effect: MessageEffect.confetti,
   formatting: [{ type: "effect", start: 0, length: 5, effect: TextEffect.bloom }],
-  richLink: true,
+  enableLinkPreview: true,
 });
 
 console.log(sent.guid);

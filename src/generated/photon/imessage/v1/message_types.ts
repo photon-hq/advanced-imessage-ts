@@ -16,8 +16,9 @@ export const protobufPackage = "photon.imessage.v1";
  * Discriminates regular messages from the synthetic "system" rows Apple
  * uses to record chat lifecycle changes.
  *
- * Wire values mirror chat.db `message.item_type` — `0` is a real
- * "normal" value, not "unspecified".
+ * Wire values mirror chat.db `message.item_type`.
+ *
+ * `0` is a real "normal" value, not "unspecified".
  */
 export enum MessageItemType {
   MESSAGE_ITEM_TYPE_NORMAL = 0,
@@ -71,9 +72,9 @@ export function messageItemTypeToJSON(object: MessageItemType): string {
  * value is delivered out-of-band (`MessageReaction.emoji` for emoji
  * tapbacks, the associated message itself for sticker tapbacks).
  *
- * Wire values are transport-internal — Apple stores tapback kind in a
- * composite `associated_message_type` column, not as a direct integer
- * match for these tags.
+ * Wire values are transport-internal. Apple stores tapback kind in a composite
+ * `associated_message_type` column, not as a direct integer match for these
+ * tags.
  */
 export enum MessageReactionKind {
   MESSAGE_REACTION_KIND_LOVE = 0,
@@ -84,9 +85,11 @@ export enum MessageReactionKind {
   MESSAGE_REACTION_KIND_QUESTION = 5,
   MESSAGE_REACTION_KIND_EMOJI = 6,
   /**
-   * MESSAGE_REACTION_KIND_STICKER - Carrier for sticker tapbacks; the placed sticker arrives as its own
-   * attachment row, not as a `MessageReaction`. Servers MUST reject
-   * `SetReaction` calls that pass `STICKER` — use `PlaceSticker` instead.
+   * MESSAGE_REACTION_KIND_STICKER - Carrier for sticker tapbacks.
+   *
+   * The placed sticker arrives as its own attachment row, not as a
+   * `MessageReaction`. Servers reject `SetReaction` calls that pass
+   * `STICKER`; use `PlaceSticker` instead.
    */
   MESSAGE_REACTION_KIND_STICKER = 7,
   UNRECOGNIZED = -1,
@@ -278,7 +281,7 @@ export interface Message {
   isDeliveredQuietly: boolean;
   /**
    * Monterey+. The recipient's device was actually woken to surface the
-   * message — pair with `is_delivered_quietly` to distinguish silent vs
+   * message. Pair with `is_delivered_quietly` to distinguish silent vs
    * notified delivery.
    */
   didNotifyRecipient: boolean;
@@ -316,7 +319,7 @@ export interface Message {
   dataDetectorResultsPresent: boolean;
   /**
    * Mirrors chat.db `message.is_archive`. Per-row archival flag,
-   * distinct from the chat-level `Chat.is_archived` view state — set
+   * distinct from the chat-level `Chat.is_archived` view state. Set
    * on individual messages Apple has hidden from default queries.
    */
   isArchived: boolean;
@@ -348,7 +351,7 @@ export interface Message {
     | undefined;
   /**
    * Subtype for `MESSAGE_ITEM_TYPE_CHAT_ACTION` rows (Apple private
-   * schema). Promoted to a typed enum is future work — see
+   * schema). Promoted to a typed enum is future work; see
    * domain `ChatActionType`.
    */
   chatActionType?:
@@ -372,7 +375,7 @@ export interface Message {
   /**
    * Raw Apple `reply_to_guid` storage column. Frequently populated on
    * ordinary non-reply messages and may point at unrelated rows;
-   * surface for diagnostics only — prefer `reply_target_guid` to
+   * surface for diagnostics only. Prefer `reply_target_guid` to
    * determine a real reply.
    */
   replyToGuid?:
@@ -426,7 +429,7 @@ export interface Message {
 }
 
 /**
- * Inline media payload returned by `MessageService.GetEmbeddedMedia` —
+ * Inline media payload returned by `MessageService.GetEmbeddedMedia`;
  * e.g. a sticker bundle or a balloon-app preview image.
  */
 export interface EmbeddedMedia {
@@ -434,51 +437,43 @@ export interface EmbeddedMedia {
   mimeType: string;
 }
 
-/**
- * Minimal send receipt used where callers need correlation but not a
- * full persisted message snapshot.
- */
-export interface MessageSendReceipt {
-  messageGuid: string;
-  clientMessageId?: string | undefined;
-}
-
 /** A new message has landed in a chat. */
-export interface PeerMessageReceived {
+export interface MessageReceived {
   message: Message | undefined;
 }
 
-/** A peer (or the local user from another device) has edited a message. */
-export interface PeerMessageEdited {
+/** An existing message was edited. */
+export interface MessageEdited {
   messageGuid: string;
   content: MessageContent | undefined;
   editedAt: Date | undefined;
 }
 
-export interface PeerMessageRead {
+/** A message originally sent by the local user was read. */
+export interface MessageRead {
   messageGuid: string;
   readAt: Date | undefined;
 }
 
-/** A peer has retracted (unsent) a message. */
-export interface PeerMessageUnsent {
+/** A message was retracted. */
+export interface MessageUnsent {
   messageGuid: string;
   retractedAt: Date | undefined;
 }
 
-export interface PeerMessageReactionAdded {
+export interface MessageReactionAdded {
   messageGuid: string;
   targetPartIndex?: number | undefined;
   reaction: MessageReaction | undefined;
 }
 
-export interface PeerMessageReactionRemoved {
+export interface MessageReactionRemoved {
   messageGuid: string;
   targetPartIndex?: number | undefined;
   reaction: MessageReaction | undefined;
 }
 
-export interface PeerStickerPlaced {
+export interface StickerPlaced {
   messageGuid: string;
   targetPartIndex?: number | undefined;
   sticker?: AttachmentInfo | undefined;
@@ -490,13 +485,14 @@ export interface MessageChangeEvent {
   chatGuid: string;
   occurredAt: Date | undefined;
   actor?: SingleServiceAddressInfo | undefined;
-  messageReceived?: PeerMessageReceived | undefined;
-  messageEdited?: PeerMessageEdited | undefined;
-  messageRead?: PeerMessageRead | undefined;
-  messageUnsent?: PeerMessageUnsent | undefined;
-  reactionAdded?: PeerMessageReactionAdded | undefined;
-  reactionRemoved?: PeerMessageReactionRemoved | undefined;
-  stickerPlaced?: PeerStickerPlaced | undefined;
+  isFromMe: boolean;
+  messageReceived?: MessageReceived | undefined;
+  messageEdited?: MessageEdited | undefined;
+  messageRead?: MessageRead | undefined;
+  messageUnsent?: MessageUnsent | undefined;
+  reactionAdded?: MessageReactionAdded | undefined;
+  reactionRemoved?: MessageReactionRemoved | undefined;
+  stickerPlaced?: StickerPlaced | undefined;
 }
 
 function createBaseMessageReaction(): MessageReaction {
@@ -2845,106 +2841,22 @@ export const EmbeddedMedia: MessageFns<EmbeddedMedia> = {
   },
 };
 
-function createBaseMessageSendReceipt(): MessageSendReceipt {
-  return { messageGuid: "", clientMessageId: undefined };
-}
-
-export const MessageSendReceipt: MessageFns<MessageSendReceipt> = {
-  encode(message: MessageSendReceipt, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.messageGuid !== "") {
-      writer.uint32(10).string(message.messageGuid);
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(18).string(message.clientMessageId);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessageSendReceipt {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessageSendReceipt();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.messageGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessageSendReceipt {
-    return {
-      messageGuid: isSet(object.messageGuid)
-        ? globalThis.String(object.messageGuid)
-        : isSet(object.message_guid)
-        ? globalThis.String(object.message_guid)
-        : "",
-      clientMessageId: isSet(object.clientMessageId)
-        ? globalThis.String(object.clientMessageId)
-        : isSet(object.client_message_id)
-        ? globalThis.String(object.client_message_id)
-        : undefined,
-    };
-  },
-
-  toJSON(message: MessageSendReceipt): unknown {
-    const obj: any = {};
-    if (message.messageGuid !== "") {
-      obj.messageGuid = message.messageGuid;
-    }
-    if (message.clientMessageId !== undefined) {
-      obj.clientMessageId = message.clientMessageId;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessageSendReceipt>): MessageSendReceipt {
-    return MessageSendReceipt.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessageSendReceipt>): MessageSendReceipt {
-    const message = createBaseMessageSendReceipt();
-    message.messageGuid = object.messageGuid ?? "";
-    message.clientMessageId = object.clientMessageId ?? undefined;
-    return message;
-  },
-};
-
-function createBasePeerMessageReceived(): PeerMessageReceived {
+function createBaseMessageReceived(): MessageReceived {
   return { message: undefined };
 }
 
-export const PeerMessageReceived: MessageFns<PeerMessageReceived> = {
-  encode(message: PeerMessageReceived, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const MessageReceived: MessageFns<MessageReceived> = {
+  encode(message: MessageReceived, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.message !== undefined) {
       Message.encode(message.message, writer.uint32(10).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): PeerMessageReceived {
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageReceived {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePeerMessageReceived();
+    const message = createBaseMessageReceived();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -2965,11 +2877,11 @@ export const PeerMessageReceived: MessageFns<PeerMessageReceived> = {
     return message;
   },
 
-  fromJSON(object: any): PeerMessageReceived {
+  fromJSON(object: any): MessageReceived {
     return { message: isSet(object.message) ? Message.fromJSON(object.message) : undefined };
   },
 
-  toJSON(message: PeerMessageReceived): unknown {
+  toJSON(message: MessageReceived): unknown {
     const obj: any = {};
     if (message.message !== undefined) {
       obj.message = Message.toJSON(message.message);
@@ -2977,11 +2889,11 @@ export const PeerMessageReceived: MessageFns<PeerMessageReceived> = {
     return obj;
   },
 
-  create(base?: DeepPartial<PeerMessageReceived>): PeerMessageReceived {
-    return PeerMessageReceived.fromPartial(base ?? {});
+  create(base?: DeepPartial<MessageReceived>): MessageReceived {
+    return MessageReceived.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<PeerMessageReceived>): PeerMessageReceived {
-    const message = createBasePeerMessageReceived();
+  fromPartial(object: DeepPartial<MessageReceived>): MessageReceived {
+    const message = createBaseMessageReceived();
     message.message = (object.message !== undefined && object.message !== null)
       ? Message.fromPartial(object.message)
       : undefined;
@@ -2989,12 +2901,12 @@ export const PeerMessageReceived: MessageFns<PeerMessageReceived> = {
   },
 };
 
-function createBasePeerMessageEdited(): PeerMessageEdited {
+function createBaseMessageEdited(): MessageEdited {
   return { messageGuid: "", content: undefined, editedAt: undefined };
 }
 
-export const PeerMessageEdited: MessageFns<PeerMessageEdited> = {
-  encode(message: PeerMessageEdited, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const MessageEdited: MessageFns<MessageEdited> = {
+  encode(message: MessageEdited, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.messageGuid !== "") {
       writer.uint32(10).string(message.messageGuid);
     }
@@ -3007,10 +2919,10 @@ export const PeerMessageEdited: MessageFns<PeerMessageEdited> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): PeerMessageEdited {
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageEdited {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePeerMessageEdited();
+    const message = createBaseMessageEdited();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3047,7 +2959,7 @@ export const PeerMessageEdited: MessageFns<PeerMessageEdited> = {
     return message;
   },
 
-  fromJSON(object: any): PeerMessageEdited {
+  fromJSON(object: any): MessageEdited {
     return {
       messageGuid: isSet(object.messageGuid)
         ? globalThis.String(object.messageGuid)
@@ -3063,7 +2975,7 @@ export const PeerMessageEdited: MessageFns<PeerMessageEdited> = {
     };
   },
 
-  toJSON(message: PeerMessageEdited): unknown {
+  toJSON(message: MessageEdited): unknown {
     const obj: any = {};
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
@@ -3077,11 +2989,11 @@ export const PeerMessageEdited: MessageFns<PeerMessageEdited> = {
     return obj;
   },
 
-  create(base?: DeepPartial<PeerMessageEdited>): PeerMessageEdited {
-    return PeerMessageEdited.fromPartial(base ?? {});
+  create(base?: DeepPartial<MessageEdited>): MessageEdited {
+    return MessageEdited.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<PeerMessageEdited>): PeerMessageEdited {
-    const message = createBasePeerMessageEdited();
+  fromPartial(object: DeepPartial<MessageEdited>): MessageEdited {
+    const message = createBaseMessageEdited();
     message.messageGuid = object.messageGuid ?? "";
     message.content = (object.content !== undefined && object.content !== null)
       ? MessageContent.fromPartial(object.content)
@@ -3091,12 +3003,12 @@ export const PeerMessageEdited: MessageFns<PeerMessageEdited> = {
   },
 };
 
-function createBasePeerMessageRead(): PeerMessageRead {
+function createBaseMessageRead(): MessageRead {
   return { messageGuid: "", readAt: undefined };
 }
 
-export const PeerMessageRead: MessageFns<PeerMessageRead> = {
-  encode(message: PeerMessageRead, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const MessageRead: MessageFns<MessageRead> = {
+  encode(message: MessageRead, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.messageGuid !== "") {
       writer.uint32(10).string(message.messageGuid);
     }
@@ -3106,10 +3018,10 @@ export const PeerMessageRead: MessageFns<PeerMessageRead> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): PeerMessageRead {
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageRead {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePeerMessageRead();
+    const message = createBaseMessageRead();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3138,7 +3050,7 @@ export const PeerMessageRead: MessageFns<PeerMessageRead> = {
     return message;
   },
 
-  fromJSON(object: any): PeerMessageRead {
+  fromJSON(object: any): MessageRead {
     return {
       messageGuid: isSet(object.messageGuid)
         ? globalThis.String(object.messageGuid)
@@ -3153,7 +3065,7 @@ export const PeerMessageRead: MessageFns<PeerMessageRead> = {
     };
   },
 
-  toJSON(message: PeerMessageRead): unknown {
+  toJSON(message: MessageRead): unknown {
     const obj: any = {};
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
@@ -3164,23 +3076,23 @@ export const PeerMessageRead: MessageFns<PeerMessageRead> = {
     return obj;
   },
 
-  create(base?: DeepPartial<PeerMessageRead>): PeerMessageRead {
-    return PeerMessageRead.fromPartial(base ?? {});
+  create(base?: DeepPartial<MessageRead>): MessageRead {
+    return MessageRead.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<PeerMessageRead>): PeerMessageRead {
-    const message = createBasePeerMessageRead();
+  fromPartial(object: DeepPartial<MessageRead>): MessageRead {
+    const message = createBaseMessageRead();
     message.messageGuid = object.messageGuid ?? "";
     message.readAt = object.readAt ?? undefined;
     return message;
   },
 };
 
-function createBasePeerMessageUnsent(): PeerMessageUnsent {
+function createBaseMessageUnsent(): MessageUnsent {
   return { messageGuid: "", retractedAt: undefined };
 }
 
-export const PeerMessageUnsent: MessageFns<PeerMessageUnsent> = {
-  encode(message: PeerMessageUnsent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const MessageUnsent: MessageFns<MessageUnsent> = {
+  encode(message: MessageUnsent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.messageGuid !== "") {
       writer.uint32(10).string(message.messageGuid);
     }
@@ -3190,10 +3102,10 @@ export const PeerMessageUnsent: MessageFns<PeerMessageUnsent> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): PeerMessageUnsent {
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageUnsent {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePeerMessageUnsent();
+    const message = createBaseMessageUnsent();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3222,7 +3134,7 @@ export const PeerMessageUnsent: MessageFns<PeerMessageUnsent> = {
     return message;
   },
 
-  fromJSON(object: any): PeerMessageUnsent {
+  fromJSON(object: any): MessageUnsent {
     return {
       messageGuid: isSet(object.messageGuid)
         ? globalThis.String(object.messageGuid)
@@ -3237,7 +3149,7 @@ export const PeerMessageUnsent: MessageFns<PeerMessageUnsent> = {
     };
   },
 
-  toJSON(message: PeerMessageUnsent): unknown {
+  toJSON(message: MessageUnsent): unknown {
     const obj: any = {};
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
@@ -3248,23 +3160,23 @@ export const PeerMessageUnsent: MessageFns<PeerMessageUnsent> = {
     return obj;
   },
 
-  create(base?: DeepPartial<PeerMessageUnsent>): PeerMessageUnsent {
-    return PeerMessageUnsent.fromPartial(base ?? {});
+  create(base?: DeepPartial<MessageUnsent>): MessageUnsent {
+    return MessageUnsent.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<PeerMessageUnsent>): PeerMessageUnsent {
-    const message = createBasePeerMessageUnsent();
+  fromPartial(object: DeepPartial<MessageUnsent>): MessageUnsent {
+    const message = createBaseMessageUnsent();
     message.messageGuid = object.messageGuid ?? "";
     message.retractedAt = object.retractedAt ?? undefined;
     return message;
   },
 };
 
-function createBasePeerMessageReactionAdded(): PeerMessageReactionAdded {
+function createBaseMessageReactionAdded(): MessageReactionAdded {
   return { messageGuid: "", targetPartIndex: undefined, reaction: undefined };
 }
 
-export const PeerMessageReactionAdded: MessageFns<PeerMessageReactionAdded> = {
-  encode(message: PeerMessageReactionAdded, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const MessageReactionAdded: MessageFns<MessageReactionAdded> = {
+  encode(message: MessageReactionAdded, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.messageGuid !== "") {
       writer.uint32(10).string(message.messageGuid);
     }
@@ -3277,10 +3189,10 @@ export const PeerMessageReactionAdded: MessageFns<PeerMessageReactionAdded> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): PeerMessageReactionAdded {
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageReactionAdded {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePeerMessageReactionAdded();
+    const message = createBaseMessageReactionAdded();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3317,7 +3229,7 @@ export const PeerMessageReactionAdded: MessageFns<PeerMessageReactionAdded> = {
     return message;
   },
 
-  fromJSON(object: any): PeerMessageReactionAdded {
+  fromJSON(object: any): MessageReactionAdded {
     return {
       messageGuid: isSet(object.messageGuid)
         ? globalThis.String(object.messageGuid)
@@ -3333,7 +3245,7 @@ export const PeerMessageReactionAdded: MessageFns<PeerMessageReactionAdded> = {
     };
   },
 
-  toJSON(message: PeerMessageReactionAdded): unknown {
+  toJSON(message: MessageReactionAdded): unknown {
     const obj: any = {};
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
@@ -3347,11 +3259,11 @@ export const PeerMessageReactionAdded: MessageFns<PeerMessageReactionAdded> = {
     return obj;
   },
 
-  create(base?: DeepPartial<PeerMessageReactionAdded>): PeerMessageReactionAdded {
-    return PeerMessageReactionAdded.fromPartial(base ?? {});
+  create(base?: DeepPartial<MessageReactionAdded>): MessageReactionAdded {
+    return MessageReactionAdded.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<PeerMessageReactionAdded>): PeerMessageReactionAdded {
-    const message = createBasePeerMessageReactionAdded();
+  fromPartial(object: DeepPartial<MessageReactionAdded>): MessageReactionAdded {
+    const message = createBaseMessageReactionAdded();
     message.messageGuid = object.messageGuid ?? "";
     message.targetPartIndex = object.targetPartIndex ?? undefined;
     message.reaction = (object.reaction !== undefined && object.reaction !== null)
@@ -3361,12 +3273,12 @@ export const PeerMessageReactionAdded: MessageFns<PeerMessageReactionAdded> = {
   },
 };
 
-function createBasePeerMessageReactionRemoved(): PeerMessageReactionRemoved {
+function createBaseMessageReactionRemoved(): MessageReactionRemoved {
   return { messageGuid: "", targetPartIndex: undefined, reaction: undefined };
 }
 
-export const PeerMessageReactionRemoved: MessageFns<PeerMessageReactionRemoved> = {
-  encode(message: PeerMessageReactionRemoved, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const MessageReactionRemoved: MessageFns<MessageReactionRemoved> = {
+  encode(message: MessageReactionRemoved, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.messageGuid !== "") {
       writer.uint32(10).string(message.messageGuid);
     }
@@ -3379,10 +3291,10 @@ export const PeerMessageReactionRemoved: MessageFns<PeerMessageReactionRemoved> 
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): PeerMessageReactionRemoved {
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageReactionRemoved {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePeerMessageReactionRemoved();
+    const message = createBaseMessageReactionRemoved();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3419,7 +3331,7 @@ export const PeerMessageReactionRemoved: MessageFns<PeerMessageReactionRemoved> 
     return message;
   },
 
-  fromJSON(object: any): PeerMessageReactionRemoved {
+  fromJSON(object: any): MessageReactionRemoved {
     return {
       messageGuid: isSet(object.messageGuid)
         ? globalThis.String(object.messageGuid)
@@ -3435,7 +3347,7 @@ export const PeerMessageReactionRemoved: MessageFns<PeerMessageReactionRemoved> 
     };
   },
 
-  toJSON(message: PeerMessageReactionRemoved): unknown {
+  toJSON(message: MessageReactionRemoved): unknown {
     const obj: any = {};
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
@@ -3449,11 +3361,11 @@ export const PeerMessageReactionRemoved: MessageFns<PeerMessageReactionRemoved> 
     return obj;
   },
 
-  create(base?: DeepPartial<PeerMessageReactionRemoved>): PeerMessageReactionRemoved {
-    return PeerMessageReactionRemoved.fromPartial(base ?? {});
+  create(base?: DeepPartial<MessageReactionRemoved>): MessageReactionRemoved {
+    return MessageReactionRemoved.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<PeerMessageReactionRemoved>): PeerMessageReactionRemoved {
-    const message = createBasePeerMessageReactionRemoved();
+  fromPartial(object: DeepPartial<MessageReactionRemoved>): MessageReactionRemoved {
+    const message = createBaseMessageReactionRemoved();
     message.messageGuid = object.messageGuid ?? "";
     message.targetPartIndex = object.targetPartIndex ?? undefined;
     message.reaction = (object.reaction !== undefined && object.reaction !== null)
@@ -3463,12 +3375,12 @@ export const PeerMessageReactionRemoved: MessageFns<PeerMessageReactionRemoved> 
   },
 };
 
-function createBasePeerStickerPlaced(): PeerStickerPlaced {
+function createBaseStickerPlaced(): StickerPlaced {
   return { messageGuid: "", targetPartIndex: undefined, sticker: undefined, placement: undefined };
 }
 
-export const PeerStickerPlaced: MessageFns<PeerStickerPlaced> = {
-  encode(message: PeerStickerPlaced, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const StickerPlaced: MessageFns<StickerPlaced> = {
+  encode(message: StickerPlaced, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.messageGuid !== "") {
       writer.uint32(10).string(message.messageGuid);
     }
@@ -3484,10 +3396,10 @@ export const PeerStickerPlaced: MessageFns<PeerStickerPlaced> = {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): PeerStickerPlaced {
+  decode(input: BinaryReader | Uint8Array, length?: number): StickerPlaced {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePeerStickerPlaced();
+    const message = createBaseStickerPlaced();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3532,7 +3444,7 @@ export const PeerStickerPlaced: MessageFns<PeerStickerPlaced> = {
     return message;
   },
 
-  fromJSON(object: any): PeerStickerPlaced {
+  fromJSON(object: any): StickerPlaced {
     return {
       messageGuid: isSet(object.messageGuid)
         ? globalThis.String(object.messageGuid)
@@ -3549,7 +3461,7 @@ export const PeerStickerPlaced: MessageFns<PeerStickerPlaced> = {
     };
   },
 
-  toJSON(message: PeerStickerPlaced): unknown {
+  toJSON(message: StickerPlaced): unknown {
     const obj: any = {};
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
@@ -3566,11 +3478,11 @@ export const PeerStickerPlaced: MessageFns<PeerStickerPlaced> = {
     return obj;
   },
 
-  create(base?: DeepPartial<PeerStickerPlaced>): PeerStickerPlaced {
-    return PeerStickerPlaced.fromPartial(base ?? {});
+  create(base?: DeepPartial<StickerPlaced>): StickerPlaced {
+    return StickerPlaced.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<PeerStickerPlaced>): PeerStickerPlaced {
-    const message = createBasePeerStickerPlaced();
+  fromPartial(object: DeepPartial<StickerPlaced>): StickerPlaced {
+    const message = createBaseStickerPlaced();
     message.messageGuid = object.messageGuid ?? "";
     message.targetPartIndex = object.targetPartIndex ?? undefined;
     message.sticker = (object.sticker !== undefined && object.sticker !== null)
@@ -3588,6 +3500,7 @@ function createBaseMessageChangeEvent(): MessageChangeEvent {
     chatGuid: "",
     occurredAt: undefined,
     actor: undefined,
+    isFromMe: false,
     messageReceived: undefined,
     messageEdited: undefined,
     messageRead: undefined,
@@ -3609,26 +3522,29 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
     if (message.actor !== undefined) {
       SingleServiceAddressInfo.encode(message.actor, writer.uint32(26).fork()).join();
     }
+    if (message.isFromMe !== false) {
+      writer.uint32(32).bool(message.isFromMe);
+    }
     if (message.messageReceived !== undefined) {
-      PeerMessageReceived.encode(message.messageReceived, writer.uint32(82).fork()).join();
+      MessageReceived.encode(message.messageReceived, writer.uint32(82).fork()).join();
     }
     if (message.messageEdited !== undefined) {
-      PeerMessageEdited.encode(message.messageEdited, writer.uint32(90).fork()).join();
+      MessageEdited.encode(message.messageEdited, writer.uint32(90).fork()).join();
     }
     if (message.messageRead !== undefined) {
-      PeerMessageRead.encode(message.messageRead, writer.uint32(98).fork()).join();
+      MessageRead.encode(message.messageRead, writer.uint32(98).fork()).join();
     }
     if (message.messageUnsent !== undefined) {
-      PeerMessageUnsent.encode(message.messageUnsent, writer.uint32(106).fork()).join();
+      MessageUnsent.encode(message.messageUnsent, writer.uint32(106).fork()).join();
     }
     if (message.reactionAdded !== undefined) {
-      PeerMessageReactionAdded.encode(message.reactionAdded, writer.uint32(114).fork()).join();
+      MessageReactionAdded.encode(message.reactionAdded, writer.uint32(114).fork()).join();
     }
     if (message.reactionRemoved !== undefined) {
-      PeerMessageReactionRemoved.encode(message.reactionRemoved, writer.uint32(122).fork()).join();
+      MessageReactionRemoved.encode(message.reactionRemoved, writer.uint32(122).fork()).join();
     }
     if (message.stickerPlaced !== undefined) {
-      PeerStickerPlaced.encode(message.stickerPlaced, writer.uint32(130).fork()).join();
+      StickerPlaced.encode(message.stickerPlaced, writer.uint32(130).fork()).join();
     }
     return writer;
   },
@@ -3664,12 +3580,20 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
           message.actor = SingleServiceAddressInfo.decode(reader, reader.uint32());
           continue;
         }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.isFromMe = reader.bool();
+          continue;
+        }
         case 10: {
           if (tag !== 82) {
             break;
           }
 
-          message.messageReceived = PeerMessageReceived.decode(reader, reader.uint32());
+          message.messageReceived = MessageReceived.decode(reader, reader.uint32());
           continue;
         }
         case 11: {
@@ -3677,7 +3601,7 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
             break;
           }
 
-          message.messageEdited = PeerMessageEdited.decode(reader, reader.uint32());
+          message.messageEdited = MessageEdited.decode(reader, reader.uint32());
           continue;
         }
         case 12: {
@@ -3685,7 +3609,7 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
             break;
           }
 
-          message.messageRead = PeerMessageRead.decode(reader, reader.uint32());
+          message.messageRead = MessageRead.decode(reader, reader.uint32());
           continue;
         }
         case 13: {
@@ -3693,7 +3617,7 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
             break;
           }
 
-          message.messageUnsent = PeerMessageUnsent.decode(reader, reader.uint32());
+          message.messageUnsent = MessageUnsent.decode(reader, reader.uint32());
           continue;
         }
         case 14: {
@@ -3701,7 +3625,7 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
             break;
           }
 
-          message.reactionAdded = PeerMessageReactionAdded.decode(reader, reader.uint32());
+          message.reactionAdded = MessageReactionAdded.decode(reader, reader.uint32());
           continue;
         }
         case 15: {
@@ -3709,7 +3633,7 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
             break;
           }
 
-          message.reactionRemoved = PeerMessageReactionRemoved.decode(reader, reader.uint32());
+          message.reactionRemoved = MessageReactionRemoved.decode(reader, reader.uint32());
           continue;
         }
         case 16: {
@@ -3717,7 +3641,7 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
             break;
           }
 
-          message.stickerPlaced = PeerStickerPlaced.decode(reader, reader.uint32());
+          message.stickerPlaced = StickerPlaced.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -3742,40 +3666,45 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
         ? fromJsonTimestamp(object.occurred_at)
         : undefined,
       actor: isSet(object.actor) ? SingleServiceAddressInfo.fromJSON(object.actor) : undefined,
+      isFromMe: isSet(object.isFromMe)
+        ? globalThis.Boolean(object.isFromMe)
+        : isSet(object.is_from_me)
+        ? globalThis.Boolean(object.is_from_me)
+        : false,
       messageReceived: isSet(object.messageReceived)
-        ? PeerMessageReceived.fromJSON(object.messageReceived)
+        ? MessageReceived.fromJSON(object.messageReceived)
         : isSet(object.message_received)
-        ? PeerMessageReceived.fromJSON(object.message_received)
+        ? MessageReceived.fromJSON(object.message_received)
         : undefined,
       messageEdited: isSet(object.messageEdited)
-        ? PeerMessageEdited.fromJSON(object.messageEdited)
+        ? MessageEdited.fromJSON(object.messageEdited)
         : isSet(object.message_edited)
-        ? PeerMessageEdited.fromJSON(object.message_edited)
+        ? MessageEdited.fromJSON(object.message_edited)
         : undefined,
       messageRead: isSet(object.messageRead)
-        ? PeerMessageRead.fromJSON(object.messageRead)
+        ? MessageRead.fromJSON(object.messageRead)
         : isSet(object.message_read)
-        ? PeerMessageRead.fromJSON(object.message_read)
+        ? MessageRead.fromJSON(object.message_read)
         : undefined,
       messageUnsent: isSet(object.messageUnsent)
-        ? PeerMessageUnsent.fromJSON(object.messageUnsent)
+        ? MessageUnsent.fromJSON(object.messageUnsent)
         : isSet(object.message_unsent)
-        ? PeerMessageUnsent.fromJSON(object.message_unsent)
+        ? MessageUnsent.fromJSON(object.message_unsent)
         : undefined,
       reactionAdded: isSet(object.reactionAdded)
-        ? PeerMessageReactionAdded.fromJSON(object.reactionAdded)
+        ? MessageReactionAdded.fromJSON(object.reactionAdded)
         : isSet(object.reaction_added)
-        ? PeerMessageReactionAdded.fromJSON(object.reaction_added)
+        ? MessageReactionAdded.fromJSON(object.reaction_added)
         : undefined,
       reactionRemoved: isSet(object.reactionRemoved)
-        ? PeerMessageReactionRemoved.fromJSON(object.reactionRemoved)
+        ? MessageReactionRemoved.fromJSON(object.reactionRemoved)
         : isSet(object.reaction_removed)
-        ? PeerMessageReactionRemoved.fromJSON(object.reaction_removed)
+        ? MessageReactionRemoved.fromJSON(object.reaction_removed)
         : undefined,
       stickerPlaced: isSet(object.stickerPlaced)
-        ? PeerStickerPlaced.fromJSON(object.stickerPlaced)
+        ? StickerPlaced.fromJSON(object.stickerPlaced)
         : isSet(object.sticker_placed)
-        ? PeerStickerPlaced.fromJSON(object.sticker_placed)
+        ? StickerPlaced.fromJSON(object.sticker_placed)
         : undefined,
     };
   },
@@ -3791,26 +3720,29 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
     if (message.actor !== undefined) {
       obj.actor = SingleServiceAddressInfo.toJSON(message.actor);
     }
+    if (message.isFromMe !== false) {
+      obj.isFromMe = message.isFromMe;
+    }
     if (message.messageReceived !== undefined) {
-      obj.messageReceived = PeerMessageReceived.toJSON(message.messageReceived);
+      obj.messageReceived = MessageReceived.toJSON(message.messageReceived);
     }
     if (message.messageEdited !== undefined) {
-      obj.messageEdited = PeerMessageEdited.toJSON(message.messageEdited);
+      obj.messageEdited = MessageEdited.toJSON(message.messageEdited);
     }
     if (message.messageRead !== undefined) {
-      obj.messageRead = PeerMessageRead.toJSON(message.messageRead);
+      obj.messageRead = MessageRead.toJSON(message.messageRead);
     }
     if (message.messageUnsent !== undefined) {
-      obj.messageUnsent = PeerMessageUnsent.toJSON(message.messageUnsent);
+      obj.messageUnsent = MessageUnsent.toJSON(message.messageUnsent);
     }
     if (message.reactionAdded !== undefined) {
-      obj.reactionAdded = PeerMessageReactionAdded.toJSON(message.reactionAdded);
+      obj.reactionAdded = MessageReactionAdded.toJSON(message.reactionAdded);
     }
     if (message.reactionRemoved !== undefined) {
-      obj.reactionRemoved = PeerMessageReactionRemoved.toJSON(message.reactionRemoved);
+      obj.reactionRemoved = MessageReactionRemoved.toJSON(message.reactionRemoved);
     }
     if (message.stickerPlaced !== undefined) {
-      obj.stickerPlaced = PeerStickerPlaced.toJSON(message.stickerPlaced);
+      obj.stickerPlaced = StickerPlaced.toJSON(message.stickerPlaced);
     }
     return obj;
   },
@@ -3825,26 +3757,27 @@ export const MessageChangeEvent: MessageFns<MessageChangeEvent> = {
     message.actor = (object.actor !== undefined && object.actor !== null)
       ? SingleServiceAddressInfo.fromPartial(object.actor)
       : undefined;
+    message.isFromMe = object.isFromMe ?? false;
     message.messageReceived = (object.messageReceived !== undefined && object.messageReceived !== null)
-      ? PeerMessageReceived.fromPartial(object.messageReceived)
+      ? MessageReceived.fromPartial(object.messageReceived)
       : undefined;
     message.messageEdited = (object.messageEdited !== undefined && object.messageEdited !== null)
-      ? PeerMessageEdited.fromPartial(object.messageEdited)
+      ? MessageEdited.fromPartial(object.messageEdited)
       : undefined;
     message.messageRead = (object.messageRead !== undefined && object.messageRead !== null)
-      ? PeerMessageRead.fromPartial(object.messageRead)
+      ? MessageRead.fromPartial(object.messageRead)
       : undefined;
     message.messageUnsent = (object.messageUnsent !== undefined && object.messageUnsent !== null)
-      ? PeerMessageUnsent.fromPartial(object.messageUnsent)
+      ? MessageUnsent.fromPartial(object.messageUnsent)
       : undefined;
     message.reactionAdded = (object.reactionAdded !== undefined && object.reactionAdded !== null)
-      ? PeerMessageReactionAdded.fromPartial(object.reactionAdded)
+      ? MessageReactionAdded.fromPartial(object.reactionAdded)
       : undefined;
     message.reactionRemoved = (object.reactionRemoved !== undefined && object.reactionRemoved !== null)
-      ? PeerMessageReactionRemoved.fromPartial(object.reactionRemoved)
+      ? MessageReactionRemoved.fromPartial(object.reactionRemoved)
       : undefined;
     message.stickerPlaced = (object.stickerPlaced !== undefined && object.stickerPlaced !== null)
-      ? PeerStickerPlaced.fromPartial(object.stickerPlaced)
+      ? StickerPlaced.fromPartial(object.stickerPlaced)
       : undefined;
     return message;
   },

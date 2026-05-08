@@ -25,8 +25,8 @@ export interface GetFocusStatusRequest {
 
 export interface GetFocusStatusResponse {
   /**
-   * Reflects this device's Focus configuration only — the peer's Focus
-   * state is never observable here.
+   * True when Messages currently shows this address as silenced by Focus.
+   * False also covers unknown, not shared, and not silenced.
    */
   isSilencedByFocus: boolean;
 }
@@ -406,8 +406,8 @@ export const GetIMessageAvailabilityResponse: MessageFns<GetIMessageAvailability
  *
  *   - accept an E.164 phone number such as `+14155550123`
  *   - accept a full email such as `alice@example.com`
- *   - the server trims whitespace and lowercases email queries before
- *     matching
+ *   - the server trims whitespace and lowercases email queries before lookup
+ *     or external availability checks
  *   - empty or malformed inputs are rejected with `INVALID_ARGUMENT`
  */
 export type AddressServiceDefinition = typeof AddressServiceDefinition;
@@ -429,10 +429,7 @@ export const AddressServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    /**
-     * Returns whether the address is currently silenced by the local user's
-     * Focus mode.
-     */
+    /** Returns whether Messages currently reports this address as Focus-silenced. */
     getFocusStatus: {
       name: "GetFocusStatus",
       requestType: GetFocusStatusRequest as typeof GetFocusStatusRequest,
@@ -464,10 +461,7 @@ export interface AddressServiceImplementation<CallContextExt = {}> {
     request: GetAddressInfoRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetAddressInfoResponse>>;
-  /**
-   * Returns whether the address is currently silenced by the local user's
-   * Focus mode.
-   */
+  /** Returns whether Messages currently reports this address as Focus-silenced. */
   getFocusStatus(
     request: GetFocusStatusRequest,
     context: CallContext & CallContextExt,
@@ -490,10 +484,7 @@ export interface AddressServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<GetAddressInfoRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetAddressInfoResponse>;
-  /**
-   * Returns whether the address is currently silenced by the local user's
-   * Focus mode.
-   */
+  /** Returns whether Messages currently reports this address as Focus-silenced. */
   getFocusStatus(
     request: DeepPartial<GetFocusStatusRequest>,
     options?: CallOptions & CallOptionsExt,

@@ -92,6 +92,8 @@ message ChatChangeEvent {
 
   optional SingleServiceAddressInfo actor = 3;
 
+  bool is_from_me = 4;
+
   oneof change {
 
     ChatBackgroundChanged background_changed = 10;

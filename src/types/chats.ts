@@ -29,7 +29,7 @@ export interface Chat {
 export interface CreateChatOptions {
   /** Pre-rendered attributed body for the opening message, when supplied. */
   readonly attributedBody?: Uint8Array;
-  /** Caller-generated idempotency key for the opening send. */
+  /** Caller-generated idempotency key for chat creation and the optional opening send. */
   readonly clientMessageId?: string;
   /** Full-screen or bubble effect for `message`. */
   readonly effect?: MessageEffect;
@@ -43,13 +43,8 @@ export interface CreateChatOptions {
 
 /**
  * Result of `chats.create`.
- *
- * `sendReceipt` is present when `options.message` was supplied.
  */
 export interface CreateChatResult {
   readonly chat: Chat;
-  readonly sendReceipt?: {
-    readonly messageGuid: string;
-    readonly clientMessageId?: string;
-  };
+  readonly initialMessage?: Message;
 }

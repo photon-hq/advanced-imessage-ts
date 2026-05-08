@@ -64,17 +64,9 @@ export interface SetIconRequest {
   clientMessageId?: string | undefined;
 }
 
-export interface SetIconResponse {
-  chat: Chat | undefined;
-}
-
 export interface RemoveIconRequest {
   chatGuid: string;
   clientMessageId?: string | undefined;
-}
-
-export interface RemoveIconResponse {
-  chat: Chat | undefined;
 }
 
 export interface GetIconRequest {
@@ -771,64 +763,6 @@ export const SetIconRequest: MessageFns<SetIconRequest> = {
   },
 };
 
-function createBaseSetIconResponse(): SetIconResponse {
-  return { chat: undefined };
-}
-
-export const SetIconResponse: MessageFns<SetIconResponse> = {
-  encode(message: SetIconResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chat !== undefined) {
-      Chat.encode(message.chat, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SetIconResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSetIconResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chat = Chat.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): SetIconResponse {
-    return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
-  },
-
-  toJSON(message: SetIconResponse): unknown {
-    const obj: any = {};
-    if (message.chat !== undefined) {
-      obj.chat = Chat.toJSON(message.chat);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<SetIconResponse>): SetIconResponse {
-    return SetIconResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<SetIconResponse>): SetIconResponse {
-    const message = createBaseSetIconResponse();
-    message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
-    return message;
-  },
-};
-
 function createBaseRemoveIconRequest(): RemoveIconRequest {
   return { chatGuid: "", clientMessageId: undefined };
 }
@@ -909,64 +843,6 @@ export const RemoveIconRequest: MessageFns<RemoveIconRequest> = {
     const message = createBaseRemoveIconRequest();
     message.chatGuid = object.chatGuid ?? "";
     message.clientMessageId = object.clientMessageId ?? undefined;
-    return message;
-  },
-};
-
-function createBaseRemoveIconResponse(): RemoveIconResponse {
-  return { chat: undefined };
-}
-
-export const RemoveIconResponse: MessageFns<RemoveIconResponse> = {
-  encode(message: RemoveIconResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chat !== undefined) {
-      Chat.encode(message.chat, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveIconResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveIconResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chat = Chat.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): RemoveIconResponse {
-    return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
-  },
-
-  toJSON(message: RemoveIconResponse): unknown {
-    const obj: any = {};
-    if (message.chat !== undefined) {
-      obj.chat = Chat.toJSON(message.chat);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<RemoveIconResponse>): RemoveIconResponse {
-    return RemoveIconResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<RemoveIconResponse>): RemoveIconResponse {
-    const message = createBaseRemoveIconResponse();
-    message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
     return message;
   },
 };
@@ -1279,13 +1155,7 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
   },
 };
 
-/**
- * Group-chat administration plus a durable event stream.
- *
- * Membership and naming writes return the resulting `Chat` snapshot.
- * Icon writes return `Chat` so the caller can confirm the target;
- * the icon bytes themselves are fetched via `GetIcon`.
- */
+/** Group-chat administration plus a durable event stream. */
 export type GroupServiceDefinition = typeof GroupServiceDefinition;
 export const GroupServiceDefinition = {
   name: "GroupService",
@@ -1332,7 +1202,7 @@ export const GroupServiceDefinition = {
       name: "SetIcon",
       requestType: SetIconRequest as typeof SetIconRequest,
       requestStream: false,
-      responseType: SetIconResponse as typeof SetIconResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
@@ -1340,7 +1210,7 @@ export const GroupServiceDefinition = {
       name: "RemoveIcon",
       requestType: RemoveIconRequest as typeof RemoveIconRequest,
       requestStream: false,
-      responseType: RemoveIconResponse as typeof RemoveIconResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
@@ -1384,11 +1254,8 @@ export interface GroupServiceImplementation<CallContextExt = {}> {
    * visible from this device, hence no Chat snapshot.
    */
   leaveGroup(request: LeaveGroupRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
-  setIcon(request: SetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<SetIconResponse>>;
-  removeIcon(
-    request: RemoveIconRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<RemoveIconResponse>>;
+  setIcon(request: SetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  removeIcon(request: RemoveIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
   /** Reads */
   getIcon(request: GetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<GetIconResponse>>;
   /** Streams */
@@ -1417,11 +1284,8 @@ export interface GroupServiceClient<CallOptionsExt = {}> {
    * visible from this device, hence no Chat snapshot.
    */
   leaveGroup(request: DeepPartial<LeaveGroupRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
-  setIcon(request: DeepPartial<SetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<SetIconResponse>;
-  removeIcon(
-    request: DeepPartial<RemoveIconRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<RemoveIconResponse>;
+  setIcon(request: DeepPartial<SetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  removeIcon(request: DeepPartial<RemoveIconRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
   /** Reads */
   getIcon(request: DeepPartial<GetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<GetIconResponse>;
   /** Streams */

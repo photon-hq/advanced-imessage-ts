@@ -8,8 +8,8 @@ const im = createClient({
 
 const chat = "any;+;group-chat-guid";
 
-const updated = await im.groups.removeIcon(chat);
+await im.groups.removeIcon(chat);
 
-console.log("guid:", updated.guid);
+console.log("icon removed");
 
 await im.close();

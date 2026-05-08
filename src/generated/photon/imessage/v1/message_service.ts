@@ -35,8 +35,10 @@ export interface MessageTarget {
 }
 
 /**
- * Plain-text or rich-text send. `dd_scan` enables Apple's data-detector
- * pass; `rich_link` enables URL-preview generation.
+ * Plain-text or rich-text send.
+ *
+ * `enable_data_detection` enables Apple's data-detector pass.
+ * `enable_link_preview` enables URL-preview generation.
  */
 export interface SendTextMessageRequest {
   chatGuid: string;
@@ -44,8 +46,8 @@ export interface SendTextMessageRequest {
   replyTo?: ReplyTarget | undefined;
   subject?: string | undefined;
   effectId?: string | undefined;
-  ddScan?: boolean | undefined;
-  richLink?: boolean | undefined;
+  enableDataDetection?: boolean | undefined;
+  enableLinkPreview?: boolean | undefined;
   formatting: TextFormat[];
   clientMessageId?: string | undefined;
 }
@@ -53,7 +55,7 @@ export interface SendTextMessageRequest {
 /**
  * Single-attachment send. The attachment is referenced either by GUID
  * (already uploaded via `AttachmentService.UploadAttachment`) or by an
- * absolute filesystem path readable by the helper process.
+ * absolute filesystem path readable by the local mutation process.
  */
 export interface SendAttachmentMessageRequest {
   chatGuid: string;
@@ -64,14 +66,14 @@ export interface SendAttachmentMessageRequest {
   clientMessageId?: string | undefined;
 }
 
-/** Multipart send — multiple bubbles delivered atomically. */
+/** Multipart send: multiple bubbles delivered atomically. */
 export interface SendMultipartMessageRequest {
   chatGuid: string;
   parts: MessagePart[];
   replyTo?: ReplyTarget | undefined;
   subject?: string | undefined;
   effectId?: string | undefined;
-  ddScan?: boolean | undefined;
+  enableDataDetection?: boolean | undefined;
   clientMessageId?: string | undefined;
 }
 
@@ -120,14 +122,15 @@ export interface PlaceStickerRequest {
 }
 
 export interface NotifySilencedMessageRequest {
-  target: MessageTarget | undefined;
+  chatGuid: string;
+  messageGuid: string;
   clientMessageId?: string | undefined;
 }
 
 export interface GetMessageRequest {
   /**
-   * Visibility scope. The server uses `chat_guid` to authorise the read
-   * and to disambiguate cross-chat duplicates.
+   * Visibility scope. The server uses `chat_guid` to authorise the read and
+   * to disambiguate cross-chat duplicates.
    */
   chatGuid: string;
   messageGuid: string;
@@ -138,8 +141,10 @@ export interface GetMessageResponse {
 }
 
 /**
- * Pages across the caller's recent message history. Filters AND-compose;
- * `before` / `after` define a half-open window `[after, before)`.
+ * Pages across the caller's recent message history.
+ *
+ * Filters compose with AND semantics. `before` / `after` define a half-open window:
+ * `[after, before)`.
  */
 export interface ListRecentMessagesRequest {
   pageSize?: number | undefined;
@@ -306,8 +311,8 @@ function createBaseSendTextMessageRequest(): SendTextMessageRequest {
     replyTo: undefined,
     subject: undefined,
     effectId: undefined,
-    ddScan: undefined,
-    richLink: undefined,
+    enableDataDetection: undefined,
+    enableLinkPreview: undefined,
     formatting: [],
     clientMessageId: undefined,
   };
@@ -330,11 +335,11 @@ export const SendTextMessageRequest: MessageFns<SendTextMessageRequest> = {
     if (message.effectId !== undefined) {
       writer.uint32(42).string(message.effectId);
     }
-    if (message.ddScan !== undefined) {
-      writer.uint32(48).bool(message.ddScan);
+    if (message.enableDataDetection !== undefined) {
+      writer.uint32(48).bool(message.enableDataDetection);
     }
-    if (message.richLink !== undefined) {
-      writer.uint32(56).bool(message.richLink);
+    if (message.enableLinkPreview !== undefined) {
+      writer.uint32(56).bool(message.enableLinkPreview);
     }
     for (const v of message.formatting) {
       TextFormat.encode(v!, writer.uint32(66).fork()).join();
@@ -397,7 +402,7 @@ export const SendTextMessageRequest: MessageFns<SendTextMessageRequest> = {
             break;
           }
 
-          message.ddScan = reader.bool();
+          message.enableDataDetection = reader.bool();
           continue;
         }
         case 7: {
@@ -405,7 +410,7 @@ export const SendTextMessageRequest: MessageFns<SendTextMessageRequest> = {
             break;
           }
 
-          message.richLink = reader.bool();
+          message.enableLinkPreview = reader.bool();
           continue;
         }
         case 8: {
@@ -452,15 +457,15 @@ export const SendTextMessageRequest: MessageFns<SendTextMessageRequest> = {
         : isSet(object.effect_id)
         ? globalThis.String(object.effect_id)
         : undefined,
-      ddScan: isSet(object.ddScan)
-        ? globalThis.Boolean(object.ddScan)
-        : isSet(object.dd_scan)
-        ? globalThis.Boolean(object.dd_scan)
+      enableDataDetection: isSet(object.enableDataDetection)
+        ? globalThis.Boolean(object.enableDataDetection)
+        : isSet(object.enable_data_detection)
+        ? globalThis.Boolean(object.enable_data_detection)
         : undefined,
-      richLink: isSet(object.richLink)
-        ? globalThis.Boolean(object.richLink)
-        : isSet(object.rich_link)
-        ? globalThis.Boolean(object.rich_link)
+      enableLinkPreview: isSet(object.enableLinkPreview)
+        ? globalThis.Boolean(object.enableLinkPreview)
+        : isSet(object.enable_link_preview)
+        ? globalThis.Boolean(object.enable_link_preview)
         : undefined,
       formatting: globalThis.Array.isArray(object?.formatting)
         ? object.formatting.map((e: any) => TextFormat.fromJSON(e))
@@ -490,11 +495,11 @@ export const SendTextMessageRequest: MessageFns<SendTextMessageRequest> = {
     if (message.effectId !== undefined) {
       obj.effectId = message.effectId;
     }
-    if (message.ddScan !== undefined) {
-      obj.ddScan = message.ddScan;
+    if (message.enableDataDetection !== undefined) {
+      obj.enableDataDetection = message.enableDataDetection;
     }
-    if (message.richLink !== undefined) {
-      obj.richLink = message.richLink;
+    if (message.enableLinkPreview !== undefined) {
+      obj.enableLinkPreview = message.enableLinkPreview;
     }
     if (message.formatting?.length) {
       obj.formatting = message.formatting.map((e) => TextFormat.toJSON(e));
@@ -517,8 +522,8 @@ export const SendTextMessageRequest: MessageFns<SendTextMessageRequest> = {
       : undefined;
     message.subject = object.subject ?? undefined;
     message.effectId = object.effectId ?? undefined;
-    message.ddScan = object.ddScan ?? undefined;
-    message.richLink = object.richLink ?? undefined;
+    message.enableDataDetection = object.enableDataDetection ?? undefined;
+    message.enableLinkPreview = object.enableLinkPreview ?? undefined;
     message.formatting = object.formatting?.map((e) => TextFormat.fromPartial(e)) || [];
     message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
@@ -703,7 +708,7 @@ function createBaseSendMultipartMessageRequest(): SendMultipartMessageRequest {
     replyTo: undefined,
     subject: undefined,
     effectId: undefined,
-    ddScan: undefined,
+    enableDataDetection: undefined,
     clientMessageId: undefined,
   };
 }
@@ -725,8 +730,8 @@ export const SendMultipartMessageRequest: MessageFns<SendMultipartMessageRequest
     if (message.effectId !== undefined) {
       writer.uint32(42).string(message.effectId);
     }
-    if (message.ddScan !== undefined) {
-      writer.uint32(48).bool(message.ddScan);
+    if (message.enableDataDetection !== undefined) {
+      writer.uint32(48).bool(message.enableDataDetection);
     }
     if (message.clientMessageId !== undefined) {
       writer.uint32(802).string(message.clientMessageId);
@@ -786,7 +791,7 @@ export const SendMultipartMessageRequest: MessageFns<SendMultipartMessageRequest
             break;
           }
 
-          message.ddScan = reader.bool();
+          message.enableDataDetection = reader.bool();
           continue;
         }
         case 100: {
@@ -825,10 +830,10 @@ export const SendMultipartMessageRequest: MessageFns<SendMultipartMessageRequest
         : isSet(object.effect_id)
         ? globalThis.String(object.effect_id)
         : undefined,
-      ddScan: isSet(object.ddScan)
-        ? globalThis.Boolean(object.ddScan)
-        : isSet(object.dd_scan)
-        ? globalThis.Boolean(object.dd_scan)
+      enableDataDetection: isSet(object.enableDataDetection)
+        ? globalThis.Boolean(object.enableDataDetection)
+        : isSet(object.enable_data_detection)
+        ? globalThis.Boolean(object.enable_data_detection)
         : undefined,
       clientMessageId: isSet(object.clientMessageId)
         ? globalThis.String(object.clientMessageId)
@@ -855,8 +860,8 @@ export const SendMultipartMessageRequest: MessageFns<SendMultipartMessageRequest
     if (message.effectId !== undefined) {
       obj.effectId = message.effectId;
     }
-    if (message.ddScan !== undefined) {
-      obj.ddScan = message.ddScan;
+    if (message.enableDataDetection !== undefined) {
+      obj.enableDataDetection = message.enableDataDetection;
     }
     if (message.clientMessageId !== undefined) {
       obj.clientMessageId = message.clientMessageId;
@@ -876,7 +881,7 @@ export const SendMultipartMessageRequest: MessageFns<SendMultipartMessageRequest
       : undefined;
     message.subject = object.subject ?? undefined;
     message.effectId = object.effectId ?? undefined;
-    message.ddScan = object.ddScan ?? undefined;
+    message.enableDataDetection = object.enableDataDetection ?? undefined;
     message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
@@ -1385,13 +1390,16 @@ export const PlaceStickerRequest: MessageFns<PlaceStickerRequest> = {
 };
 
 function createBaseNotifySilencedMessageRequest(): NotifySilencedMessageRequest {
-  return { target: undefined, clientMessageId: undefined };
+  return { chatGuid: "", messageGuid: "", clientMessageId: undefined };
 }
 
 export const NotifySilencedMessageRequest: MessageFns<NotifySilencedMessageRequest> = {
   encode(message: NotifySilencedMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.target !== undefined) {
-      MessageTarget.encode(message.target, writer.uint32(10).fork()).join();
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.messageGuid !== "") {
+      writer.uint32(18).string(message.messageGuid);
     }
     if (message.clientMessageId !== undefined) {
       writer.uint32(802).string(message.clientMessageId);
@@ -1411,7 +1419,15 @@ export const NotifySilencedMessageRequest: MessageFns<NotifySilencedMessageReque
             break;
           }
 
-          message.target = MessageTarget.decode(reader, reader.uint32());
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.messageGuid = reader.string();
           continue;
         }
         case 100: {
@@ -1433,7 +1449,16 @@ export const NotifySilencedMessageRequest: MessageFns<NotifySilencedMessageReque
 
   fromJSON(object: any): NotifySilencedMessageRequest {
     return {
-      target: isSet(object.target) ? MessageTarget.fromJSON(object.target) : undefined,
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      messageGuid: isSet(object.messageGuid)
+        ? globalThis.String(object.messageGuid)
+        : isSet(object.message_guid)
+        ? globalThis.String(object.message_guid)
+        : "",
       clientMessageId: isSet(object.clientMessageId)
         ? globalThis.String(object.clientMessageId)
         : isSet(object.client_message_id)
@@ -1444,8 +1469,11 @@ export const NotifySilencedMessageRequest: MessageFns<NotifySilencedMessageReque
 
   toJSON(message: NotifySilencedMessageRequest): unknown {
     const obj: any = {};
-    if (message.target !== undefined) {
-      obj.target = MessageTarget.toJSON(message.target);
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.messageGuid !== "") {
+      obj.messageGuid = message.messageGuid;
     }
     if (message.clientMessageId !== undefined) {
       obj.clientMessageId = message.clientMessageId;
@@ -1458,9 +1486,8 @@ export const NotifySilencedMessageRequest: MessageFns<NotifySilencedMessageReque
   },
   fromPartial(object: DeepPartial<NotifySilencedMessageRequest>): NotifySilencedMessageRequest {
     const message = createBaseNotifySilencedMessageRequest();
-    message.target = (object.target !== undefined && object.target !== null)
-      ? MessageTarget.fromPartial(object.target)
-      : undefined;
+    message.chatGuid = object.chatGuid ?? "";
+    message.messageGuid = object.messageGuid ?? "";
     message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
@@ -2428,10 +2455,14 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
 /**
  * Sends, mutates, reads, and observes messages.
  *
- * Writes are synchronous: the response carries the resulting `Message`
- * snapshot. Peer-originated changes flow through `SubscribeMessageEvents`;
- * for gap-free reconnect drain history with `EventService.CatchUpEvents`
- * before joining the live subscription.
+ * Writes are synchronous to the command path. Methods that return
+ * `MessageResponse` also perform the reads needed to return a fresh message
+ * snapshot; methods that return `google.protobuf.Empty` do not add a projection
+ * read unless their individual contract says so.
+ *
+ * Durable message changes flow through `SubscribeMessageEvents`. For gap-free
+ * reconnect, drain history with `EventService.CatchUpEvents` before joining
+ * the live subscription.
  */
 export type MessageServiceDefinition = typeof MessageServiceDefinition;
 export const MessageServiceDefinition = {
@@ -2471,11 +2502,12 @@ export const MessageServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    /** Retracts an existing message and returns Empty after helper success. */
     unsendMessage: {
       name: "UnsendMessage",
       requestType: UnsendMessageRequest as typeof UnsendMessageRequest,
       requestStream: false,
-      responseType: MessageResponse as typeof MessageResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
@@ -2495,12 +2527,7 @@ export const MessageServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    /**
-     * Triggers Apple's per-message "Notify Anyway" action against an
-     * existing message in a Focus-silenced chat. Does not resend, does
-     * not expose delivery / view outcome, returns no observable change —
-     * hence `Empty`.
-     */
+    /** Triggers Apple's per-message "Notify Anyway" action. */
     notifySilencedMessage: {
       name: "NotifySilencedMessage",
       requestType: NotifySilencedMessageRequest as typeof NotifySilencedMessageRequest,
@@ -2543,7 +2570,7 @@ export const MessageServiceDefinition = {
       options: {},
     },
     /**
-     * Live peer-event subscription. Pair with `EventService.CatchUpEvents`
+     * Live durable-event subscription. Pair with `EventService.CatchUpEvents`
      * for gap-free history-then-live consumption.
      */
     subscribeMessageEvents: {
@@ -2575,10 +2602,8 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
     request: EditMessageRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<MessageResponse>>;
-  unsendMessage(
-    request: UnsendMessageRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<MessageResponse>>;
+  /** Retracts an existing message and returns Empty after helper success. */
+  unsendMessage(request: UnsendMessageRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
   setReaction(
     request: SetReactionRequest,
     context: CallContext & CallContextExt,
@@ -2587,12 +2612,7 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
     request: PlaceStickerRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<MessageResponse>>;
-  /**
-   * Triggers Apple's per-message "Notify Anyway" action against an
-   * existing message in a Focus-silenced chat. Does not resend, does
-   * not expose delivery / view outcome, returns no observable change —
-   * hence `Empty`.
-   */
+  /** Triggers Apple's per-message "Notify Anyway" action. */
   notifySilencedMessage(
     request: NotifySilencedMessageRequest,
     context: CallContext & CallContextExt,
@@ -2615,7 +2635,7 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetEmbeddedMediaResponse>>;
   /**
-   * Live peer-event subscription. Pair with `EventService.CatchUpEvents`
+   * Live durable-event subscription. Pair with `EventService.CatchUpEvents`
    * for gap-free history-then-live consumption.
    */
   subscribeMessageEvents(
@@ -2642,10 +2662,8 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<EditMessageRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<MessageResponse>;
-  unsendMessage(
-    request: DeepPartial<UnsendMessageRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<MessageResponse>;
+  /** Retracts an existing message and returns Empty after helper success. */
+  unsendMessage(request: DeepPartial<UnsendMessageRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
   setReaction(
     request: DeepPartial<SetReactionRequest>,
     options?: CallOptions & CallOptionsExt,
@@ -2654,12 +2672,7 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<PlaceStickerRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<MessageResponse>;
-  /**
-   * Triggers Apple's per-message "Notify Anyway" action against an
-   * existing message in a Focus-silenced chat. Does not resend, does
-   * not expose delivery / view outcome, returns no observable change —
-   * hence `Empty`.
-   */
+  /** Triggers Apple's per-message "Notify Anyway" action. */
   notifySilencedMessage(
     request: DeepPartial<NotifySilencedMessageRequest>,
     options?: CallOptions & CallOptionsExt,
@@ -2682,7 +2695,7 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetEmbeddedMediaResponse>;
   /**
-   * Live peer-event subscription. Pair with `EventService.CatchUpEvents`
+   * Live durable-event subscription. Pair with `EventService.CatchUpEvents`
    * for gap-free history-then-live consumption.
    */
   subscribeMessageEvents(

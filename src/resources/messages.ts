@@ -108,8 +108,8 @@ export class MessagesResource {
         replyTo: mapReplyTarget(options?.replyTo),
         subject: options?.subject,
         effectId: options?.effect,
-        ddScan: options?.ddScan,
-        richLink: options?.richLink,
+        enableDataDetection: options?.enableDataDetection,
+        enableLinkPreview: options?.enableLinkPreview,
         formatting: (options?.formatting ?? []).map(mapTextFormatInput),
         clientMessageId: options?.clientMessageId,
       });
@@ -166,7 +166,7 @@ export class MessagesResource {
     parts: readonly MessagePart[],
     options?: {
       readonly clientMessageId?: string;
-      readonly ddScan?: boolean;
+      readonly enableDataDetection?: boolean;
       readonly effect?: MessageEffect;
       readonly replyTo?: SendOptions["replyTo"];
       readonly subject?: string;
@@ -179,7 +179,7 @@ export class MessagesResource {
         replyTo: mapReplyTarget(options?.replyTo),
         subject: options?.subject,
         effectId: options?.effect,
-        ddScan: options?.ddScan,
+        enableDataDetection: options?.enableDataDetection,
         clientMessageId: options?.clientMessageId,
       });
       return mapMessage(unwrap(response.message, "message"));
@@ -227,8 +227,6 @@ export class MessagesResource {
   /**
    * Retract (un-send) a message, within Apple's 2-minute window.
    *
-   * The returned snapshot reflects the latest visible row after retraction.
-   *
    * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
    *               `chat.guid`.
    * @param message - Guid of the message to retract (`message.guid`).
@@ -237,9 +235,9 @@ export class MessagesResource {
     chat: string,
     message: string,
     options?: { readonly clientMessageId?: string; readonly partIndex?: number }
-  ): Promise<Message> {
+  ): Promise<void> {
     try {
-      const response = await this._client.unsendMessage({
+      await this._client.unsendMessage({
         target: {
           chatGuid: normalizeChatGuid(chat),
           messageGuid: message,
@@ -247,7 +245,6 @@ export class MessagesResource {
         },
         clientMessageId: options?.clientMessageId,
       });
-      return mapMessage(unwrap(response.message, "message"));
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -330,15 +327,12 @@ export class MessagesResource {
   async notifySilenced(
     chat: string,
     message: string,
-    options?: { readonly clientMessageId?: string; readonly partIndex?: number }
+    options?: { readonly clientMessageId?: string }
   ): Promise<void> {
     try {
       await this._client.notifySilencedMessage({
-        target: {
-          chatGuid: normalizeChatGuid(chat),
-          messageGuid: message,
-          targetPartIndex: options?.partIndex,
-        },
+        chatGuid: normalizeChatGuid(chat),
+        messageGuid: message,
         clientMessageId: options?.clientMessageId,
       });
     } catch (err) {

@@ -16,8 +16,9 @@ option swift_prefix = "PIMsg_";
 // Discriminates regular messages from the synthetic "system" rows Apple
 // uses to record chat lifecycle changes.
 //
-// Wire values mirror chat.db `message.item_type` — `0` is a real
-// "normal" value, not "unspecified".
+// Wire values mirror chat.db `message.item_type`.
+//
+// `0` is a real "normal" value, not "unspecified".
 enum MessageItemType {
 
   MESSAGE_ITEM_TYPE_NORMAL = 0;
@@ -37,9 +38,9 @@ enum MessageItemType {
 // value is delivered out-of-band (`MessageReaction.emoji` for emoji
 // tapbacks, the associated message itself for sticker tapbacks).
 //
-// Wire values are transport-internal — Apple stores tapback kind in a
-// composite `associated_message_type` column, not as a direct integer
-// match for these tags.
+// Wire values are transport-internal. Apple stores tapback kind in a composite
+// `associated_message_type` column, not as a direct integer match for these
+// tags.
 enum MessageReactionKind {
 
   MESSAGE_REACTION_KIND_LOVE = 0;
@@ -56,9 +57,11 @@ enum MessageReactionKind {
 
   MESSAGE_REACTION_KIND_EMOJI = 6;
 
-  // Carrier for sticker tapbacks; the placed sticker arrives as its own
-  // attachment row, not as a `MessageReaction`. Servers MUST reject
-  // `SetReaction` calls that pass `STICKER` — use `PlaceSticker` instead.
+  // Carrier for sticker tapbacks.
+  //
+  // The placed sticker arrives as its own attachment row, not as a
+  // `MessageReaction`. Servers reject `SetReaction` calls that pass
+  // `STICKER`; use `PlaceSticker` instead.
   MESSAGE_REACTION_KIND_STICKER = 7;
 
 }
@@ -265,7 +268,7 @@ message Message {
   bool is_delivered_quietly = 32;
 
   // Monterey+. The recipient's device was actually woken to surface the
-  // message — pair with `is_delivered_quietly` to distinguish silent vs
+  // message. Pair with `is_delivered_quietly` to distinguish silent vs
   // notified delivery.
   bool did_notify_recipient = 33;
 
@@ -300,7 +303,7 @@ message Message {
   bool data_detector_results_present = 46;
 
   // Mirrors chat.db `message.is_archive`. Per-row archival flag,
-  // distinct from the chat-level `Chat.is_archived` view state — set
+  // distinct from the chat-level `Chat.is_archived` view state. Set
   // on individual messages Apple has hidden from default queries.
   bool is_archived = 47;
 
@@ -328,7 +331,7 @@ message Message {
   optional string group_title = 61;
 
   // Subtype for `MESSAGE_ITEM_TYPE_CHAT_ACTION` rows (Apple private
-  // schema). Promoted to a typed enum is future work — see
+  // schema). Promoted to a typed enum is future work; see
   // domain `ChatActionType`.
   optional int32 chat_action_type = 62;
 
@@ -346,7 +349,7 @@ message Message {
 
   // Raw Apple `reply_to_guid` storage column. Frequently populated on
   // ordinary non-reply messages and may point at unrelated rows;
-  // surface for diagnostics only — prefer `reply_target_guid` to
+  // surface for diagnostics only. Prefer `reply_target_guid` to
   // determine a real reply.
   optional string reply_to_guid = 73;
 
@@ -389,7 +392,7 @@ message Message {
 }
 
 
-// Inline media payload returned by `MessageService.GetEmbeddedMedia` —
+// Inline media payload returned by `MessageService.GetEmbeddedMedia`;
 // e.g. a sticker bundle or a balloon-app preview image.
 message EmbeddedMedia {
 
@@ -400,31 +403,20 @@ message EmbeddedMedia {
 }
 
 
-// Minimal send receipt used where callers need correlation but not a
-// full persisted message snapshot.
-message MessageSendReceipt {
-
-  string message_guid = 1;
-
-  optional string client_message_id = 2;
-
-}
-
-
 // ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
 
 // A new message has landed in a chat.
-message PeerMessageReceived {
+message MessageReceived {
 
   Message message = 1;
 
 }
 
 
-// A peer (or the local user from another device) has edited a message.
-message PeerMessageEdited {
+// An existing message was edited.
+message MessageEdited {
 
   string message_guid = 1;
 
@@ -435,7 +427,8 @@ message PeerMessageEdited {
 }
 
 
-message PeerMessageRead {
+// A message originally sent by the local user was read.
+message MessageRead {
 
   string message_guid = 1;
 
@@ -444,8 +437,8 @@ message PeerMessageRead {
 }
 
 
-// A peer has retracted (unsent) a message.
-message PeerMessageUnsent {
+// A message was retracted.
+message MessageUnsent {
 
   string message_guid = 1;
 
@@ -454,7 +447,7 @@ message PeerMessageUnsent {
 }
 
 
-message PeerMessageReactionAdded {
+message MessageReactionAdded {
 
   string message_guid = 1;
 
@@ -465,7 +458,7 @@ message PeerMessageReactionAdded {
 }
 
 
-message PeerMessageReactionRemoved {
+message MessageReactionRemoved {
 
   string message_guid = 1;
 
@@ -476,7 +469,7 @@ message PeerMessageReactionRemoved {
 }
 
 
-message PeerStickerPlaced {
+message StickerPlaced {
 
   string message_guid = 1;
 
@@ -498,21 +491,23 @@ message MessageChangeEvent {
 
   optional SingleServiceAddressInfo actor = 3;
 
+  bool is_from_me = 4;
+
   oneof change {
 
-    PeerMessageReceived message_received = 10;
+    MessageReceived message_received = 10;
 
-    PeerMessageEdited message_edited = 11;
+    MessageEdited message_edited = 11;
 
-    PeerMessageRead message_read = 12;
+    MessageRead message_read = 12;
 
-    PeerMessageUnsent message_unsent = 13;
+    MessageUnsent message_unsent = 13;
 
-    PeerMessageReactionAdded reaction_added = 14;
+    MessageReactionAdded reaction_added = 14;
 
-    PeerMessageReactionRemoved reaction_removed = 15;
+    MessageReactionRemoved reaction_removed = 15;
 
-    PeerStickerPlaced sticker_placed = 16;
+    StickerPlaced sticker_placed = 16;
 
   }
 

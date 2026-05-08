@@ -178,6 +178,42 @@ describe("MessagesResource", () => {
     }
   });
 
+  it("forwards sendText feature toggles using the server field names", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async sendTextMessage(request: Record<string, unknown>) {
+        captured = request;
+        return { message: makeMessage("feature-toggles") };
+      },
+    } as any);
+
+    await resource.sendText(chatGuidValue, "https://example.com", {
+      enableDataDetection: true,
+      enableLinkPreview: true,
+    });
+
+    expect(captured?.enableDataDetection).toBe(true);
+    expect(captured?.enableLinkPreview).toBe(true);
+  });
+
+  it("forwards sendMultipart data detection using the server field name", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async sendMultipartMessage(request: Record<string, unknown>) {
+        captured = request;
+        return { message: makeMessage("multipart-feature-toggles") };
+      },
+    } as any);
+
+    await resource.sendMultipart(
+      chatGuidValue,
+      [{ text: "https://example.com" }],
+      { enableDataDetection: true }
+    );
+
+    expect(captured?.enableDataDetection).toBe(true);
+  });
+
   describe("TextFormatInput → wire formatting (exhaustive)", () => {
     for (const type of [
       "bold",
@@ -722,13 +758,6 @@ describe("MessagesResource", () => {
             { partIndex: 4 }
           ),
       ],
-      [
-        "notifySilenced",
-        "notifySilenced",
-        "notifySilencedMessage",
-        (r) =>
-          r.notifySilenced(chatGuidValue, messageGuidValue, { partIndex: 5 }),
-      ],
     ];
 
     for (const [label, _, rpcMethod, invoke] of cases) {
@@ -747,5 +776,25 @@ describe("MessagesResource", () => {
         ).toBeDefined();
       });
     }
+  });
+
+  it("notifySilenced uses top-level chat/message identifiers", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async notifySilencedMessage(request: Record<string, unknown>) {
+        captured = request;
+        return {};
+      },
+    } as any);
+
+    await resource.notifySilenced(chatGuidValue, messageGuidValue, {
+      clientMessageId: "notify-1",
+    });
+
+    expect(captured).toEqual({
+      chatGuid: chatGuidValue,
+      messageGuid: messageGuidValue,
+      clientMessageId: "notify-1",
+    });
   });
 });

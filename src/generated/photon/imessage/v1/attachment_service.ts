@@ -53,7 +53,7 @@ export interface DownloadHeader {
  *
  *   Frame 0       exactly one `header`
  *   Frames 1..N   `primary_chunk*`
- *   Frames N+1..M `companion_chunk*` — emitted only when a companion exists
+ *   Frames N+1..M `companion_chunk*` emitted only when a companion exists
  *   Close         gRPC half-close, no sentinel frame
  */
 export interface DownloadAttachmentResponse {

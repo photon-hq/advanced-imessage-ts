@@ -9,10 +9,8 @@ const im = createClient({
 const chat = "any;-;alice@example.com";
 const messageGuid = "message-guid";
 
-const unsent = await im.messages.unsend(chat, messageGuid);
+await im.messages.unsend(chat, messageGuid);
 
-console.log("guid:", unsent.guid);
-console.log("partCount:", unsent.partCount);
-console.log("text:", unsent.content.text ?? null);
+console.log("message unsent");
 
 await im.close();

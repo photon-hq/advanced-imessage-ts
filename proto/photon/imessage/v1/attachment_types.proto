@@ -7,10 +7,11 @@ option swift_prefix = "PIMsg_";
 
 // Mirrors chat.db `attachment.transfer_state` (Apple `IMTransferState`); wire
 // values equal DB values, gaps included. Zero is `PENDING`, not
-// `UNSPECIFIED` — the server always populates this field.
+// `UNSPECIFIED`; the server always populates this field.
 enum TransferState {
 
   TRANSFER_STATE_PENDING = 0;
+  TRANSFER_STATE_UNAVAILABLE = -1;
   TRANSFER_STATE_TRANSFERRING = 1;
   TRANSFER_STATE_FAILED = 2;
   TRANSFER_STATE_FINISHED = 5;
@@ -33,7 +34,7 @@ message AttachmentInfo {
 
   string guid = 1;
 
-  // Set on attachments superseded by an edit — points to the original
+  // Set on attachments superseded by an edit. Points to the original
   // attachment GUID this row replaced.
   optional string original_guid = 2;
 

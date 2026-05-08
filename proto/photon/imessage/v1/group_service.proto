@@ -15,10 +15,6 @@ option swift_prefix = "PIMsg_";
 // ---------------------------------------------------------------------------
 
 // Group-chat administration plus a durable event stream.
-//
-// Membership and naming writes return the resulting `Chat` snapshot.
-// Icon writes return `Chat` so the caller can confirm the target;
-// the icon bytes themselves are fetched via `GetIcon`.
 service GroupService {
 
   // Writes
@@ -32,9 +28,9 @@ service GroupService {
   // visible from this device, hence no Chat snapshot.
   rpc LeaveGroup(LeaveGroupRequest) returns (google.protobuf.Empty);
 
-  rpc SetIcon(SetIconRequest) returns (SetIconResponse);
+  rpc SetIcon(SetIconRequest) returns (google.protobuf.Empty);
 
-  rpc RemoveIcon(RemoveIconRequest) returns (RemoveIconResponse);
+  rpc RemoveIcon(RemoveIconRequest) returns (google.protobuf.Empty);
 
   // Reads
   rpc GetIcon(GetIconRequest) returns (GetIconResponse);
@@ -129,25 +125,11 @@ message SetIconRequest {
 }
 
 
-message SetIconResponse {
-
-  Chat chat = 1;
-
-}
-
-
 message RemoveIconRequest {
 
   string chat_guid = 1;
 
   optional string client_message_id = 100;
-
-}
-
-
-message RemoveIconResponse {
-
-  Chat chat = 1;
 
 }
 
@@ -193,8 +175,11 @@ message SubscribeGroupEventsResponse {
   optional uint64 sequence = 1;
 
   oneof payload {
+
     GroupChangeEvent group_changed = 10;
+
     Heartbeat heartbeat = 99;
+
   }
 
 }

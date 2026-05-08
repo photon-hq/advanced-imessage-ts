@@ -8,7 +8,7 @@ const im = createClient({
 
 const chat = "any;-;alice@example.com";
 
-const updated = await im.chats.removeBackground(chat);
-console.log("background removed:", updated.guid);
+await im.chats.removeBackground(chat);
+console.log("background removed");
 
 await im.close();

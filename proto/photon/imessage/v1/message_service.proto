@@ -16,10 +16,14 @@ option swift_prefix = "PIMsg_";
 
 // Sends, mutates, reads, and observes messages.
 //
-// Writes are synchronous: the response carries the resulting `Message`
-// snapshot. Peer-originated changes flow through `SubscribeMessageEvents`;
-// for gap-free reconnect drain history with `EventService.CatchUpEvents`
-// before joining the live subscription.
+// Writes are synchronous to the command path. Methods that return
+// `MessageResponse` also perform the reads needed to return a fresh message
+// snapshot; methods that return `google.protobuf.Empty` do not add a projection
+// read unless their individual contract says so.
+//
+// Durable message changes flow through `SubscribeMessageEvents`. For gap-free
+// reconnect, drain history with `EventService.CatchUpEvents` before joining
+// the live subscription.
 service MessageService {
 
   // Writes
@@ -31,16 +35,14 @@ service MessageService {
 
   rpc EditMessage(EditMessageRequest) returns (MessageResponse);
 
-  rpc UnsendMessage(UnsendMessageRequest) returns (MessageResponse);
+  // Retracts an existing message and returns Empty after helper success.
+  rpc UnsendMessage(UnsendMessageRequest) returns (google.protobuf.Empty);
 
   rpc SetReaction(SetReactionRequest) returns (MessageResponse);
 
   rpc PlaceSticker(PlaceStickerRequest) returns (MessageResponse);
 
-  // Triggers Apple's per-message "Notify Anyway" action against an
-  // existing message in a Focus-silenced chat. Does not resend, does
-  // not expose delivery / view outcome, returns no observable change —
-  // hence `Empty`.
+  // Triggers Apple's per-message "Notify Anyway" action.
   rpc NotifySilencedMessage(NotifySilencedMessageRequest) returns (google.protobuf.Empty);
 
   // Reads
@@ -52,7 +54,7 @@ service MessageService {
 
   rpc GetEmbeddedMedia(GetEmbeddedMediaRequest) returns (GetEmbeddedMediaResponse);
 
-  // Live peer-event subscription. Pair with `EventService.CatchUpEvents`
+  // Live durable-event subscription. Pair with `EventService.CatchUpEvents`
   // for gap-free history-then-live consumption.
   rpc SubscribeMessageEvents(SubscribeMessageEventsRequest) returns (stream SubscribeMessageEventsResponse);
 
@@ -80,8 +82,10 @@ message MessageTarget {
 // Send variants
 // ---------------------------------------------------------------------------
 
-// Plain-text or rich-text send. `dd_scan` enables Apple's data-detector
-// pass; `rich_link` enables URL-preview generation.
+// Plain-text or rich-text send.
+//
+// `enable_data_detection` enables Apple's data-detector pass.
+// `enable_link_preview` enables URL-preview generation.
 message SendTextMessageRequest {
 
   string chat_guid = 1;
@@ -94,9 +98,9 @@ message SendTextMessageRequest {
 
   optional string effect_id = 5;
 
-  optional bool dd_scan = 6;
+  optional bool enable_data_detection = 6;
 
-  optional bool rich_link = 7;
+  optional bool enable_link_preview = 7;
 
   repeated TextFormat formatting = 8;
 
@@ -107,7 +111,7 @@ message SendTextMessageRequest {
 
 // Single-attachment send. The attachment is referenced either by GUID
 // (already uploaded via `AttachmentService.UploadAttachment`) or by an
-// absolute filesystem path readable by the helper process.
+// absolute filesystem path readable by the local mutation process.
 message SendAttachmentMessageRequest {
 
   string chat_guid = 1;
@@ -125,7 +129,7 @@ message SendAttachmentMessageRequest {
 }
 
 
-// Multipart send — multiple bubbles delivered atomically.
+// Multipart send: multiple bubbles delivered atomically.
 message SendMultipartMessageRequest {
 
   string chat_guid = 1;
@@ -138,7 +142,7 @@ message SendMultipartMessageRequest {
 
   optional string effect_id = 5;
 
-  optional bool dd_scan = 6;
+  optional bool enable_data_detection = 6;
 
   optional string client_message_id = 100;
 
@@ -212,7 +216,9 @@ message PlaceStickerRequest {
 
 message NotifySilencedMessageRequest {
 
-  MessageTarget target = 1;
+  string chat_guid = 1;
+
+  string message_guid = 2;
 
   optional string client_message_id = 100;
 
@@ -225,8 +231,8 @@ message NotifySilencedMessageRequest {
 
 message GetMessageRequest {
 
-  // Visibility scope. The server uses `chat_guid` to authorise the read
-  // and to disambiguate cross-chat duplicates.
+  // Visibility scope. The server uses `chat_guid` to authorise the read and
+  // to disambiguate cross-chat duplicates.
   string chat_guid = 1;
 
   string message_guid = 2;
@@ -241,8 +247,10 @@ message GetMessageResponse {
 }
 
 
-// Pages across the caller's recent message history. Filters AND-compose;
-// `before` / `after` define a half-open window `[after, before)`.
+// Pages across the caller's recent message history.
+//
+// Filters compose with AND semantics. `before` / `after` define a half-open window:
+// `[after, before)`.
 message ListRecentMessagesRequest {
 
   optional int32 page_size = 1;
@@ -333,8 +341,11 @@ message SubscribeMessageEventsResponse {
   optional uint64 sequence = 1;
 
   oneof payload {
+
     MessageChangeEvent message_changed = 10;
+
     Heartbeat heartbeat = 99;
+
   }
 
 }

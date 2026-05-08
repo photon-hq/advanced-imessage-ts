@@ -14,9 +14,10 @@ option swift_prefix = "PIMsg_";
 
 // Apple Polls (iOS 18+) authoring and observation.
 //
-// Every write returns the resulting `PollInfo` snapshot. Peer changes
-// flow through `SubscribePollEvents`; for gap-free reconnect pair it with
-// `EventService.CatchUpEvents`.
+// Every write returns the resulting `PollInfo` snapshot.
+//
+// Durable poll changes flow through `SubscribePollEvents`. For gap-free
+// reconnect, pair it with `EventService.CatchUpEvents`.
 service PollService {
 
   // Writes
@@ -109,8 +110,7 @@ message GetPollRequest {
 
 message SubscribePollEventsRequest {
 
-  // Optional filter. Absent = every poll the caller can observe; set to
-  // scope to one poll.
+  // Absent = subscribe to every poll the caller can observe.
   optional string poll_message_guid = 1;
 
 }
@@ -118,13 +118,16 @@ message SubscribePollEventsRequest {
 
 message SubscribePollEventsResponse {
 
-  // Monotonic global sequence for this live stream. Absent on heartbeat
-  // frames.
+  // Monotonic global sequence shared with `EventService.CatchUpEvents`
+  // and every other `Subscribe*` stream. Absent on heartbeat frames.
   optional uint64 sequence = 1;
 
   oneof payload {
+
     PollChangeEvent poll_changed = 10;
+
     Heartbeat heartbeat = 99;
+
   }
 
 }

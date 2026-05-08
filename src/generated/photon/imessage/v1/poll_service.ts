@@ -45,17 +45,14 @@ export interface GetPollRequest {
 }
 
 export interface SubscribePollEventsRequest {
-  /**
-   * Optional filter. Absent = every poll the caller can observe; set to
-   * scope to one poll.
-   */
+  /** Absent = subscribe to every poll the caller can observe. */
   pollMessageGuid?: string | undefined;
 }
 
 export interface SubscribePollEventsResponse {
   /**
-   * Monotonic global sequence for this live stream. Absent on heartbeat
-   * frames.
+   * Monotonic global sequence shared with `EventService.CatchUpEvents`
+   * and every other `Subscribe*` stream. Absent on heartbeat frames.
    */
   sequence?: number | undefined;
   pollChanged?: PollChangeEvent | undefined;
@@ -759,9 +756,10 @@ export const SubscribePollEventsResponse: MessageFns<SubscribePollEventsResponse
 /**
  * Apple Polls (iOS 18+) authoring and observation.
  *
- * Every write returns the resulting `PollInfo` snapshot. Peer changes
- * flow through `SubscribePollEvents`; for gap-free reconnect pair it with
- * `EventService.CatchUpEvents`.
+ * Every write returns the resulting `PollInfo` snapshot.
+ *
+ * Durable poll changes flow through `SubscribePollEvents`. For gap-free
+ * reconnect, pair it with `EventService.CatchUpEvents`.
  */
 export type PollServiceDefinition = typeof PollServiceDefinition;
 export const PollServiceDefinition = {

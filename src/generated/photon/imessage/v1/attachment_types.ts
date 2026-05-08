@@ -12,15 +12,15 @@ export const protobufPackage = "photon.imessage.v1";
 /**
  * Mirrors chat.db `attachment.transfer_state` (Apple `IMTransferState`); wire
  * values equal DB values, gaps included. Zero is `PENDING`, not
- * `UNSPECIFIED` — the server always populates this field.
+ * `UNSPECIFIED`; the server always populates this field.
  */
 export enum TransferState {
   TRANSFER_STATE_PENDING = 0,
+  TRANSFER_STATE_UNAVAILABLE = -1,
   TRANSFER_STATE_TRANSFERRING = 1,
   TRANSFER_STATE_FAILED = 2,
   TRANSFER_STATE_FINISHED = 5,
   TRANSFER_STATE_UNKNOWN = 6,
-  UNRECOGNIZED = -1,
 }
 
 export function transferStateFromJSON(object: any): TransferState {
@@ -28,6 +28,9 @@ export function transferStateFromJSON(object: any): TransferState {
     case 0:
     case "TRANSFER_STATE_PENDING":
       return TransferState.TRANSFER_STATE_PENDING;
+    case -1:
+    case "TRANSFER_STATE_UNAVAILABLE":
+      return TransferState.TRANSFER_STATE_UNAVAILABLE;
     case 1:
     case "TRANSFER_STATE_TRANSFERRING":
       return TransferState.TRANSFER_STATE_TRANSFERRING;
@@ -40,10 +43,8 @@ export function transferStateFromJSON(object: any): TransferState {
     case 6:
     case "TRANSFER_STATE_UNKNOWN":
       return TransferState.TRANSFER_STATE_UNKNOWN;
-    case -1:
-    case "UNRECOGNIZED":
     default:
-      return TransferState.UNRECOGNIZED;
+      return TransferState.TRANSFER_STATE_UNAVAILABLE;
   }
 }
 
@@ -51,6 +52,8 @@ export function transferStateToJSON(object: TransferState): string {
   switch (object) {
     case TransferState.TRANSFER_STATE_PENDING:
       return "TRANSFER_STATE_PENDING";
+    case TransferState.TRANSFER_STATE_UNAVAILABLE:
+      return "TRANSFER_STATE_UNAVAILABLE";
     case TransferState.TRANSFER_STATE_TRANSFERRING:
       return "TRANSFER_STATE_TRANSFERRING";
     case TransferState.TRANSFER_STATE_FAILED:
@@ -59,9 +62,8 @@ export function transferStateToJSON(object: TransferState): string {
       return "TRANSFER_STATE_FINISHED";
     case TransferState.TRANSFER_STATE_UNKNOWN:
       return "TRANSFER_STATE_UNKNOWN";
-    case TransferState.UNRECOGNIZED:
     default:
-      return "UNRECOGNIZED";
+      return "TRANSFER_STATE_UNAVAILABLE";
   }
 }
 
@@ -105,7 +107,7 @@ export function companionKindToJSON(object: CompanionKind): string {
 export interface AttachmentInfo {
   guid: string;
   /**
-   * Set on attachments superseded by an edit — points to the original
+   * Set on attachments superseded by an edit. Points to the original
    * attachment GUID this row replaced.
    */
   originalGuid?: string | undefined;
