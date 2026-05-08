@@ -1,5 +1,5 @@
 /**
- * Creates and configures the nice-grpc channel and all 7 service clients.
+ * Creates and configures the nice-grpc channel and all service clients.
  *
  * This module is the single entry point for establishing a gRPC connection.
  * It wires up channel creation, auth middleware, optional idempotency
@@ -19,6 +19,8 @@ import type { AttachmentServiceClient } from "../generated/photon/imessage/v1/at
 import { AttachmentServiceDefinition } from "../generated/photon/imessage/v1/attachment_service.ts";
 import type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
 import { ChatServiceDefinition } from "../generated/photon/imessage/v1/chat_service.ts";
+import type { EventServiceClient } from "../generated/photon/imessage/v1/event_service.ts";
+import { EventServiceDefinition } from "../generated/photon/imessage/v1/event_service.ts";
 import type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
 import { GroupServiceDefinition } from "../generated/photon/imessage/v1/group_service.ts";
 import type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
@@ -48,6 +50,7 @@ import {
 export type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
 export type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
 export type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
+export type { EventServiceClient } from "../generated/photon/imessage/v1/event_service.ts";
 export type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
 export type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
 export type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
@@ -67,6 +70,7 @@ export interface GrpcClients {
   readonly attachments: AttachmentServiceClient;
   readonly channel: Channel;
   readonly chats: ChatServiceClient;
+  readonly events: EventServiceClient;
   readonly groups: GroupServiceClient;
   readonly locations: LocationServiceClient;
   readonly messages: MessageServiceClient;
@@ -115,7 +119,7 @@ export interface GrpcClientOptions {
 // ---------------------------------------------------------------------------
 
 /**
- * Create a gRPC channel and all 7 service clients with the configured
+ * Create a gRPC channel and all service clients with the configured
  * middleware.
  *
  * @example
@@ -125,7 +129,7 @@ export interface GrpcClientOptions {
  *   token: "my-secret-token",
  * });
  *
- * const response = await clients.messages.send({ ... });
+ * const response = await clients.messages.sendTextMessage({ ... });
  * ```
  */
 export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
@@ -170,6 +174,7 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
   return {
     messages: factory.create(MessageServiceDefinition, channel),
     chats: factory.create(ChatServiceDefinition, channel),
+    events: factory.create(EventServiceDefinition, channel),
     groups: factory.create(GroupServiceDefinition, channel),
     attachments: factory.create(AttachmentServiceDefinition, channel),
     addresses: factory.create(AddressServiceDefinition, channel),

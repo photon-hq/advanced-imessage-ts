@@ -7,349 +7,173 @@
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
+import { Empty } from "../../../google/protobuf/empty.js";
 import { Timestamp } from "../../../google/protobuf/timestamp.js";
 import {
-  Heartbeat,
-  PaginatedMeta,
-  SortDirection,
-  sortDirectionFromJSON,
-  sortDirectionToJSON,
-  StreamCursor,
-} from "./common.js";
+  AttachmentRef,
+  EmbeddedMedia,
+  Message,
+  MessageChangeEvent,
+  MessagePart,
+  MessageReaction,
+  ReplyTarget,
+  StickerPlacement,
+  TextFormat,
+} from "./message_types.js";
+import { Heartbeat } from "./streaming.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
-export enum TransferState {
-  TRANSFER_STATE_UNSPECIFIED = 0,
-  TRANSFER_STATE_TRANSFERRING = 1,
-  TRANSFER_STATE_FAILED = 2,
-  TRANSFER_STATE_FINISHED = 5,
-  TRANSFER_STATE_PENDING = 6,
-  UNRECOGNIZED = -1,
-}
-
-export function transferStateFromJSON(object: any): TransferState {
-  switch (object) {
-    case 0:
-    case "TRANSFER_STATE_UNSPECIFIED":
-      return TransferState.TRANSFER_STATE_UNSPECIFIED;
-    case 1:
-    case "TRANSFER_STATE_TRANSFERRING":
-      return TransferState.TRANSFER_STATE_TRANSFERRING;
-    case 2:
-    case "TRANSFER_STATE_FAILED":
-      return TransferState.TRANSFER_STATE_FAILED;
-    case 5:
-    case "TRANSFER_STATE_FINISHED":
-      return TransferState.TRANSFER_STATE_FINISHED;
-    case 6:
-    case "TRANSFER_STATE_PENDING":
-      return TransferState.TRANSFER_STATE_PENDING;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return TransferState.UNRECOGNIZED;
-  }
-}
-
-export function transferStateToJSON(object: TransferState): string {
-  switch (object) {
-    case TransferState.TRANSFER_STATE_UNSPECIFIED:
-      return "TRANSFER_STATE_UNSPECIFIED";
-    case TransferState.TRANSFER_STATE_TRANSFERRING:
-      return "TRANSFER_STATE_TRANSFERRING";
-    case TransferState.TRANSFER_STATE_FAILED:
-      return "TRANSFER_STATE_FAILED";
-    case TransferState.TRANSFER_STATE_FINISHED:
-      return "TRANSFER_STATE_FINISHED";
-    case TransferState.TRANSFER_STATE_PENDING:
-      return "TRANSFER_STATE_PENDING";
-    case TransferState.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
-}
-
-export enum MessageItemType {
-  MESSAGE_ITEM_TYPE_UNSPECIFIED = 0,
-  MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE = 1,
-  MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE = 2,
-  MESSAGE_ITEM_TYPE_LEFT_GROUP = 3,
-  MESSAGE_ITEM_TYPE_NORMAL = 4,
-  UNRECOGNIZED = -1,
-}
-
-export function messageItemTypeFromJSON(object: any): MessageItemType {
-  switch (object) {
-    case 0:
-    case "MESSAGE_ITEM_TYPE_UNSPECIFIED":
-      return MessageItemType.MESSAGE_ITEM_TYPE_UNSPECIFIED;
-    case 1:
-    case "MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE":
-      return MessageItemType.MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE;
-    case 2:
-    case "MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE":
-      return MessageItemType.MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE;
-    case 3:
-    case "MESSAGE_ITEM_TYPE_LEFT_GROUP":
-      return MessageItemType.MESSAGE_ITEM_TYPE_LEFT_GROUP;
-    case 4:
-    case "MESSAGE_ITEM_TYPE_NORMAL":
-      return MessageItemType.MESSAGE_ITEM_TYPE_NORMAL;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return MessageItemType.UNRECOGNIZED;
-  }
-}
-
-export function messageItemTypeToJSON(object: MessageItemType): string {
-  switch (object) {
-    case MessageItemType.MESSAGE_ITEM_TYPE_UNSPECIFIED:
-      return "MESSAGE_ITEM_TYPE_UNSPECIFIED";
-    case MessageItemType.MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE:
-      return "MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE";
-    case MessageItemType.MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE:
-      return "MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE";
-    case MessageItemType.MESSAGE_ITEM_TYPE_LEFT_GROUP:
-      return "MESSAGE_ITEM_TYPE_LEFT_GROUP";
-    case MessageItemType.MESSAGE_ITEM_TYPE_NORMAL:
-      return "MESSAGE_ITEM_TYPE_NORMAL";
-    case MessageItemType.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
-}
-
-export interface AddressInfo {
-  address: string;
-  uncanonicalizedId?:
-    | string
-    | undefined;
-  /** "iMessage" | "SMS" */
-  service: string;
-  country?: string | undefined;
-}
-
-export interface AttachmentInfo {
-  guid: string;
-  originalGuid?: string | undefined;
-  fileName: string;
-  mimeType: string;
-  uti: string;
-  totalBytes: number;
-  transferState: TransferState;
-  isOutgoing: boolean;
-  hideAttachment: boolean;
-  isSticker: boolean;
-  width?: number | undefined;
-  height?: number | undefined;
-  hasLivePhoto: boolean;
-}
-
-export interface MessageSendReceipt {
-  guid: string;
-  clientMessageId?: string | undefined;
-}
-
-export interface MessageCommandReceipt {
-  guid: string;
-}
-
-export interface Message {
-  guid: string;
-  clientMessageId?:
-    | string
-    | undefined;
-  /** Content */
-  text?: string | undefined;
-  attributedBody?: Uint8Array | undefined;
-  subject?:
-    | string
-    | undefined;
-  /** Timeline */
-  dateCreated: Date | undefined;
-  dateRead?: Date | undefined;
-  dateDelivered?: Date | undefined;
-  dateEdited?: Date | undefined;
-  dateRetracted?: Date | undefined;
-  datePlayed?:
-    | Date
-    | undefined;
-  /** Sender */
-  sender?: AddressInfo | undefined;
-  isFromMe: boolean;
-  country?:
-    | string
-    | undefined;
-  /** Delivery status */
-  isSent: boolean;
-  isDelivered: boolean;
-  isDeliveredQuietly: boolean;
-  didNotifyRecipient: boolean;
-  sendErrorCode: number;
-  /** Flags */
-  isAudioMessage: boolean;
-  isAutoReply: boolean;
-  isSystemMessage: boolean;
-  isForward: boolean;
-  isDelayed: boolean;
-  isSpam: boolean;
-  hasDdResults: boolean;
-  isArchived: boolean;
-  isServiceMessage: boolean;
-  isCorrupt: boolean;
-  isExpirable: boolean;
-  shareStatus?: number | undefined;
-  shareDirection?:
-    | number
-    | undefined;
-  /** Type */
-  itemType: MessageItemType;
-  groupTitle?: string | undefined;
-  groupActionType?:
-    | number
-    | undefined;
-  /** Association / tapback */
-  associatedMessageGuid?: string | undefined;
-  associatedMessageType?: string | undefined;
-  threadOriginatorGuid?: string | undefined;
-  threadOriginatorPart?: string | undefined;
-  replyToGuid?: string | undefined;
-  destinationCallerId?: string | undefined;
-  associatedMessageEmoji?:
-    | string
-    | undefined;
-  /** Rich content */
-  balloonBundleId?: string | undefined;
-  expressiveSendStyleId?: string | undefined;
-  payloadData?: Uint8Array | undefined;
-  messageSummaryInfo?: Uint8Array | undefined;
-  partCount?: number | undefined;
-  cacheRoomnames?: string | undefined;
-  timeExpressiveSendPlayed?:
-    | Date
-    | undefined;
-  /** Relations */
-  attachments: AttachmentInfo[];
-  chatGuids: string[];
-  /** Runtime */
-  latencyMs?: number | undefined;
-}
-
-export interface StickerPlacement {
-  x: number;
-  y: number;
-  scale?: number | undefined;
-  rotation?: number | undefined;
-  width?: number | undefined;
-}
-
-export interface MessagePart {
-  text?: string | undefined;
-  attachmentPath?: string | undefined;
-  attachmentGuid?: string | undefined;
-  attachmentName?: string | undefined;
-  mention?: string | undefined;
-  partIndex?: number | undefined;
-  formatting: TextFormat[];
-}
-
-export interface TextFormat {
-  type: string;
-  start: number;
-  length: number;
-  effectName?: string | undefined;
-}
-
-export interface SendRequest {
-  chatGuid: string;
-  clientMessageId?: string | undefined;
-  message?: string | undefined;
-  attributedBody?: Uint8Array | undefined;
-  subject?: string | undefined;
-  effectId?: string | undefined;
-  ddScan: boolean;
-  richLink: boolean;
-  attachmentPath?: string | undefined;
-  attachmentName?: string | undefined;
-  attachmentGuid?: string | undefined;
-  isAudioMessage: boolean;
-  isSticker: boolean;
-  stickerPlacement?: StickerPlacement | undefined;
-  parts: MessagePart[];
-  selectedMessageGuid?: string | undefined;
-  partIndex: number;
-  formatting: TextFormat[];
-}
-
-export interface SendResponse {
-  receipt: MessageSendReceipt | undefined;
-}
-
-export interface SendReactionRequest {
+export interface MessageTarget {
   chatGuid: string;
   messageGuid: string;
-  reaction: string;
-  partIndex: number;
-  emoji?: string | undefined;
+  /**
+   * Selects a single bubble in a multipart message. Absent = the whole
+   * message root.
+   */
+  targetPartIndex?: number | undefined;
 }
 
-export interface SendReactionResponse {
-  receipt: MessageCommandReceipt | undefined;
+/**
+ * Plain-text or rich-text send.
+ *
+ * `enable_data_detection` enables Apple's data-detector pass.
+ * `enable_link_preview` enables URL-preview generation.
+ */
+export interface SendTextMessageRequest {
+  chatGuid: string;
+  text: string;
+  replyTo?: ReplyTarget | undefined;
+  subject?: string | undefined;
+  effectId?: string | undefined;
+  enableDataDetection?: boolean | undefined;
+  enableLinkPreview?: boolean | undefined;
+  formatting: TextFormat[];
+  clientMessageId?: string | undefined;
+}
+
+/**
+ * Single-attachment send. The attachment is referenced either by GUID
+ * (already uploaded via `AttachmentService.UploadAttachment`) or by an
+ * absolute filesystem path readable by the local mutation process.
+ */
+export interface SendAttachmentMessageRequest {
+  chatGuid: string;
+  attachment: AttachmentRef | undefined;
+  replyTo?: ReplyTarget | undefined;
+  effectId?: string | undefined;
+  isAudioMessage?: boolean | undefined;
+  clientMessageId?: string | undefined;
+}
+
+/** Multipart send: multiple bubbles delivered atomically. */
+export interface SendMultipartMessageRequest {
+  chatGuid: string;
+  parts: MessagePart[];
+  replyTo?: ReplyTarget | undefined;
+  subject?: string | undefined;
+  effectId?: string | undefined;
+  enableDataDetection?: boolean | undefined;
+  clientMessageId?: string | undefined;
+}
+
+export interface MessageResponse {
+  /**
+   * Snapshot of the persisted message after Apple has accepted the send
+   * and chat.db has been observed.
+   */
+  message: Message | undefined;
 }
 
 export interface EditMessageRequest {
-  chatGuid: string;
-  messageGuid: string;
+  target: MessageTarget | undefined;
   newText: string;
+  /**
+   * Plain-text fallback for recipients on older clients that cannot
+   * render rich edits. Absent = derive from `new_text`.
+   */
   backwardCompatText?: string | undefined;
-  partIndex: number;
+  clientMessageId?: string | undefined;
 }
 
 export interface UnsendMessageRequest {
+  target: MessageTarget | undefined;
+  clientMessageId?: string | undefined;
+}
+
+export interface SetReactionRequest {
+  target: MessageTarget | undefined;
+  reaction:
+    | MessageReaction
+    | undefined;
+  /**
+   * `true` adds or replaces the caller's reaction of this kind on the target.
+   * `false` removes it.
+   */
+  isSet: boolean;
+  clientMessageId?: string | undefined;
+}
+
+export interface PlaceStickerRequest {
+  target: MessageTarget | undefined;
+  sticker: AttachmentRef | undefined;
+  placement: StickerPlacement | undefined;
+  clientMessageId?: string | undefined;
+}
+
+export interface NotifySilencedMessageRequest {
   chatGuid: string;
   messageGuid: string;
-  partIndex: number;
-}
-
-export interface EditMessageResponse {
-}
-
-export interface UnsendMessageResponse {
-}
-
-export interface NotifySilencedRequest {
-  chatGuid: string;
-  messageGuid: string;
-}
-
-export interface NotifySilencedResponse {
+  clientMessageId?: string | undefined;
 }
 
 export interface GetMessageRequest {
-  guid: string;
+  /**
+   * Visibility scope. The server uses `chat_guid` to authorise the read and
+   * to disambiguate cross-chat duplicates.
+   */
+  chatGuid: string;
+  messageGuid: string;
 }
 
 export interface GetMessageResponse {
   message: Message | undefined;
 }
 
-export interface ListMessagesRequest {
-  chatGuid?: string | undefined;
+/**
+ * Pages across the caller's recent message history.
+ *
+ * Filters compose with AND semantics. `before` / `after` define a half-open window:
+ * `[after, before)`.
+ */
+export interface ListRecentMessagesRequest {
+  pageSize?: number | undefined;
+  pageToken?: string | undefined;
+  isFromMe?: boolean | undefined;
+  isRead?: boolean | undefined;
   before?: Date | undefined;
   after?: Date | undefined;
-  sort: SortDirection;
-  limit?: number | undefined;
-  offset: number;
-  withChats: boolean;
-  withAttachments: boolean;
-  afterCursor?: StreamCursor | undefined;
 }
 
-export interface ListMessagesResponse {
+export interface ListRecentMessagesResponse {
   messages: Message[];
-  meta: PaginatedMeta | undefined;
+  nextPageToken?: string | undefined;
+}
+
+/** As `ListRecentMessages` but constrained to one chat. */
+export interface ListChatMessagesRequest {
+  chatGuid: string;
+  pageSize?: number | undefined;
+  pageToken?: string | undefined;
+  isFromMe?: boolean | undefined;
+  isRead?: boolean | undefined;
+  before?: Date | undefined;
+  after?: Date | undefined;
+}
+
+export interface ListChatMessagesResponse {
+  messages: Message[];
+  nextPageToken?: string | undefined;
 }
 
 export interface GetEmbeddedMediaRequest {
@@ -357,2645 +181,47 @@ export interface GetEmbeddedMediaRequest {
   messageGuid: string;
 }
 
-export interface EmbeddedMediaItem {
-  data: Uint8Array;
-  mimeType: string;
-}
-
 export interface GetEmbeddedMediaResponse {
-  items: EmbeddedMediaItem[];
-}
-
-export interface GetMessageStatsRequest {
-}
-
-export interface GetMessageStatsResponse {
-  total: number;
-  sent: number;
-  received: number;
+  media: EmbeddedMedia | undefined;
 }
 
 export interface SubscribeMessageEventsRequest {
-  cursor?: StreamCursor | undefined;
+  /** Absent = subscribe to every chat the caller can observe. */
+  chatGuid?: string | undefined;
 }
 
 export interface SubscribeMessageEventsResponse {
-  timestamp: Date | undefined;
-  cursor?: StreamCursor | undefined;
-  messageSent?: MessageSentEvent | undefined;
-  messageReceived?: MessageReceivedEvent | undefined;
-  messageUpdated?:
-    | MessageUpdatedEvent
-    | undefined;
-  /** Field 13 (message_send_error) removed — send errors are returned via RPC, not the event stream. */
+  /**
+   * Monotonic global sequence; absent on heartbeat frames. Shared with
+   * `EventService.CatchUpEvents` and every other `Subscribe*` stream.
+   */
+  sequence?: number | undefined;
+  messageChanged?: MessageChangeEvent | undefined;
   heartbeat?: Heartbeat | undefined;
 }
 
-export interface MessageSentEvent {
-  message: Message | undefined;
-  clientMessageId?: string | undefined;
-  chatGuid: string;
+function createBaseMessageTarget(): MessageTarget {
+  return { chatGuid: "", messageGuid: "", targetPartIndex: undefined };
 }
 
-export interface MessageReceivedEvent {
-  message: Message | undefined;
-  chatGuid: string;
-}
-
-export interface MessageUpdatedEvent {
-  message: Message | undefined;
-  updateType: string;
-  chatGuid: string;
-}
-
-function createBaseAddressInfo(): AddressInfo {
-  return { address: "", uncanonicalizedId: undefined, service: "", country: undefined };
-}
-
-export const AddressInfo: MessageFns<AddressInfo> = {
-  encode(message: AddressInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.address !== "") {
-      writer.uint32(10).string(message.address);
-    }
-    if (message.uncanonicalizedId !== undefined) {
-      writer.uint32(18).string(message.uncanonicalizedId);
-    }
-    if (message.service !== "") {
-      writer.uint32(26).string(message.service);
-    }
-    if (message.country !== undefined) {
-      writer.uint32(34).string(message.country);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): AddressInfo {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseAddressInfo();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.address = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.uncanonicalizedId = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.service = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.country = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): AddressInfo {
-    return {
-      address: isSet(object.address) ? globalThis.String(object.address) : "",
-      uncanonicalizedId: isSet(object.uncanonicalizedId)
-        ? globalThis.String(object.uncanonicalizedId)
-        : isSet(object.uncanonicalized_id)
-        ? globalThis.String(object.uncanonicalized_id)
-        : undefined,
-      service: isSet(object.service) ? globalThis.String(object.service) : "",
-      country: isSet(object.country) ? globalThis.String(object.country) : undefined,
-    };
-  },
-
-  toJSON(message: AddressInfo): unknown {
-    const obj: any = {};
-    if (message.address !== "") {
-      obj.address = message.address;
-    }
-    if (message.uncanonicalizedId !== undefined) {
-      obj.uncanonicalizedId = message.uncanonicalizedId;
-    }
-    if (message.service !== "") {
-      obj.service = message.service;
-    }
-    if (message.country !== undefined) {
-      obj.country = message.country;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<AddressInfo>): AddressInfo {
-    return AddressInfo.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<AddressInfo>): AddressInfo {
-    const message = createBaseAddressInfo();
-    message.address = object.address ?? "";
-    message.uncanonicalizedId = object.uncanonicalizedId ?? undefined;
-    message.service = object.service ?? "";
-    message.country = object.country ?? undefined;
-    return message;
-  },
-};
-
-function createBaseAttachmentInfo(): AttachmentInfo {
-  return {
-    guid: "",
-    originalGuid: undefined,
-    fileName: "",
-    mimeType: "",
-    uti: "",
-    totalBytes: 0,
-    transferState: 0,
-    isOutgoing: false,
-    hideAttachment: false,
-    isSticker: false,
-    width: undefined,
-    height: undefined,
-    hasLivePhoto: false,
-  };
-}
-
-export const AttachmentInfo: MessageFns<AttachmentInfo> = {
-  encode(message: AttachmentInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
-    }
-    if (message.originalGuid !== undefined) {
-      writer.uint32(18).string(message.originalGuid);
-    }
-    if (message.fileName !== "") {
-      writer.uint32(26).string(message.fileName);
-    }
-    if (message.mimeType !== "") {
-      writer.uint32(34).string(message.mimeType);
-    }
-    if (message.uti !== "") {
-      writer.uint32(42).string(message.uti);
-    }
-    if (message.totalBytes !== 0) {
-      writer.uint32(48).int64(message.totalBytes);
-    }
-    if (message.transferState !== 0) {
-      writer.uint32(56).int32(message.transferState);
-    }
-    if (message.isOutgoing !== false) {
-      writer.uint32(64).bool(message.isOutgoing);
-    }
-    if (message.hideAttachment !== false) {
-      writer.uint32(72).bool(message.hideAttachment);
-    }
-    if (message.isSticker !== false) {
-      writer.uint32(80).bool(message.isSticker);
-    }
-    if (message.width !== undefined) {
-      writer.uint32(88).int32(message.width);
-    }
-    if (message.height !== undefined) {
-      writer.uint32(96).int32(message.height);
-    }
-    if (message.hasLivePhoto !== false) {
-      writer.uint32(104).bool(message.hasLivePhoto);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): AttachmentInfo {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseAttachmentInfo();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.guid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.originalGuid = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.fileName = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.mimeType = reader.string();
-          continue;
-        }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.uti = reader.string();
-          continue;
-        }
-        case 6: {
-          if (tag !== 48) {
-            break;
-          }
-
-          message.totalBytes = longToNumber(reader.int64());
-          continue;
-        }
-        case 7: {
-          if (tag !== 56) {
-            break;
-          }
-
-          message.transferState = reader.int32() as any;
-          continue;
-        }
-        case 8: {
-          if (tag !== 64) {
-            break;
-          }
-
-          message.isOutgoing = reader.bool();
-          continue;
-        }
-        case 9: {
-          if (tag !== 72) {
-            break;
-          }
-
-          message.hideAttachment = reader.bool();
-          continue;
-        }
-        case 10: {
-          if (tag !== 80) {
-            break;
-          }
-
-          message.isSticker = reader.bool();
-          continue;
-        }
-        case 11: {
-          if (tag !== 88) {
-            break;
-          }
-
-          message.width = reader.int32();
-          continue;
-        }
-        case 12: {
-          if (tag !== 96) {
-            break;
-          }
-
-          message.height = reader.int32();
-          continue;
-        }
-        case 13: {
-          if (tag !== 104) {
-            break;
-          }
-
-          message.hasLivePhoto = reader.bool();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): AttachmentInfo {
-    return {
-      guid: isSet(object.guid) ? globalThis.String(object.guid) : "",
-      originalGuid: isSet(object.originalGuid)
-        ? globalThis.String(object.originalGuid)
-        : isSet(object.original_guid)
-        ? globalThis.String(object.original_guid)
-        : undefined,
-      fileName: isSet(object.fileName)
-        ? globalThis.String(object.fileName)
-        : isSet(object.file_name)
-        ? globalThis.String(object.file_name)
-        : "",
-      mimeType: isSet(object.mimeType)
-        ? globalThis.String(object.mimeType)
-        : isSet(object.mime_type)
-        ? globalThis.String(object.mime_type)
-        : "",
-      uti: isSet(object.uti) ? globalThis.String(object.uti) : "",
-      totalBytes: isSet(object.totalBytes)
-        ? globalThis.Number(object.totalBytes)
-        : isSet(object.total_bytes)
-        ? globalThis.Number(object.total_bytes)
-        : 0,
-      transferState: isSet(object.transferState)
-        ? transferStateFromJSON(object.transferState)
-        : isSet(object.transfer_state)
-        ? transferStateFromJSON(object.transfer_state)
-        : 0,
-      isOutgoing: isSet(object.isOutgoing)
-        ? globalThis.Boolean(object.isOutgoing)
-        : isSet(object.is_outgoing)
-        ? globalThis.Boolean(object.is_outgoing)
-        : false,
-      hideAttachment: isSet(object.hideAttachment)
-        ? globalThis.Boolean(object.hideAttachment)
-        : isSet(object.hide_attachment)
-        ? globalThis.Boolean(object.hide_attachment)
-        : false,
-      isSticker: isSet(object.isSticker)
-        ? globalThis.Boolean(object.isSticker)
-        : isSet(object.is_sticker)
-        ? globalThis.Boolean(object.is_sticker)
-        : false,
-      width: isSet(object.width) ? globalThis.Number(object.width) : undefined,
-      height: isSet(object.height) ? globalThis.Number(object.height) : undefined,
-      hasLivePhoto: isSet(object.hasLivePhoto)
-        ? globalThis.Boolean(object.hasLivePhoto)
-        : isSet(object.has_live_photo)
-        ? globalThis.Boolean(object.has_live_photo)
-        : false,
-    };
-  },
-
-  toJSON(message: AttachmentInfo): unknown {
-    const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
-    }
-    if (message.originalGuid !== undefined) {
-      obj.originalGuid = message.originalGuid;
-    }
-    if (message.fileName !== "") {
-      obj.fileName = message.fileName;
-    }
-    if (message.mimeType !== "") {
-      obj.mimeType = message.mimeType;
-    }
-    if (message.uti !== "") {
-      obj.uti = message.uti;
-    }
-    if (message.totalBytes !== 0) {
-      obj.totalBytes = Math.round(message.totalBytes);
-    }
-    if (message.transferState !== 0) {
-      obj.transferState = transferStateToJSON(message.transferState);
-    }
-    if (message.isOutgoing !== false) {
-      obj.isOutgoing = message.isOutgoing;
-    }
-    if (message.hideAttachment !== false) {
-      obj.hideAttachment = message.hideAttachment;
-    }
-    if (message.isSticker !== false) {
-      obj.isSticker = message.isSticker;
-    }
-    if (message.width !== undefined) {
-      obj.width = Math.round(message.width);
-    }
-    if (message.height !== undefined) {
-      obj.height = Math.round(message.height);
-    }
-    if (message.hasLivePhoto !== false) {
-      obj.hasLivePhoto = message.hasLivePhoto;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<AttachmentInfo>): AttachmentInfo {
-    return AttachmentInfo.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<AttachmentInfo>): AttachmentInfo {
-    const message = createBaseAttachmentInfo();
-    message.guid = object.guid ?? "";
-    message.originalGuid = object.originalGuid ?? undefined;
-    message.fileName = object.fileName ?? "";
-    message.mimeType = object.mimeType ?? "";
-    message.uti = object.uti ?? "";
-    message.totalBytes = object.totalBytes ?? 0;
-    message.transferState = object.transferState ?? 0;
-    message.isOutgoing = object.isOutgoing ?? false;
-    message.hideAttachment = object.hideAttachment ?? false;
-    message.isSticker = object.isSticker ?? false;
-    message.width = object.width ?? undefined;
-    message.height = object.height ?? undefined;
-    message.hasLivePhoto = object.hasLivePhoto ?? false;
-    return message;
-  },
-};
-
-function createBaseMessageSendReceipt(): MessageSendReceipt {
-  return { guid: "", clientMessageId: undefined };
-}
-
-export const MessageSendReceipt: MessageFns<MessageSendReceipt> = {
-  encode(message: MessageSendReceipt, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(18).string(message.clientMessageId);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessageSendReceipt {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessageSendReceipt();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.guid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessageSendReceipt {
-    return {
-      guid: isSet(object.guid) ? globalThis.String(object.guid) : "",
-      clientMessageId: isSet(object.clientMessageId)
-        ? globalThis.String(object.clientMessageId)
-        : isSet(object.client_message_id)
-        ? globalThis.String(object.client_message_id)
-        : undefined,
-    };
-  },
-
-  toJSON(message: MessageSendReceipt): unknown {
-    const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
-    }
-    if (message.clientMessageId !== undefined) {
-      obj.clientMessageId = message.clientMessageId;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessageSendReceipt>): MessageSendReceipt {
-    return MessageSendReceipt.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessageSendReceipt>): MessageSendReceipt {
-    const message = createBaseMessageSendReceipt();
-    message.guid = object.guid ?? "";
-    message.clientMessageId = object.clientMessageId ?? undefined;
-    return message;
-  },
-};
-
-function createBaseMessageCommandReceipt(): MessageCommandReceipt {
-  return { guid: "" };
-}
-
-export const MessageCommandReceipt: MessageFns<MessageCommandReceipt> = {
-  encode(message: MessageCommandReceipt, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessageCommandReceipt {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessageCommandReceipt();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.guid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessageCommandReceipt {
-    return { guid: isSet(object.guid) ? globalThis.String(object.guid) : "" };
-  },
-
-  toJSON(message: MessageCommandReceipt): unknown {
-    const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessageCommandReceipt>): MessageCommandReceipt {
-    return MessageCommandReceipt.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessageCommandReceipt>): MessageCommandReceipt {
-    const message = createBaseMessageCommandReceipt();
-    message.guid = object.guid ?? "";
-    return message;
-  },
-};
-
-function createBaseMessage(): Message {
-  return {
-    guid: "",
-    clientMessageId: undefined,
-    text: undefined,
-    attributedBody: undefined,
-    subject: undefined,
-    dateCreated: undefined,
-    dateRead: undefined,
-    dateDelivered: undefined,
-    dateEdited: undefined,
-    dateRetracted: undefined,
-    datePlayed: undefined,
-    sender: undefined,
-    isFromMe: false,
-    country: undefined,
-    isSent: false,
-    isDelivered: false,
-    isDeliveredQuietly: false,
-    didNotifyRecipient: false,
-    sendErrorCode: 0,
-    isAudioMessage: false,
-    isAutoReply: false,
-    isSystemMessage: false,
-    isForward: false,
-    isDelayed: false,
-    isSpam: false,
-    hasDdResults: false,
-    isArchived: false,
-    isServiceMessage: false,
-    isCorrupt: false,
-    isExpirable: false,
-    shareStatus: undefined,
-    shareDirection: undefined,
-    itemType: 0,
-    groupTitle: undefined,
-    groupActionType: undefined,
-    associatedMessageGuid: undefined,
-    associatedMessageType: undefined,
-    threadOriginatorGuid: undefined,
-    threadOriginatorPart: undefined,
-    replyToGuid: undefined,
-    destinationCallerId: undefined,
-    associatedMessageEmoji: undefined,
-    balloonBundleId: undefined,
-    expressiveSendStyleId: undefined,
-    payloadData: undefined,
-    messageSummaryInfo: undefined,
-    partCount: undefined,
-    cacheRoomnames: undefined,
-    timeExpressiveSendPlayed: undefined,
-    attachments: [],
-    chatGuids: [],
-    latencyMs: undefined,
-  };
-}
-
-export const Message: MessageFns<Message> = {
-  encode(message: Message, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(18).string(message.clientMessageId);
-    }
-    if (message.text !== undefined) {
-      writer.uint32(26).string(message.text);
-    }
-    if (message.attributedBody !== undefined) {
-      writer.uint32(34).bytes(message.attributedBody);
-    }
-    if (message.subject !== undefined) {
-      writer.uint32(42).string(message.subject);
-    }
-    if (message.dateCreated !== undefined) {
-      Timestamp.encode(toTimestamp(message.dateCreated), writer.uint32(82).fork()).join();
-    }
-    if (message.dateRead !== undefined) {
-      Timestamp.encode(toTimestamp(message.dateRead), writer.uint32(90).fork()).join();
-    }
-    if (message.dateDelivered !== undefined) {
-      Timestamp.encode(toTimestamp(message.dateDelivered), writer.uint32(98).fork()).join();
-    }
-    if (message.dateEdited !== undefined) {
-      Timestamp.encode(toTimestamp(message.dateEdited), writer.uint32(106).fork()).join();
-    }
-    if (message.dateRetracted !== undefined) {
-      Timestamp.encode(toTimestamp(message.dateRetracted), writer.uint32(114).fork()).join();
-    }
-    if (message.datePlayed !== undefined) {
-      Timestamp.encode(toTimestamp(message.datePlayed), writer.uint32(122).fork()).join();
-    }
-    if (message.sender !== undefined) {
-      AddressInfo.encode(message.sender, writer.uint32(162).fork()).join();
-    }
-    if (message.isFromMe !== false) {
-      writer.uint32(168).bool(message.isFromMe);
-    }
-    if (message.country !== undefined) {
-      writer.uint32(178).string(message.country);
-    }
-    if (message.isSent !== false) {
-      writer.uint32(240).bool(message.isSent);
-    }
-    if (message.isDelivered !== false) {
-      writer.uint32(248).bool(message.isDelivered);
-    }
-    if (message.isDeliveredQuietly !== false) {
-      writer.uint32(256).bool(message.isDeliveredQuietly);
-    }
-    if (message.didNotifyRecipient !== false) {
-      writer.uint32(264).bool(message.didNotifyRecipient);
-    }
-    if (message.sendErrorCode !== 0) {
-      writer.uint32(272).int32(message.sendErrorCode);
-    }
-    if (message.isAudioMessage !== false) {
-      writer.uint32(320).bool(message.isAudioMessage);
-    }
-    if (message.isAutoReply !== false) {
-      writer.uint32(328).bool(message.isAutoReply);
-    }
-    if (message.isSystemMessage !== false) {
-      writer.uint32(336).bool(message.isSystemMessage);
-    }
-    if (message.isForward !== false) {
-      writer.uint32(344).bool(message.isForward);
-    }
-    if (message.isDelayed !== false) {
-      writer.uint32(352).bool(message.isDelayed);
-    }
-    if (message.isSpam !== false) {
-      writer.uint32(360).bool(message.isSpam);
-    }
-    if (message.hasDdResults !== false) {
-      writer.uint32(368).bool(message.hasDdResults);
-    }
-    if (message.isArchived !== false) {
-      writer.uint32(376).bool(message.isArchived);
-    }
-    if (message.isServiceMessage !== false) {
-      writer.uint32(384).bool(message.isServiceMessage);
-    }
-    if (message.isCorrupt !== false) {
-      writer.uint32(392).bool(message.isCorrupt);
-    }
-    if (message.isExpirable !== false) {
-      writer.uint32(400).bool(message.isExpirable);
-    }
-    if (message.shareStatus !== undefined) {
-      writer.uint32(408).int32(message.shareStatus);
-    }
-    if (message.shareDirection !== undefined) {
-      writer.uint32(416).int32(message.shareDirection);
-    }
-    if (message.itemType !== 0) {
-      writer.uint32(480).int32(message.itemType);
-    }
-    if (message.groupTitle !== undefined) {
-      writer.uint32(490).string(message.groupTitle);
-    }
-    if (message.groupActionType !== undefined) {
-      writer.uint32(496).int32(message.groupActionType);
-    }
-    if (message.associatedMessageGuid !== undefined) {
-      writer.uint32(562).string(message.associatedMessageGuid);
-    }
-    if (message.associatedMessageType !== undefined) {
-      writer.uint32(570).string(message.associatedMessageType);
-    }
-    if (message.threadOriginatorGuid !== undefined) {
-      writer.uint32(578).string(message.threadOriginatorGuid);
-    }
-    if (message.threadOriginatorPart !== undefined) {
-      writer.uint32(586).string(message.threadOriginatorPart);
-    }
-    if (message.replyToGuid !== undefined) {
-      writer.uint32(594).string(message.replyToGuid);
-    }
-    if (message.destinationCallerId !== undefined) {
-      writer.uint32(602).string(message.destinationCallerId);
-    }
-    if (message.associatedMessageEmoji !== undefined) {
-      writer.uint32(610).string(message.associatedMessageEmoji);
-    }
-    if (message.balloonBundleId !== undefined) {
-      writer.uint32(642).string(message.balloonBundleId);
-    }
-    if (message.expressiveSendStyleId !== undefined) {
-      writer.uint32(650).string(message.expressiveSendStyleId);
-    }
-    if (message.payloadData !== undefined) {
-      writer.uint32(658).bytes(message.payloadData);
-    }
-    if (message.messageSummaryInfo !== undefined) {
-      writer.uint32(666).bytes(message.messageSummaryInfo);
-    }
-    if (message.partCount !== undefined) {
-      writer.uint32(672).int32(message.partCount);
-    }
-    if (message.cacheRoomnames !== undefined) {
-      writer.uint32(682).string(message.cacheRoomnames);
-    }
-    if (message.timeExpressiveSendPlayed !== undefined) {
-      Timestamp.encode(toTimestamp(message.timeExpressiveSendPlayed), writer.uint32(690).fork()).join();
-    }
-    for (const v of message.attachments) {
-      AttachmentInfo.encode(v!, writer.uint32(722).fork()).join();
-    }
-    for (const v of message.chatGuids) {
-      writer.uint32(730).string(v!);
-    }
-    if (message.latencyMs !== undefined) {
-      writer.uint32(760).int32(message.latencyMs);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): Message {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessage();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.guid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.text = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.attributedBody = reader.bytes();
-          continue;
-        }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.subject = reader.string();
-          continue;
-        }
-        case 10: {
-          if (tag !== 82) {
-            break;
-          }
-
-          message.dateCreated = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 11: {
-          if (tag !== 90) {
-            break;
-          }
-
-          message.dateRead = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 12: {
-          if (tag !== 98) {
-            break;
-          }
-
-          message.dateDelivered = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 13: {
-          if (tag !== 106) {
-            break;
-          }
-
-          message.dateEdited = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 14: {
-          if (tag !== 114) {
-            break;
-          }
-
-          message.dateRetracted = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 15: {
-          if (tag !== 122) {
-            break;
-          }
-
-          message.datePlayed = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 20: {
-          if (tag !== 162) {
-            break;
-          }
-
-          message.sender = AddressInfo.decode(reader, reader.uint32());
-          continue;
-        }
-        case 21: {
-          if (tag !== 168) {
-            break;
-          }
-
-          message.isFromMe = reader.bool();
-          continue;
-        }
-        case 22: {
-          if (tag !== 178) {
-            break;
-          }
-
-          message.country = reader.string();
-          continue;
-        }
-        case 30: {
-          if (tag !== 240) {
-            break;
-          }
-
-          message.isSent = reader.bool();
-          continue;
-        }
-        case 31: {
-          if (tag !== 248) {
-            break;
-          }
-
-          message.isDelivered = reader.bool();
-          continue;
-        }
-        case 32: {
-          if (tag !== 256) {
-            break;
-          }
-
-          message.isDeliveredQuietly = reader.bool();
-          continue;
-        }
-        case 33: {
-          if (tag !== 264) {
-            break;
-          }
-
-          message.didNotifyRecipient = reader.bool();
-          continue;
-        }
-        case 34: {
-          if (tag !== 272) {
-            break;
-          }
-
-          message.sendErrorCode = reader.int32();
-          continue;
-        }
-        case 40: {
-          if (tag !== 320) {
-            break;
-          }
-
-          message.isAudioMessage = reader.bool();
-          continue;
-        }
-        case 41: {
-          if (tag !== 328) {
-            break;
-          }
-
-          message.isAutoReply = reader.bool();
-          continue;
-        }
-        case 42: {
-          if (tag !== 336) {
-            break;
-          }
-
-          message.isSystemMessage = reader.bool();
-          continue;
-        }
-        case 43: {
-          if (tag !== 344) {
-            break;
-          }
-
-          message.isForward = reader.bool();
-          continue;
-        }
-        case 44: {
-          if (tag !== 352) {
-            break;
-          }
-
-          message.isDelayed = reader.bool();
-          continue;
-        }
-        case 45: {
-          if (tag !== 360) {
-            break;
-          }
-
-          message.isSpam = reader.bool();
-          continue;
-        }
-        case 46: {
-          if (tag !== 368) {
-            break;
-          }
-
-          message.hasDdResults = reader.bool();
-          continue;
-        }
-        case 47: {
-          if (tag !== 376) {
-            break;
-          }
-
-          message.isArchived = reader.bool();
-          continue;
-        }
-        case 48: {
-          if (tag !== 384) {
-            break;
-          }
-
-          message.isServiceMessage = reader.bool();
-          continue;
-        }
-        case 49: {
-          if (tag !== 392) {
-            break;
-          }
-
-          message.isCorrupt = reader.bool();
-          continue;
-        }
-        case 50: {
-          if (tag !== 400) {
-            break;
-          }
-
-          message.isExpirable = reader.bool();
-          continue;
-        }
-        case 51: {
-          if (tag !== 408) {
-            break;
-          }
-
-          message.shareStatus = reader.int32();
-          continue;
-        }
-        case 52: {
-          if (tag !== 416) {
-            break;
-          }
-
-          message.shareDirection = reader.int32();
-          continue;
-        }
-        case 60: {
-          if (tag !== 480) {
-            break;
-          }
-
-          message.itemType = reader.int32() as any;
-          continue;
-        }
-        case 61: {
-          if (tag !== 490) {
-            break;
-          }
-
-          message.groupTitle = reader.string();
-          continue;
-        }
-        case 62: {
-          if (tag !== 496) {
-            break;
-          }
-
-          message.groupActionType = reader.int32();
-          continue;
-        }
-        case 70: {
-          if (tag !== 562) {
-            break;
-          }
-
-          message.associatedMessageGuid = reader.string();
-          continue;
-        }
-        case 71: {
-          if (tag !== 570) {
-            break;
-          }
-
-          message.associatedMessageType = reader.string();
-          continue;
-        }
-        case 72: {
-          if (tag !== 578) {
-            break;
-          }
-
-          message.threadOriginatorGuid = reader.string();
-          continue;
-        }
-        case 73: {
-          if (tag !== 586) {
-            break;
-          }
-
-          message.threadOriginatorPart = reader.string();
-          continue;
-        }
-        case 74: {
-          if (tag !== 594) {
-            break;
-          }
-
-          message.replyToGuid = reader.string();
-          continue;
-        }
-        case 75: {
-          if (tag !== 602) {
-            break;
-          }
-
-          message.destinationCallerId = reader.string();
-          continue;
-        }
-        case 76: {
-          if (tag !== 610) {
-            break;
-          }
-
-          message.associatedMessageEmoji = reader.string();
-          continue;
-        }
-        case 80: {
-          if (tag !== 642) {
-            break;
-          }
-
-          message.balloonBundleId = reader.string();
-          continue;
-        }
-        case 81: {
-          if (tag !== 650) {
-            break;
-          }
-
-          message.expressiveSendStyleId = reader.string();
-          continue;
-        }
-        case 82: {
-          if (tag !== 658) {
-            break;
-          }
-
-          message.payloadData = reader.bytes();
-          continue;
-        }
-        case 83: {
-          if (tag !== 666) {
-            break;
-          }
-
-          message.messageSummaryInfo = reader.bytes();
-          continue;
-        }
-        case 84: {
-          if (tag !== 672) {
-            break;
-          }
-
-          message.partCount = reader.int32();
-          continue;
-        }
-        case 85: {
-          if (tag !== 682) {
-            break;
-          }
-
-          message.cacheRoomnames = reader.string();
-          continue;
-        }
-        case 86: {
-          if (tag !== 690) {
-            break;
-          }
-
-          message.timeExpressiveSendPlayed = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 90: {
-          if (tag !== 722) {
-            break;
-          }
-
-          message.attachments.push(AttachmentInfo.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 91: {
-          if (tag !== 730) {
-            break;
-          }
-
-          message.chatGuids.push(reader.string());
-          continue;
-        }
-        case 95: {
-          if (tag !== 760) {
-            break;
-          }
-
-          message.latencyMs = reader.int32();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): Message {
-    return {
-      guid: isSet(object.guid) ? globalThis.String(object.guid) : "",
-      clientMessageId: isSet(object.clientMessageId)
-        ? globalThis.String(object.clientMessageId)
-        : isSet(object.client_message_id)
-        ? globalThis.String(object.client_message_id)
-        : undefined,
-      text: isSet(object.text) ? globalThis.String(object.text) : undefined,
-      attributedBody: isSet(object.attributedBody)
-        ? bytesFromBase64(object.attributedBody)
-        : isSet(object.attributed_body)
-        ? bytesFromBase64(object.attributed_body)
-        : undefined,
-      subject: isSet(object.subject) ? globalThis.String(object.subject) : undefined,
-      dateCreated: isSet(object.dateCreated)
-        ? fromJsonTimestamp(object.dateCreated)
-        : isSet(object.date_created)
-        ? fromJsonTimestamp(object.date_created)
-        : undefined,
-      dateRead: isSet(object.dateRead)
-        ? fromJsonTimestamp(object.dateRead)
-        : isSet(object.date_read)
-        ? fromJsonTimestamp(object.date_read)
-        : undefined,
-      dateDelivered: isSet(object.dateDelivered)
-        ? fromJsonTimestamp(object.dateDelivered)
-        : isSet(object.date_delivered)
-        ? fromJsonTimestamp(object.date_delivered)
-        : undefined,
-      dateEdited: isSet(object.dateEdited)
-        ? fromJsonTimestamp(object.dateEdited)
-        : isSet(object.date_edited)
-        ? fromJsonTimestamp(object.date_edited)
-        : undefined,
-      dateRetracted: isSet(object.dateRetracted)
-        ? fromJsonTimestamp(object.dateRetracted)
-        : isSet(object.date_retracted)
-        ? fromJsonTimestamp(object.date_retracted)
-        : undefined,
-      datePlayed: isSet(object.datePlayed)
-        ? fromJsonTimestamp(object.datePlayed)
-        : isSet(object.date_played)
-        ? fromJsonTimestamp(object.date_played)
-        : undefined,
-      sender: isSet(object.sender) ? AddressInfo.fromJSON(object.sender) : undefined,
-      isFromMe: isSet(object.isFromMe)
-        ? globalThis.Boolean(object.isFromMe)
-        : isSet(object.is_from_me)
-        ? globalThis.Boolean(object.is_from_me)
-        : false,
-      country: isSet(object.country) ? globalThis.String(object.country) : undefined,
-      isSent: isSet(object.isSent)
-        ? globalThis.Boolean(object.isSent)
-        : isSet(object.is_sent)
-        ? globalThis.Boolean(object.is_sent)
-        : false,
-      isDelivered: isSet(object.isDelivered)
-        ? globalThis.Boolean(object.isDelivered)
-        : isSet(object.is_delivered)
-        ? globalThis.Boolean(object.is_delivered)
-        : false,
-      isDeliveredQuietly: isSet(object.isDeliveredQuietly)
-        ? globalThis.Boolean(object.isDeliveredQuietly)
-        : isSet(object.is_delivered_quietly)
-        ? globalThis.Boolean(object.is_delivered_quietly)
-        : false,
-      didNotifyRecipient: isSet(object.didNotifyRecipient)
-        ? globalThis.Boolean(object.didNotifyRecipient)
-        : isSet(object.did_notify_recipient)
-        ? globalThis.Boolean(object.did_notify_recipient)
-        : false,
-      sendErrorCode: isSet(object.sendErrorCode)
-        ? globalThis.Number(object.sendErrorCode)
-        : isSet(object.send_error_code)
-        ? globalThis.Number(object.send_error_code)
-        : 0,
-      isAudioMessage: isSet(object.isAudioMessage)
-        ? globalThis.Boolean(object.isAudioMessage)
-        : isSet(object.is_audio_message)
-        ? globalThis.Boolean(object.is_audio_message)
-        : false,
-      isAutoReply: isSet(object.isAutoReply)
-        ? globalThis.Boolean(object.isAutoReply)
-        : isSet(object.is_auto_reply)
-        ? globalThis.Boolean(object.is_auto_reply)
-        : false,
-      isSystemMessage: isSet(object.isSystemMessage)
-        ? globalThis.Boolean(object.isSystemMessage)
-        : isSet(object.is_system_message)
-        ? globalThis.Boolean(object.is_system_message)
-        : false,
-      isForward: isSet(object.isForward)
-        ? globalThis.Boolean(object.isForward)
-        : isSet(object.is_forward)
-        ? globalThis.Boolean(object.is_forward)
-        : false,
-      isDelayed: isSet(object.isDelayed)
-        ? globalThis.Boolean(object.isDelayed)
-        : isSet(object.is_delayed)
-        ? globalThis.Boolean(object.is_delayed)
-        : false,
-      isSpam: isSet(object.isSpam)
-        ? globalThis.Boolean(object.isSpam)
-        : isSet(object.is_spam)
-        ? globalThis.Boolean(object.is_spam)
-        : false,
-      hasDdResults: isSet(object.hasDdResults)
-        ? globalThis.Boolean(object.hasDdResults)
-        : isSet(object.has_dd_results)
-        ? globalThis.Boolean(object.has_dd_results)
-        : false,
-      isArchived: isSet(object.isArchived)
-        ? globalThis.Boolean(object.isArchived)
-        : isSet(object.is_archived)
-        ? globalThis.Boolean(object.is_archived)
-        : false,
-      isServiceMessage: isSet(object.isServiceMessage)
-        ? globalThis.Boolean(object.isServiceMessage)
-        : isSet(object.is_service_message)
-        ? globalThis.Boolean(object.is_service_message)
-        : false,
-      isCorrupt: isSet(object.isCorrupt)
-        ? globalThis.Boolean(object.isCorrupt)
-        : isSet(object.is_corrupt)
-        ? globalThis.Boolean(object.is_corrupt)
-        : false,
-      isExpirable: isSet(object.isExpirable)
-        ? globalThis.Boolean(object.isExpirable)
-        : isSet(object.is_expirable)
-        ? globalThis.Boolean(object.is_expirable)
-        : false,
-      shareStatus: isSet(object.shareStatus)
-        ? globalThis.Number(object.shareStatus)
-        : isSet(object.share_status)
-        ? globalThis.Number(object.share_status)
-        : undefined,
-      shareDirection: isSet(object.shareDirection)
-        ? globalThis.Number(object.shareDirection)
-        : isSet(object.share_direction)
-        ? globalThis.Number(object.share_direction)
-        : undefined,
-      itemType: isSet(object.itemType)
-        ? messageItemTypeFromJSON(object.itemType)
-        : isSet(object.item_type)
-        ? messageItemTypeFromJSON(object.item_type)
-        : 0,
-      groupTitle: isSet(object.groupTitle)
-        ? globalThis.String(object.groupTitle)
-        : isSet(object.group_title)
-        ? globalThis.String(object.group_title)
-        : undefined,
-      groupActionType: isSet(object.groupActionType)
-        ? globalThis.Number(object.groupActionType)
-        : isSet(object.group_action_type)
-        ? globalThis.Number(object.group_action_type)
-        : undefined,
-      associatedMessageGuid: isSet(object.associatedMessageGuid)
-        ? globalThis.String(object.associatedMessageGuid)
-        : isSet(object.associated_message_guid)
-        ? globalThis.String(object.associated_message_guid)
-        : undefined,
-      associatedMessageType: isSet(object.associatedMessageType)
-        ? globalThis.String(object.associatedMessageType)
-        : isSet(object.associated_message_type)
-        ? globalThis.String(object.associated_message_type)
-        : undefined,
-      threadOriginatorGuid: isSet(object.threadOriginatorGuid)
-        ? globalThis.String(object.threadOriginatorGuid)
-        : isSet(object.thread_originator_guid)
-        ? globalThis.String(object.thread_originator_guid)
-        : undefined,
-      threadOriginatorPart: isSet(object.threadOriginatorPart)
-        ? globalThis.String(object.threadOriginatorPart)
-        : isSet(object.thread_originator_part)
-        ? globalThis.String(object.thread_originator_part)
-        : undefined,
-      replyToGuid: isSet(object.replyToGuid)
-        ? globalThis.String(object.replyToGuid)
-        : isSet(object.reply_to_guid)
-        ? globalThis.String(object.reply_to_guid)
-        : undefined,
-      destinationCallerId: isSet(object.destinationCallerId)
-        ? globalThis.String(object.destinationCallerId)
-        : isSet(object.destination_caller_id)
-        ? globalThis.String(object.destination_caller_id)
-        : undefined,
-      associatedMessageEmoji: isSet(object.associatedMessageEmoji)
-        ? globalThis.String(object.associatedMessageEmoji)
-        : isSet(object.associated_message_emoji)
-        ? globalThis.String(object.associated_message_emoji)
-        : undefined,
-      balloonBundleId: isSet(object.balloonBundleId)
-        ? globalThis.String(object.balloonBundleId)
-        : isSet(object.balloon_bundle_id)
-        ? globalThis.String(object.balloon_bundle_id)
-        : undefined,
-      expressiveSendStyleId: isSet(object.expressiveSendStyleId)
-        ? globalThis.String(object.expressiveSendStyleId)
-        : isSet(object.expressive_send_style_id)
-        ? globalThis.String(object.expressive_send_style_id)
-        : undefined,
-      payloadData: isSet(object.payloadData)
-        ? bytesFromBase64(object.payloadData)
-        : isSet(object.payload_data)
-        ? bytesFromBase64(object.payload_data)
-        : undefined,
-      messageSummaryInfo: isSet(object.messageSummaryInfo)
-        ? bytesFromBase64(object.messageSummaryInfo)
-        : isSet(object.message_summary_info)
-        ? bytesFromBase64(object.message_summary_info)
-        : undefined,
-      partCount: isSet(object.partCount)
-        ? globalThis.Number(object.partCount)
-        : isSet(object.part_count)
-        ? globalThis.Number(object.part_count)
-        : undefined,
-      cacheRoomnames: isSet(object.cacheRoomnames)
-        ? globalThis.String(object.cacheRoomnames)
-        : isSet(object.cache_roomnames)
-        ? globalThis.String(object.cache_roomnames)
-        : undefined,
-      timeExpressiveSendPlayed: isSet(object.timeExpressiveSendPlayed)
-        ? fromJsonTimestamp(object.timeExpressiveSendPlayed)
-        : isSet(object.time_expressive_send_played)
-        ? fromJsonTimestamp(object.time_expressive_send_played)
-        : undefined,
-      attachments: globalThis.Array.isArray(object?.attachments)
-        ? object.attachments.map((e: any) => AttachmentInfo.fromJSON(e))
-        : [],
-      chatGuids: globalThis.Array.isArray(object?.chatGuids)
-        ? object.chatGuids.map((e: any) => globalThis.String(e))
-        : globalThis.Array.isArray(object?.chat_guids)
-        ? object.chat_guids.map((e: any) => globalThis.String(e))
-        : [],
-      latencyMs: isSet(object.latencyMs)
-        ? globalThis.Number(object.latencyMs)
-        : isSet(object.latency_ms)
-        ? globalThis.Number(object.latency_ms)
-        : undefined,
-    };
-  },
-
-  toJSON(message: Message): unknown {
-    const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
-    }
-    if (message.clientMessageId !== undefined) {
-      obj.clientMessageId = message.clientMessageId;
-    }
-    if (message.text !== undefined) {
-      obj.text = message.text;
-    }
-    if (message.attributedBody !== undefined) {
-      obj.attributedBody = base64FromBytes(message.attributedBody);
-    }
-    if (message.subject !== undefined) {
-      obj.subject = message.subject;
-    }
-    if (message.dateCreated !== undefined) {
-      obj.dateCreated = message.dateCreated.toISOString();
-    }
-    if (message.dateRead !== undefined) {
-      obj.dateRead = message.dateRead.toISOString();
-    }
-    if (message.dateDelivered !== undefined) {
-      obj.dateDelivered = message.dateDelivered.toISOString();
-    }
-    if (message.dateEdited !== undefined) {
-      obj.dateEdited = message.dateEdited.toISOString();
-    }
-    if (message.dateRetracted !== undefined) {
-      obj.dateRetracted = message.dateRetracted.toISOString();
-    }
-    if (message.datePlayed !== undefined) {
-      obj.datePlayed = message.datePlayed.toISOString();
-    }
-    if (message.sender !== undefined) {
-      obj.sender = AddressInfo.toJSON(message.sender);
-    }
-    if (message.isFromMe !== false) {
-      obj.isFromMe = message.isFromMe;
-    }
-    if (message.country !== undefined) {
-      obj.country = message.country;
-    }
-    if (message.isSent !== false) {
-      obj.isSent = message.isSent;
-    }
-    if (message.isDelivered !== false) {
-      obj.isDelivered = message.isDelivered;
-    }
-    if (message.isDeliveredQuietly !== false) {
-      obj.isDeliveredQuietly = message.isDeliveredQuietly;
-    }
-    if (message.didNotifyRecipient !== false) {
-      obj.didNotifyRecipient = message.didNotifyRecipient;
-    }
-    if (message.sendErrorCode !== 0) {
-      obj.sendErrorCode = Math.round(message.sendErrorCode);
-    }
-    if (message.isAudioMessage !== false) {
-      obj.isAudioMessage = message.isAudioMessage;
-    }
-    if (message.isAutoReply !== false) {
-      obj.isAutoReply = message.isAutoReply;
-    }
-    if (message.isSystemMessage !== false) {
-      obj.isSystemMessage = message.isSystemMessage;
-    }
-    if (message.isForward !== false) {
-      obj.isForward = message.isForward;
-    }
-    if (message.isDelayed !== false) {
-      obj.isDelayed = message.isDelayed;
-    }
-    if (message.isSpam !== false) {
-      obj.isSpam = message.isSpam;
-    }
-    if (message.hasDdResults !== false) {
-      obj.hasDdResults = message.hasDdResults;
-    }
-    if (message.isArchived !== false) {
-      obj.isArchived = message.isArchived;
-    }
-    if (message.isServiceMessage !== false) {
-      obj.isServiceMessage = message.isServiceMessage;
-    }
-    if (message.isCorrupt !== false) {
-      obj.isCorrupt = message.isCorrupt;
-    }
-    if (message.isExpirable !== false) {
-      obj.isExpirable = message.isExpirable;
-    }
-    if (message.shareStatus !== undefined) {
-      obj.shareStatus = Math.round(message.shareStatus);
-    }
-    if (message.shareDirection !== undefined) {
-      obj.shareDirection = Math.round(message.shareDirection);
-    }
-    if (message.itemType !== 0) {
-      obj.itemType = messageItemTypeToJSON(message.itemType);
-    }
-    if (message.groupTitle !== undefined) {
-      obj.groupTitle = message.groupTitle;
-    }
-    if (message.groupActionType !== undefined) {
-      obj.groupActionType = Math.round(message.groupActionType);
-    }
-    if (message.associatedMessageGuid !== undefined) {
-      obj.associatedMessageGuid = message.associatedMessageGuid;
-    }
-    if (message.associatedMessageType !== undefined) {
-      obj.associatedMessageType = message.associatedMessageType;
-    }
-    if (message.threadOriginatorGuid !== undefined) {
-      obj.threadOriginatorGuid = message.threadOriginatorGuid;
-    }
-    if (message.threadOriginatorPart !== undefined) {
-      obj.threadOriginatorPart = message.threadOriginatorPart;
-    }
-    if (message.replyToGuid !== undefined) {
-      obj.replyToGuid = message.replyToGuid;
-    }
-    if (message.destinationCallerId !== undefined) {
-      obj.destinationCallerId = message.destinationCallerId;
-    }
-    if (message.associatedMessageEmoji !== undefined) {
-      obj.associatedMessageEmoji = message.associatedMessageEmoji;
-    }
-    if (message.balloonBundleId !== undefined) {
-      obj.balloonBundleId = message.balloonBundleId;
-    }
-    if (message.expressiveSendStyleId !== undefined) {
-      obj.expressiveSendStyleId = message.expressiveSendStyleId;
-    }
-    if (message.payloadData !== undefined) {
-      obj.payloadData = base64FromBytes(message.payloadData);
-    }
-    if (message.messageSummaryInfo !== undefined) {
-      obj.messageSummaryInfo = base64FromBytes(message.messageSummaryInfo);
-    }
-    if (message.partCount !== undefined) {
-      obj.partCount = Math.round(message.partCount);
-    }
-    if (message.cacheRoomnames !== undefined) {
-      obj.cacheRoomnames = message.cacheRoomnames;
-    }
-    if (message.timeExpressiveSendPlayed !== undefined) {
-      obj.timeExpressiveSendPlayed = message.timeExpressiveSendPlayed.toISOString();
-    }
-    if (message.attachments?.length) {
-      obj.attachments = message.attachments.map((e) => AttachmentInfo.toJSON(e));
-    }
-    if (message.chatGuids?.length) {
-      obj.chatGuids = message.chatGuids;
-    }
-    if (message.latencyMs !== undefined) {
-      obj.latencyMs = Math.round(message.latencyMs);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<Message>): Message {
-    return Message.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<Message>): Message {
-    const message = createBaseMessage();
-    message.guid = object.guid ?? "";
-    message.clientMessageId = object.clientMessageId ?? undefined;
-    message.text = object.text ?? undefined;
-    message.attributedBody = object.attributedBody ?? undefined;
-    message.subject = object.subject ?? undefined;
-    message.dateCreated = object.dateCreated ?? undefined;
-    message.dateRead = object.dateRead ?? undefined;
-    message.dateDelivered = object.dateDelivered ?? undefined;
-    message.dateEdited = object.dateEdited ?? undefined;
-    message.dateRetracted = object.dateRetracted ?? undefined;
-    message.datePlayed = object.datePlayed ?? undefined;
-    message.sender = (object.sender !== undefined && object.sender !== null)
-      ? AddressInfo.fromPartial(object.sender)
-      : undefined;
-    message.isFromMe = object.isFromMe ?? false;
-    message.country = object.country ?? undefined;
-    message.isSent = object.isSent ?? false;
-    message.isDelivered = object.isDelivered ?? false;
-    message.isDeliveredQuietly = object.isDeliveredQuietly ?? false;
-    message.didNotifyRecipient = object.didNotifyRecipient ?? false;
-    message.sendErrorCode = object.sendErrorCode ?? 0;
-    message.isAudioMessage = object.isAudioMessage ?? false;
-    message.isAutoReply = object.isAutoReply ?? false;
-    message.isSystemMessage = object.isSystemMessage ?? false;
-    message.isForward = object.isForward ?? false;
-    message.isDelayed = object.isDelayed ?? false;
-    message.isSpam = object.isSpam ?? false;
-    message.hasDdResults = object.hasDdResults ?? false;
-    message.isArchived = object.isArchived ?? false;
-    message.isServiceMessage = object.isServiceMessage ?? false;
-    message.isCorrupt = object.isCorrupt ?? false;
-    message.isExpirable = object.isExpirable ?? false;
-    message.shareStatus = object.shareStatus ?? undefined;
-    message.shareDirection = object.shareDirection ?? undefined;
-    message.itemType = object.itemType ?? 0;
-    message.groupTitle = object.groupTitle ?? undefined;
-    message.groupActionType = object.groupActionType ?? undefined;
-    message.associatedMessageGuid = object.associatedMessageGuid ?? undefined;
-    message.associatedMessageType = object.associatedMessageType ?? undefined;
-    message.threadOriginatorGuid = object.threadOriginatorGuid ?? undefined;
-    message.threadOriginatorPart = object.threadOriginatorPart ?? undefined;
-    message.replyToGuid = object.replyToGuid ?? undefined;
-    message.destinationCallerId = object.destinationCallerId ?? undefined;
-    message.associatedMessageEmoji = object.associatedMessageEmoji ?? undefined;
-    message.balloonBundleId = object.balloonBundleId ?? undefined;
-    message.expressiveSendStyleId = object.expressiveSendStyleId ?? undefined;
-    message.payloadData = object.payloadData ?? undefined;
-    message.messageSummaryInfo = object.messageSummaryInfo ?? undefined;
-    message.partCount = object.partCount ?? undefined;
-    message.cacheRoomnames = object.cacheRoomnames ?? undefined;
-    message.timeExpressiveSendPlayed = object.timeExpressiveSendPlayed ?? undefined;
-    message.attachments = object.attachments?.map((e) => AttachmentInfo.fromPartial(e)) || [];
-    message.chatGuids = object.chatGuids?.map((e) => e) || [];
-    message.latencyMs = object.latencyMs ?? undefined;
-    return message;
-  },
-};
-
-function createBaseStickerPlacement(): StickerPlacement {
-  return { x: 0, y: 0, scale: undefined, rotation: undefined, width: undefined };
-}
-
-export const StickerPlacement: MessageFns<StickerPlacement> = {
-  encode(message: StickerPlacement, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.x !== 0) {
-      writer.uint32(9).double(message.x);
-    }
-    if (message.y !== 0) {
-      writer.uint32(17).double(message.y);
-    }
-    if (message.scale !== undefined) {
-      writer.uint32(25).double(message.scale);
-    }
-    if (message.rotation !== undefined) {
-      writer.uint32(33).double(message.rotation);
-    }
-    if (message.width !== undefined) {
-      writer.uint32(41).double(message.width);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): StickerPlacement {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseStickerPlacement();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 9) {
-            break;
-          }
-
-          message.x = reader.double();
-          continue;
-        }
-        case 2: {
-          if (tag !== 17) {
-            break;
-          }
-
-          message.y = reader.double();
-          continue;
-        }
-        case 3: {
-          if (tag !== 25) {
-            break;
-          }
-
-          message.scale = reader.double();
-          continue;
-        }
-        case 4: {
-          if (tag !== 33) {
-            break;
-          }
-
-          message.rotation = reader.double();
-          continue;
-        }
-        case 5: {
-          if (tag !== 41) {
-            break;
-          }
-
-          message.width = reader.double();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): StickerPlacement {
-    return {
-      x: isSet(object.x) ? globalThis.Number(object.x) : 0,
-      y: isSet(object.y) ? globalThis.Number(object.y) : 0,
-      scale: isSet(object.scale) ? globalThis.Number(object.scale) : undefined,
-      rotation: isSet(object.rotation) ? globalThis.Number(object.rotation) : undefined,
-      width: isSet(object.width) ? globalThis.Number(object.width) : undefined,
-    };
-  },
-
-  toJSON(message: StickerPlacement): unknown {
-    const obj: any = {};
-    if (message.x !== 0) {
-      obj.x = message.x;
-    }
-    if (message.y !== 0) {
-      obj.y = message.y;
-    }
-    if (message.scale !== undefined) {
-      obj.scale = message.scale;
-    }
-    if (message.rotation !== undefined) {
-      obj.rotation = message.rotation;
-    }
-    if (message.width !== undefined) {
-      obj.width = message.width;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<StickerPlacement>): StickerPlacement {
-    return StickerPlacement.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<StickerPlacement>): StickerPlacement {
-    const message = createBaseStickerPlacement();
-    message.x = object.x ?? 0;
-    message.y = object.y ?? 0;
-    message.scale = object.scale ?? undefined;
-    message.rotation = object.rotation ?? undefined;
-    message.width = object.width ?? undefined;
-    return message;
-  },
-};
-
-function createBaseMessagePart(): MessagePart {
-  return {
-    text: undefined,
-    attachmentPath: undefined,
-    attachmentGuid: undefined,
-    attachmentName: undefined,
-    mention: undefined,
-    partIndex: undefined,
-    formatting: [],
-  };
-}
-
-export const MessagePart: MessageFns<MessagePart> = {
-  encode(message: MessagePart, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.text !== undefined) {
-      writer.uint32(10).string(message.text);
-    }
-    if (message.attachmentPath !== undefined) {
-      writer.uint32(18).string(message.attachmentPath);
-    }
-    if (message.attachmentGuid !== undefined) {
-      writer.uint32(66).string(message.attachmentGuid);
-    }
-    if (message.attachmentName !== undefined) {
-      writer.uint32(26).string(message.attachmentName);
-    }
-    if (message.mention !== undefined) {
-      writer.uint32(42).string(message.mention);
-    }
-    if (message.partIndex !== undefined) {
-      writer.uint32(48).int32(message.partIndex);
-    }
-    for (const v of message.formatting) {
-      TextFormat.encode(v!, writer.uint32(58).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessagePart {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessagePart();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.text = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.attachmentPath = reader.string();
-          continue;
-        }
-        case 8: {
-          if (tag !== 66) {
-            break;
-          }
-
-          message.attachmentGuid = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.attachmentName = reader.string();
-          continue;
-        }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.mention = reader.string();
-          continue;
-        }
-        case 6: {
-          if (tag !== 48) {
-            break;
-          }
-
-          message.partIndex = reader.int32();
-          continue;
-        }
-        case 7: {
-          if (tag !== 58) {
-            break;
-          }
-
-          message.formatting.push(TextFormat.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessagePart {
-    return {
-      text: isSet(object.text) ? globalThis.String(object.text) : undefined,
-      attachmentPath: isSet(object.attachmentPath)
-        ? globalThis.String(object.attachmentPath)
-        : isSet(object.attachment_path)
-        ? globalThis.String(object.attachment_path)
-        : undefined,
-      attachmentGuid: isSet(object.attachmentGuid)
-        ? globalThis.String(object.attachmentGuid)
-        : isSet(object.attachment_guid)
-        ? globalThis.String(object.attachment_guid)
-        : undefined,
-      attachmentName: isSet(object.attachmentName)
-        ? globalThis.String(object.attachmentName)
-        : isSet(object.attachment_name)
-        ? globalThis.String(object.attachment_name)
-        : undefined,
-      mention: isSet(object.mention) ? globalThis.String(object.mention) : undefined,
-      partIndex: isSet(object.partIndex)
-        ? globalThis.Number(object.partIndex)
-        : isSet(object.part_index)
-        ? globalThis.Number(object.part_index)
-        : undefined,
-      formatting: globalThis.Array.isArray(object?.formatting)
-        ? object.formatting.map((e: any) => TextFormat.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: MessagePart): unknown {
-    const obj: any = {};
-    if (message.text !== undefined) {
-      obj.text = message.text;
-    }
-    if (message.attachmentPath !== undefined) {
-      obj.attachmentPath = message.attachmentPath;
-    }
-    if (message.attachmentGuid !== undefined) {
-      obj.attachmentGuid = message.attachmentGuid;
-    }
-    if (message.attachmentName !== undefined) {
-      obj.attachmentName = message.attachmentName;
-    }
-    if (message.mention !== undefined) {
-      obj.mention = message.mention;
-    }
-    if (message.partIndex !== undefined) {
-      obj.partIndex = Math.round(message.partIndex);
-    }
-    if (message.formatting?.length) {
-      obj.formatting = message.formatting.map((e) => TextFormat.toJSON(e));
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessagePart>): MessagePart {
-    return MessagePart.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessagePart>): MessagePart {
-    const message = createBaseMessagePart();
-    message.text = object.text ?? undefined;
-    message.attachmentPath = object.attachmentPath ?? undefined;
-    message.attachmentGuid = object.attachmentGuid ?? undefined;
-    message.attachmentName = object.attachmentName ?? undefined;
-    message.mention = object.mention ?? undefined;
-    message.partIndex = object.partIndex ?? undefined;
-    message.formatting = object.formatting?.map((e) => TextFormat.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseTextFormat(): TextFormat {
-  return { type: "", start: 0, length: 0, effectName: undefined };
-}
-
-export const TextFormat: MessageFns<TextFormat> = {
-  encode(message: TextFormat, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.type !== "") {
-      writer.uint32(10).string(message.type);
-    }
-    if (message.start !== 0) {
-      writer.uint32(16).int32(message.start);
-    }
-    if (message.length !== 0) {
-      writer.uint32(24).int32(message.length);
-    }
-    if (message.effectName !== undefined) {
-      writer.uint32(34).string(message.effectName);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): TextFormat {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseTextFormat();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.type = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.start = reader.int32();
-          continue;
-        }
-        case 3: {
-          if (tag !== 24) {
-            break;
-          }
-
-          message.length = reader.int32();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.effectName = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): TextFormat {
-    return {
-      type: isSet(object.type) ? globalThis.String(object.type) : "",
-      start: isSet(object.start) ? globalThis.Number(object.start) : 0,
-      length: isSet(object.length) ? globalThis.Number(object.length) : 0,
-      effectName: isSet(object.effectName)
-        ? globalThis.String(object.effectName)
-        : isSet(object.effect_name)
-        ? globalThis.String(object.effect_name)
-        : undefined,
-    };
-  },
-
-  toJSON(message: TextFormat): unknown {
-    const obj: any = {};
-    if (message.type !== "") {
-      obj.type = message.type;
-    }
-    if (message.start !== 0) {
-      obj.start = Math.round(message.start);
-    }
-    if (message.length !== 0) {
-      obj.length = Math.round(message.length);
-    }
-    if (message.effectName !== undefined) {
-      obj.effectName = message.effectName;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<TextFormat>): TextFormat {
-    return TextFormat.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<TextFormat>): TextFormat {
-    const message = createBaseTextFormat();
-    message.type = object.type ?? "";
-    message.start = object.start ?? 0;
-    message.length = object.length ?? 0;
-    message.effectName = object.effectName ?? undefined;
-    return message;
-  },
-};
-
-function createBaseSendRequest(): SendRequest {
-  return {
-    chatGuid: "",
-    clientMessageId: undefined,
-    message: undefined,
-    attributedBody: undefined,
-    subject: undefined,
-    effectId: undefined,
-    ddScan: false,
-    richLink: false,
-    attachmentPath: undefined,
-    attachmentName: undefined,
-    attachmentGuid: undefined,
-    isAudioMessage: false,
-    isSticker: false,
-    stickerPlacement: undefined,
-    parts: [],
-    selectedMessageGuid: undefined,
-    partIndex: 0,
-    formatting: [],
-  };
-}
-
-export const SendRequest: MessageFns<SendRequest> = {
-  encode(message: SendRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(18).string(message.clientMessageId);
-    }
-    if (message.message !== undefined) {
-      writer.uint32(26).string(message.message);
-    }
-    if (message.attributedBody !== undefined) {
-      writer.uint32(34).bytes(message.attributedBody);
-    }
-    if (message.subject !== undefined) {
-      writer.uint32(42).string(message.subject);
-    }
-    if (message.effectId !== undefined) {
-      writer.uint32(50).string(message.effectId);
-    }
-    if (message.ddScan !== false) {
-      writer.uint32(56).bool(message.ddScan);
-    }
-    if (message.richLink !== false) {
-      writer.uint32(64).bool(message.richLink);
-    }
-    if (message.attachmentPath !== undefined) {
-      writer.uint32(74).string(message.attachmentPath);
-    }
-    if (message.attachmentName !== undefined) {
-      writer.uint32(82).string(message.attachmentName);
-    }
-    if (message.attachmentGuid !== undefined) {
-      writer.uint32(90).string(message.attachmentGuid);
-    }
-    if (message.isAudioMessage !== false) {
-      writer.uint32(96).bool(message.isAudioMessage);
-    }
-    if (message.isSticker !== false) {
-      writer.uint32(104).bool(message.isSticker);
-    }
-    if (message.stickerPlacement !== undefined) {
-      StickerPlacement.encode(message.stickerPlacement, writer.uint32(114).fork()).join();
-    }
-    for (const v of message.parts) {
-      MessagePart.encode(v!, writer.uint32(122).fork()).join();
-    }
-    if (message.selectedMessageGuid !== undefined) {
-      writer.uint32(130).string(message.selectedMessageGuid);
-    }
-    if (message.partIndex !== 0) {
-      writer.uint32(136).int32(message.partIndex);
-    }
-    for (const v of message.formatting) {
-      TextFormat.encode(v!, writer.uint32(154).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SendRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSendRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.message = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
-          message.attributedBody = reader.bytes();
-          continue;
-        }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.subject = reader.string();
-          continue;
-        }
-        case 6: {
-          if (tag !== 50) {
-            break;
-          }
-
-          message.effectId = reader.string();
-          continue;
-        }
-        case 7: {
-          if (tag !== 56) {
-            break;
-          }
-
-          message.ddScan = reader.bool();
-          continue;
-        }
-        case 8: {
-          if (tag !== 64) {
-            break;
-          }
-
-          message.richLink = reader.bool();
-          continue;
-        }
-        case 9: {
-          if (tag !== 74) {
-            break;
-          }
-
-          message.attachmentPath = reader.string();
-          continue;
-        }
-        case 10: {
-          if (tag !== 82) {
-            break;
-          }
-
-          message.attachmentName = reader.string();
-          continue;
-        }
-        case 11: {
-          if (tag !== 90) {
-            break;
-          }
-
-          message.attachmentGuid = reader.string();
-          continue;
-        }
-        case 12: {
-          if (tag !== 96) {
-            break;
-          }
-
-          message.isAudioMessage = reader.bool();
-          continue;
-        }
-        case 13: {
-          if (tag !== 104) {
-            break;
-          }
-
-          message.isSticker = reader.bool();
-          continue;
-        }
-        case 14: {
-          if (tag !== 114) {
-            break;
-          }
-
-          message.stickerPlacement = StickerPlacement.decode(reader, reader.uint32());
-          continue;
-        }
-        case 15: {
-          if (tag !== 122) {
-            break;
-          }
-
-          message.parts.push(MessagePart.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 16: {
-          if (tag !== 130) {
-            break;
-          }
-
-          message.selectedMessageGuid = reader.string();
-          continue;
-        }
-        case 17: {
-          if (tag !== 136) {
-            break;
-          }
-
-          message.partIndex = reader.int32();
-          continue;
-        }
-        case 19: {
-          if (tag !== 154) {
-            break;
-          }
-
-          message.formatting.push(TextFormat.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): SendRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      clientMessageId: isSet(object.clientMessageId)
-        ? globalThis.String(object.clientMessageId)
-        : isSet(object.client_message_id)
-        ? globalThis.String(object.client_message_id)
-        : undefined,
-      message: isSet(object.message) ? globalThis.String(object.message) : undefined,
-      attributedBody: isSet(object.attributedBody)
-        ? bytesFromBase64(object.attributedBody)
-        : isSet(object.attributed_body)
-        ? bytesFromBase64(object.attributed_body)
-        : undefined,
-      subject: isSet(object.subject) ? globalThis.String(object.subject) : undefined,
-      effectId: isSet(object.effectId)
-        ? globalThis.String(object.effectId)
-        : isSet(object.effect_id)
-        ? globalThis.String(object.effect_id)
-        : undefined,
-      ddScan: isSet(object.ddScan)
-        ? globalThis.Boolean(object.ddScan)
-        : isSet(object.dd_scan)
-        ? globalThis.Boolean(object.dd_scan)
-        : false,
-      richLink: isSet(object.richLink)
-        ? globalThis.Boolean(object.richLink)
-        : isSet(object.rich_link)
-        ? globalThis.Boolean(object.rich_link)
-        : false,
-      attachmentPath: isSet(object.attachmentPath)
-        ? globalThis.String(object.attachmentPath)
-        : isSet(object.attachment_path)
-        ? globalThis.String(object.attachment_path)
-        : undefined,
-      attachmentName: isSet(object.attachmentName)
-        ? globalThis.String(object.attachmentName)
-        : isSet(object.attachment_name)
-        ? globalThis.String(object.attachment_name)
-        : undefined,
-      attachmentGuid: isSet(object.attachmentGuid)
-        ? globalThis.String(object.attachmentGuid)
-        : isSet(object.attachment_guid)
-        ? globalThis.String(object.attachment_guid)
-        : undefined,
-      isAudioMessage: isSet(object.isAudioMessage)
-        ? globalThis.Boolean(object.isAudioMessage)
-        : isSet(object.is_audio_message)
-        ? globalThis.Boolean(object.is_audio_message)
-        : false,
-      isSticker: isSet(object.isSticker)
-        ? globalThis.Boolean(object.isSticker)
-        : isSet(object.is_sticker)
-        ? globalThis.Boolean(object.is_sticker)
-        : false,
-      stickerPlacement: isSet(object.stickerPlacement)
-        ? StickerPlacement.fromJSON(object.stickerPlacement)
-        : isSet(object.sticker_placement)
-        ? StickerPlacement.fromJSON(object.sticker_placement)
-        : undefined,
-      parts: globalThis.Array.isArray(object?.parts)
-        ? object.parts.map((e: any) => MessagePart.fromJSON(e))
-        : [],
-      selectedMessageGuid: isSet(object.selectedMessageGuid)
-        ? globalThis.String(object.selectedMessageGuid)
-        : isSet(object.selected_message_guid)
-        ? globalThis.String(object.selected_message_guid)
-        : undefined,
-      partIndex: isSet(object.partIndex)
-        ? globalThis.Number(object.partIndex)
-        : isSet(object.part_index)
-        ? globalThis.Number(object.part_index)
-        : 0,
-      formatting: globalThis.Array.isArray(object?.formatting)
-        ? object.formatting.map((e: any) => TextFormat.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: SendRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    if (message.clientMessageId !== undefined) {
-      obj.clientMessageId = message.clientMessageId;
-    }
-    if (message.message !== undefined) {
-      obj.message = message.message;
-    }
-    if (message.attributedBody !== undefined) {
-      obj.attributedBody = base64FromBytes(message.attributedBody);
-    }
-    if (message.subject !== undefined) {
-      obj.subject = message.subject;
-    }
-    if (message.effectId !== undefined) {
-      obj.effectId = message.effectId;
-    }
-    if (message.ddScan !== false) {
-      obj.ddScan = message.ddScan;
-    }
-    if (message.richLink !== false) {
-      obj.richLink = message.richLink;
-    }
-    if (message.attachmentPath !== undefined) {
-      obj.attachmentPath = message.attachmentPath;
-    }
-    if (message.attachmentName !== undefined) {
-      obj.attachmentName = message.attachmentName;
-    }
-    if (message.attachmentGuid !== undefined) {
-      obj.attachmentGuid = message.attachmentGuid;
-    }
-    if (message.isAudioMessage !== false) {
-      obj.isAudioMessage = message.isAudioMessage;
-    }
-    if (message.isSticker !== false) {
-      obj.isSticker = message.isSticker;
-    }
-    if (message.stickerPlacement !== undefined) {
-      obj.stickerPlacement = StickerPlacement.toJSON(message.stickerPlacement);
-    }
-    if (message.parts?.length) {
-      obj.parts = message.parts.map((e) => MessagePart.toJSON(e));
-    }
-    if (message.selectedMessageGuid !== undefined) {
-      obj.selectedMessageGuid = message.selectedMessageGuid;
-    }
-    if (message.partIndex !== 0) {
-      obj.partIndex = Math.round(message.partIndex);
-    }
-    if (message.formatting?.length) {
-      obj.formatting = message.formatting.map((e) => TextFormat.toJSON(e));
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<SendRequest>): SendRequest {
-    return SendRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<SendRequest>): SendRequest {
-    const message = createBaseSendRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    message.clientMessageId = object.clientMessageId ?? undefined;
-    message.message = object.message ?? undefined;
-    message.attributedBody = object.attributedBody ?? undefined;
-    message.subject = object.subject ?? undefined;
-    message.effectId = object.effectId ?? undefined;
-    message.ddScan = object.ddScan ?? false;
-    message.richLink = object.richLink ?? false;
-    message.attachmentPath = object.attachmentPath ?? undefined;
-    message.attachmentName = object.attachmentName ?? undefined;
-    message.attachmentGuid = object.attachmentGuid ?? undefined;
-    message.isAudioMessage = object.isAudioMessage ?? false;
-    message.isSticker = object.isSticker ?? false;
-    message.stickerPlacement = (object.stickerPlacement !== undefined && object.stickerPlacement !== null)
-      ? StickerPlacement.fromPartial(object.stickerPlacement)
-      : undefined;
-    message.parts = object.parts?.map((e) => MessagePart.fromPartial(e)) || [];
-    message.selectedMessageGuid = object.selectedMessageGuid ?? undefined;
-    message.partIndex = object.partIndex ?? 0;
-    message.formatting = object.formatting?.map((e) => TextFormat.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseSendResponse(): SendResponse {
-  return { receipt: undefined };
-}
-
-export const SendResponse: MessageFns<SendResponse> = {
-  encode(message: SendResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.receipt !== undefined) {
-      MessageSendReceipt.encode(message.receipt, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SendResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSendResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.receipt = MessageSendReceipt.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): SendResponse {
-    return { receipt: isSet(object.receipt) ? MessageSendReceipt.fromJSON(object.receipt) : undefined };
-  },
-
-  toJSON(message: SendResponse): unknown {
-    const obj: any = {};
-    if (message.receipt !== undefined) {
-      obj.receipt = MessageSendReceipt.toJSON(message.receipt);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<SendResponse>): SendResponse {
-    return SendResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<SendResponse>): SendResponse {
-    const message = createBaseSendResponse();
-    message.receipt = (object.receipt !== undefined && object.receipt !== null)
-      ? MessageSendReceipt.fromPartial(object.receipt)
-      : undefined;
-    return message;
-  },
-};
-
-function createBaseSendReactionRequest(): SendReactionRequest {
-  return { chatGuid: "", messageGuid: "", reaction: "", partIndex: 0, emoji: undefined };
-}
-
-export const SendReactionRequest: MessageFns<SendReactionRequest> = {
-  encode(message: SendReactionRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const MessageTarget: MessageFns<MessageTarget> = {
+  encode(message: MessageTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.chatGuid !== "") {
       writer.uint32(10).string(message.chatGuid);
     }
     if (message.messageGuid !== "") {
       writer.uint32(18).string(message.messageGuid);
     }
-    if (message.reaction !== "") {
-      writer.uint32(26).string(message.reaction);
-    }
-    if (message.partIndex !== 0) {
-      writer.uint32(32).int32(message.partIndex);
-    }
-    if (message.emoji !== undefined) {
-      writer.uint32(42).string(message.emoji);
+    if (message.targetPartIndex !== undefined) {
+      writer.uint32(24).int32(message.targetPartIndex);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): SendReactionRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageTarget {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSendReactionRequest();
+    const message = createBaseMessageTarget();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3016,27 +242,11 @@ export const SendReactionRequest: MessageFns<SendReactionRequest> = {
           continue;
         }
         case 3: {
-          if (tag !== 26) {
+          if (tag !== 24) {
             break;
           }
 
-          message.reaction = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 32) {
-            break;
-          }
-
-          message.partIndex = reader.int32();
-          continue;
-        }
-        case 5: {
-          if (tag !== 42) {
-            break;
-          }
-
-          message.emoji = reader.string();
+          message.targetPartIndex = reader.int32();
           continue;
         }
       }
@@ -3048,7 +258,7 @@ export const SendReactionRequest: MessageFns<SendReactionRequest> = {
     return message;
   },
 
-  fromJSON(object: any): SendReactionRequest {
+  fromJSON(object: any): MessageTarget {
     return {
       chatGuid: isSet(object.chatGuid)
         ? globalThis.String(object.chatGuid)
@@ -3060,17 +270,15 @@ export const SendReactionRequest: MessageFns<SendReactionRequest> = {
         : isSet(object.message_guid)
         ? globalThis.String(object.message_guid)
         : "",
-      reaction: isSet(object.reaction) ? globalThis.String(object.reaction) : "",
-      partIndex: isSet(object.partIndex)
-        ? globalThis.Number(object.partIndex)
-        : isSet(object.part_index)
-        ? globalThis.Number(object.part_index)
-        : 0,
-      emoji: isSet(object.emoji) ? globalThis.String(object.emoji) : undefined,
+      targetPartIndex: isSet(object.targetPartIndex)
+        ? globalThis.Number(object.targetPartIndex)
+        : isSet(object.target_part_index)
+        ? globalThis.Number(object.target_part_index)
+        : undefined,
     };
   },
 
-  toJSON(message: SendReactionRequest): unknown {
+  toJSON(message: MessageTarget): unknown {
     const obj: any = {};
     if (message.chatGuid !== "") {
       obj.chatGuid = message.chatGuid;
@@ -3078,48 +286,74 @@ export const SendReactionRequest: MessageFns<SendReactionRequest> = {
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
     }
-    if (message.reaction !== "") {
-      obj.reaction = message.reaction;
-    }
-    if (message.partIndex !== 0) {
-      obj.partIndex = Math.round(message.partIndex);
-    }
-    if (message.emoji !== undefined) {
-      obj.emoji = message.emoji;
+    if (message.targetPartIndex !== undefined) {
+      obj.targetPartIndex = Math.round(message.targetPartIndex);
     }
     return obj;
   },
 
-  create(base?: DeepPartial<SendReactionRequest>): SendReactionRequest {
-    return SendReactionRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<MessageTarget>): MessageTarget {
+    return MessageTarget.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<SendReactionRequest>): SendReactionRequest {
-    const message = createBaseSendReactionRequest();
+  fromPartial(object: DeepPartial<MessageTarget>): MessageTarget {
+    const message = createBaseMessageTarget();
     message.chatGuid = object.chatGuid ?? "";
     message.messageGuid = object.messageGuid ?? "";
-    message.reaction = object.reaction ?? "";
-    message.partIndex = object.partIndex ?? 0;
-    message.emoji = object.emoji ?? undefined;
+    message.targetPartIndex = object.targetPartIndex ?? undefined;
     return message;
   },
 };
 
-function createBaseSendReactionResponse(): SendReactionResponse {
-  return { receipt: undefined };
+function createBaseSendTextMessageRequest(): SendTextMessageRequest {
+  return {
+    chatGuid: "",
+    text: "",
+    replyTo: undefined,
+    subject: undefined,
+    effectId: undefined,
+    enableDataDetection: undefined,
+    enableLinkPreview: undefined,
+    formatting: [],
+    clientMessageId: undefined,
+  };
 }
 
-export const SendReactionResponse: MessageFns<SendReactionResponse> = {
-  encode(message: SendReactionResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.receipt !== undefined) {
-      MessageCommandReceipt.encode(message.receipt, writer.uint32(10).fork()).join();
+export const SendTextMessageRequest: MessageFns<SendTextMessageRequest> = {
+  encode(message: SendTextMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.text !== "") {
+      writer.uint32(18).string(message.text);
+    }
+    if (message.replyTo !== undefined) {
+      ReplyTarget.encode(message.replyTo, writer.uint32(26).fork()).join();
+    }
+    if (message.subject !== undefined) {
+      writer.uint32(34).string(message.subject);
+    }
+    if (message.effectId !== undefined) {
+      writer.uint32(42).string(message.effectId);
+    }
+    if (message.enableDataDetection !== undefined) {
+      writer.uint32(48).bool(message.enableDataDetection);
+    }
+    if (message.enableLinkPreview !== undefined) {
+      writer.uint32(56).bool(message.enableLinkPreview);
+    }
+    for (const v of message.formatting) {
+      TextFormat.encode(v!, writer.uint32(66).fork()).join();
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): SendReactionResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): SendTextMessageRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSendReactionResponse();
+    const message = createBaseSendTextMessageRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3128,7 +362,71 @@ export const SendReactionResponse: MessageFns<SendReactionResponse> = {
             break;
           }
 
-          message.receipt = MessageCommandReceipt.decode(reader, reader.uint32());
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.text = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.replyTo = ReplyTarget.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.subject = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.effectId = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.enableDataDetection = reader.bool();
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.enableLinkPreview = reader.bool();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.formatting.push(TextFormat.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
           continue;
         }
       }
@@ -3140,50 +438,532 @@ export const SendReactionResponse: MessageFns<SendReactionResponse> = {
     return message;
   },
 
-  fromJSON(object: any): SendReactionResponse {
-    return { receipt: isSet(object.receipt) ? MessageCommandReceipt.fromJSON(object.receipt) : undefined };
+  fromJSON(object: any): SendTextMessageRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      text: isSet(object.text) ? globalThis.String(object.text) : "",
+      replyTo: isSet(object.replyTo)
+        ? ReplyTarget.fromJSON(object.replyTo)
+        : isSet(object.reply_to)
+        ? ReplyTarget.fromJSON(object.reply_to)
+        : undefined,
+      subject: isSet(object.subject) ? globalThis.String(object.subject) : undefined,
+      effectId: isSet(object.effectId)
+        ? globalThis.String(object.effectId)
+        : isSet(object.effect_id)
+        ? globalThis.String(object.effect_id)
+        : undefined,
+      enableDataDetection: isSet(object.enableDataDetection)
+        ? globalThis.Boolean(object.enableDataDetection)
+        : isSet(object.enable_data_detection)
+        ? globalThis.Boolean(object.enable_data_detection)
+        : undefined,
+      enableLinkPreview: isSet(object.enableLinkPreview)
+        ? globalThis.Boolean(object.enableLinkPreview)
+        : isSet(object.enable_link_preview)
+        ? globalThis.Boolean(object.enable_link_preview)
+        : undefined,
+      formatting: globalThis.Array.isArray(object?.formatting)
+        ? object.formatting.map((e: any) => TextFormat.fromJSON(e))
+        : [],
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
   },
 
-  toJSON(message: SendReactionResponse): unknown {
+  toJSON(message: SendTextMessageRequest): unknown {
     const obj: any = {};
-    if (message.receipt !== undefined) {
-      obj.receipt = MessageCommandReceipt.toJSON(message.receipt);
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.text !== "") {
+      obj.text = message.text;
+    }
+    if (message.replyTo !== undefined) {
+      obj.replyTo = ReplyTarget.toJSON(message.replyTo);
+    }
+    if (message.subject !== undefined) {
+      obj.subject = message.subject;
+    }
+    if (message.effectId !== undefined) {
+      obj.effectId = message.effectId;
+    }
+    if (message.enableDataDetection !== undefined) {
+      obj.enableDataDetection = message.enableDataDetection;
+    }
+    if (message.enableLinkPreview !== undefined) {
+      obj.enableLinkPreview = message.enableLinkPreview;
+    }
+    if (message.formatting?.length) {
+      obj.formatting = message.formatting.map((e) => TextFormat.toJSON(e));
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
     }
     return obj;
   },
 
-  create(base?: DeepPartial<SendReactionResponse>): SendReactionResponse {
-    return SendReactionResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<SendTextMessageRequest>): SendTextMessageRequest {
+    return SendTextMessageRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<SendReactionResponse>): SendReactionResponse {
-    const message = createBaseSendReactionResponse();
-    message.receipt = (object.receipt !== undefined && object.receipt !== null)
-      ? MessageCommandReceipt.fromPartial(object.receipt)
+  fromPartial(object: DeepPartial<SendTextMessageRequest>): SendTextMessageRequest {
+    const message = createBaseSendTextMessageRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.text = object.text ?? "";
+    message.replyTo = (object.replyTo !== undefined && object.replyTo !== null)
+      ? ReplyTarget.fromPartial(object.replyTo)
+      : undefined;
+    message.subject = object.subject ?? undefined;
+    message.effectId = object.effectId ?? undefined;
+    message.enableDataDetection = object.enableDataDetection ?? undefined;
+    message.enableLinkPreview = object.enableLinkPreview ?? undefined;
+    message.formatting = object.formatting?.map((e) => TextFormat.fromPartial(e)) || [];
+    message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSendAttachmentMessageRequest(): SendAttachmentMessageRequest {
+  return {
+    chatGuid: "",
+    attachment: undefined,
+    replyTo: undefined,
+    effectId: undefined,
+    isAudioMessage: undefined,
+    clientMessageId: undefined,
+  };
+}
+
+export const SendAttachmentMessageRequest: MessageFns<SendAttachmentMessageRequest> = {
+  encode(message: SendAttachmentMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.attachment !== undefined) {
+      AttachmentRef.encode(message.attachment, writer.uint32(18).fork()).join();
+    }
+    if (message.replyTo !== undefined) {
+      ReplyTarget.encode(message.replyTo, writer.uint32(26).fork()).join();
+    }
+    if (message.effectId !== undefined) {
+      writer.uint32(34).string(message.effectId);
+    }
+    if (message.isAudioMessage !== undefined) {
+      writer.uint32(40).bool(message.isAudioMessage);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SendAttachmentMessageRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSendAttachmentMessageRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.attachment = AttachmentRef.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.replyTo = ReplyTarget.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.effectId = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.isAudioMessage = reader.bool();
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SendAttachmentMessageRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      attachment: isSet(object.attachment) ? AttachmentRef.fromJSON(object.attachment) : undefined,
+      replyTo: isSet(object.replyTo)
+        ? ReplyTarget.fromJSON(object.replyTo)
+        : isSet(object.reply_to)
+        ? ReplyTarget.fromJSON(object.reply_to)
+        : undefined,
+      effectId: isSet(object.effectId)
+        ? globalThis.String(object.effectId)
+        : isSet(object.effect_id)
+        ? globalThis.String(object.effect_id)
+        : undefined,
+      isAudioMessage: isSet(object.isAudioMessage)
+        ? globalThis.Boolean(object.isAudioMessage)
+        : isSet(object.is_audio_message)
+        ? globalThis.Boolean(object.is_audio_message)
+        : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SendAttachmentMessageRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.attachment !== undefined) {
+      obj.attachment = AttachmentRef.toJSON(message.attachment);
+    }
+    if (message.replyTo !== undefined) {
+      obj.replyTo = ReplyTarget.toJSON(message.replyTo);
+    }
+    if (message.effectId !== undefined) {
+      obj.effectId = message.effectId;
+    }
+    if (message.isAudioMessage !== undefined) {
+      obj.isAudioMessage = message.isAudioMessage;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SendAttachmentMessageRequest>): SendAttachmentMessageRequest {
+    return SendAttachmentMessageRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SendAttachmentMessageRequest>): SendAttachmentMessageRequest {
+    const message = createBaseSendAttachmentMessageRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.attachment = (object.attachment !== undefined && object.attachment !== null)
+      ? AttachmentRef.fromPartial(object.attachment)
+      : undefined;
+    message.replyTo = (object.replyTo !== undefined && object.replyTo !== null)
+      ? ReplyTarget.fromPartial(object.replyTo)
+      : undefined;
+    message.effectId = object.effectId ?? undefined;
+    message.isAudioMessage = object.isAudioMessage ?? undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSendMultipartMessageRequest(): SendMultipartMessageRequest {
+  return {
+    chatGuid: "",
+    parts: [],
+    replyTo: undefined,
+    subject: undefined,
+    effectId: undefined,
+    enableDataDetection: undefined,
+    clientMessageId: undefined,
+  };
+}
+
+export const SendMultipartMessageRequest: MessageFns<SendMultipartMessageRequest> = {
+  encode(message: SendMultipartMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    for (const v of message.parts) {
+      MessagePart.encode(v!, writer.uint32(18).fork()).join();
+    }
+    if (message.replyTo !== undefined) {
+      ReplyTarget.encode(message.replyTo, writer.uint32(26).fork()).join();
+    }
+    if (message.subject !== undefined) {
+      writer.uint32(34).string(message.subject);
+    }
+    if (message.effectId !== undefined) {
+      writer.uint32(42).string(message.effectId);
+    }
+    if (message.enableDataDetection !== undefined) {
+      writer.uint32(48).bool(message.enableDataDetection);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SendMultipartMessageRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSendMultipartMessageRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.parts.push(MessagePart.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.replyTo = ReplyTarget.decode(reader, reader.uint32());
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.subject = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.effectId = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.enableDataDetection = reader.bool();
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SendMultipartMessageRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      parts: globalThis.Array.isArray(object?.parts) ? object.parts.map((e: any) => MessagePart.fromJSON(e)) : [],
+      replyTo: isSet(object.replyTo)
+        ? ReplyTarget.fromJSON(object.replyTo)
+        : isSet(object.reply_to)
+        ? ReplyTarget.fromJSON(object.reply_to)
+        : undefined,
+      subject: isSet(object.subject) ? globalThis.String(object.subject) : undefined,
+      effectId: isSet(object.effectId)
+        ? globalThis.String(object.effectId)
+        : isSet(object.effect_id)
+        ? globalThis.String(object.effect_id)
+        : undefined,
+      enableDataDetection: isSet(object.enableDataDetection)
+        ? globalThis.Boolean(object.enableDataDetection)
+        : isSet(object.enable_data_detection)
+        ? globalThis.Boolean(object.enable_data_detection)
+        : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SendMultipartMessageRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.parts?.length) {
+      obj.parts = message.parts.map((e) => MessagePart.toJSON(e));
+    }
+    if (message.replyTo !== undefined) {
+      obj.replyTo = ReplyTarget.toJSON(message.replyTo);
+    }
+    if (message.subject !== undefined) {
+      obj.subject = message.subject;
+    }
+    if (message.effectId !== undefined) {
+      obj.effectId = message.effectId;
+    }
+    if (message.enableDataDetection !== undefined) {
+      obj.enableDataDetection = message.enableDataDetection;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SendMultipartMessageRequest>): SendMultipartMessageRequest {
+    return SendMultipartMessageRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SendMultipartMessageRequest>): SendMultipartMessageRequest {
+    const message = createBaseSendMultipartMessageRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.parts = object.parts?.map((e) => MessagePart.fromPartial(e)) || [];
+    message.replyTo = (object.replyTo !== undefined && object.replyTo !== null)
+      ? ReplyTarget.fromPartial(object.replyTo)
+      : undefined;
+    message.subject = object.subject ?? undefined;
+    message.effectId = object.effectId ?? undefined;
+    message.enableDataDetection = object.enableDataDetection ?? undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMessageResponse(): MessageResponse {
+  return { message: undefined };
+}
+
+export const MessageResponse: MessageFns<MessageResponse> = {
+  encode(message: MessageResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.message !== undefined) {
+      Message.encode(message.message, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MessageResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMessageResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.message = Message.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MessageResponse {
+    return { message: isSet(object.message) ? Message.fromJSON(object.message) : undefined };
+  },
+
+  toJSON(message: MessageResponse): unknown {
+    const obj: any = {};
+    if (message.message !== undefined) {
+      obj.message = Message.toJSON(message.message);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MessageResponse>): MessageResponse {
+    return MessageResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MessageResponse>): MessageResponse {
+    const message = createBaseMessageResponse();
+    message.message = (object.message !== undefined && object.message !== null)
+      ? Message.fromPartial(object.message)
       : undefined;
     return message;
   },
 };
 
 function createBaseEditMessageRequest(): EditMessageRequest {
-  return { chatGuid: "", messageGuid: "", newText: "", backwardCompatText: undefined, partIndex: 0 };
+  return { target: undefined, newText: "", backwardCompatText: undefined, clientMessageId: undefined };
 }
 
 export const EditMessageRequest: MessageFns<EditMessageRequest> = {
   encode(message: EditMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    if (message.messageGuid !== "") {
-      writer.uint32(18).string(message.messageGuid);
+    if (message.target !== undefined) {
+      MessageTarget.encode(message.target, writer.uint32(10).fork()).join();
     }
     if (message.newText !== "") {
-      writer.uint32(26).string(message.newText);
+      writer.uint32(18).string(message.newText);
     }
     if (message.backwardCompatText !== undefined) {
-      writer.uint32(34).string(message.backwardCompatText);
+      writer.uint32(26).string(message.backwardCompatText);
     }
-    if (message.partIndex !== 0) {
-      writer.uint32(40).int32(message.partIndex);
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
@@ -3200,7 +980,7 @@ export const EditMessageRequest: MessageFns<EditMessageRequest> = {
             break;
           }
 
-          message.chatGuid = reader.string();
+          message.target = MessageTarget.decode(reader, reader.uint32());
           continue;
         }
         case 2: {
@@ -3208,7 +988,7 @@ export const EditMessageRequest: MessageFns<EditMessageRequest> = {
             break;
           }
 
-          message.messageGuid = reader.string();
+          message.newText = reader.string();
           continue;
         }
         case 3: {
@@ -3216,23 +996,15 @@ export const EditMessageRequest: MessageFns<EditMessageRequest> = {
             break;
           }
 
-          message.newText = reader.string();
-          continue;
-        }
-        case 4: {
-          if (tag !== 34) {
-            break;
-          }
-
           message.backwardCompatText = reader.string();
           continue;
         }
-        case 5: {
-          if (tag !== 40) {
+        case 100: {
+          if (tag !== 802) {
             break;
           }
 
-          message.partIndex = reader.int32();
+          message.clientMessageId = reader.string();
           continue;
         }
       }
@@ -3246,16 +1018,7 @@ export const EditMessageRequest: MessageFns<EditMessageRequest> = {
 
   fromJSON(object: any): EditMessageRequest {
     return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      messageGuid: isSet(object.messageGuid)
-        ? globalThis.String(object.messageGuid)
-        : isSet(object.message_guid)
-        ? globalThis.String(object.message_guid)
-        : "",
+      target: isSet(object.target) ? MessageTarget.fromJSON(object.target) : undefined,
       newText: isSet(object.newText)
         ? globalThis.String(object.newText)
         : isSet(object.new_text)
@@ -3266,21 +1029,18 @@ export const EditMessageRequest: MessageFns<EditMessageRequest> = {
         : isSet(object.backward_compat_text)
         ? globalThis.String(object.backward_compat_text)
         : undefined,
-      partIndex: isSet(object.partIndex)
-        ? globalThis.Number(object.partIndex)
-        : isSet(object.part_index)
-        ? globalThis.Number(object.part_index)
-        : 0,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
   toJSON(message: EditMessageRequest): unknown {
     const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    if (message.messageGuid !== "") {
-      obj.messageGuid = message.messageGuid;
+    if (message.target !== undefined) {
+      obj.target = MessageTarget.toJSON(message.target);
     }
     if (message.newText !== "") {
       obj.newText = message.newText;
@@ -3288,8 +1048,8 @@ export const EditMessageRequest: MessageFns<EditMessageRequest> = {
     if (message.backwardCompatText !== undefined) {
       obj.backwardCompatText = message.backwardCompatText;
     }
-    if (message.partIndex !== 0) {
-      obj.partIndex = Math.round(message.partIndex);
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
     }
     return obj;
   },
@@ -3299,29 +1059,27 @@ export const EditMessageRequest: MessageFns<EditMessageRequest> = {
   },
   fromPartial(object: DeepPartial<EditMessageRequest>): EditMessageRequest {
     const message = createBaseEditMessageRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    message.messageGuid = object.messageGuid ?? "";
+    message.target = (object.target !== undefined && object.target !== null)
+      ? MessageTarget.fromPartial(object.target)
+      : undefined;
     message.newText = object.newText ?? "";
     message.backwardCompatText = object.backwardCompatText ?? undefined;
-    message.partIndex = object.partIndex ?? 0;
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
 function createBaseUnsendMessageRequest(): UnsendMessageRequest {
-  return { chatGuid: "", messageGuid: "", partIndex: 0 };
+  return { target: undefined, clientMessageId: undefined };
 }
 
 export const UnsendMessageRequest: MessageFns<UnsendMessageRequest> = {
   encode(message: UnsendMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
+    if (message.target !== undefined) {
+      MessageTarget.encode(message.target, writer.uint32(10).fork()).join();
     }
-    if (message.messageGuid !== "") {
-      writer.uint32(18).string(message.messageGuid);
-    }
-    if (message.partIndex !== 0) {
-      writer.uint32(24).int32(message.partIndex);
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
@@ -3338,23 +1096,15 @@ export const UnsendMessageRequest: MessageFns<UnsendMessageRequest> = {
             break;
           }
 
-          message.chatGuid = reader.string();
+          message.target = MessageTarget.decode(reader, reader.uint32());
           continue;
         }
-        case 2: {
-          if (tag !== 18) {
+        case 100: {
+          if (tag !== 802) {
             break;
           }
 
-          message.messageGuid = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 24) {
-            break;
-          }
-
-          message.partIndex = reader.int32();
+          message.clientMessageId = reader.string();
           continue;
         }
       }
@@ -3368,34 +1118,22 @@ export const UnsendMessageRequest: MessageFns<UnsendMessageRequest> = {
 
   fromJSON(object: any): UnsendMessageRequest {
     return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      messageGuid: isSet(object.messageGuid)
-        ? globalThis.String(object.messageGuid)
-        : isSet(object.message_guid)
-        ? globalThis.String(object.message_guid)
-        : "",
-      partIndex: isSet(object.partIndex)
-        ? globalThis.Number(object.partIndex)
-        : isSet(object.part_index)
-        ? globalThis.Number(object.part_index)
-        : 0,
+      target: isSet(object.target) ? MessageTarget.fromJSON(object.target) : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
   toJSON(message: UnsendMessageRequest): unknown {
     const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
+    if (message.target !== undefined) {
+      obj.target = MessageTarget.toJSON(message.target);
     }
-    if (message.messageGuid !== "") {
-      obj.messageGuid = message.messageGuid;
-    }
-    if (message.partIndex !== 0) {
-      obj.partIndex = Math.round(message.partIndex);
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
     }
     return obj;
   },
@@ -3405,29 +1143,74 @@ export const UnsendMessageRequest: MessageFns<UnsendMessageRequest> = {
   },
   fromPartial(object: DeepPartial<UnsendMessageRequest>): UnsendMessageRequest {
     const message = createBaseUnsendMessageRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    message.messageGuid = object.messageGuid ?? "";
-    message.partIndex = object.partIndex ?? 0;
+    message.target = (object.target !== undefined && object.target !== null)
+      ? MessageTarget.fromPartial(object.target)
+      : undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
-function createBaseEditMessageResponse(): EditMessageResponse {
-  return {};
+function createBaseSetReactionRequest(): SetReactionRequest {
+  return { target: undefined, reaction: undefined, isSet: false, clientMessageId: undefined };
 }
 
-export const EditMessageResponse: MessageFns<EditMessageResponse> = {
-  encode(_: EditMessageResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const SetReactionRequest: MessageFns<SetReactionRequest> = {
+  encode(message: SetReactionRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.target !== undefined) {
+      MessageTarget.encode(message.target, writer.uint32(10).fork()).join();
+    }
+    if (message.reaction !== undefined) {
+      MessageReaction.encode(message.reaction, writer.uint32(18).fork()).join();
+    }
+    if (message.isSet !== false) {
+      writer.uint32(24).bool(message.isSet);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): EditMessageResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): SetReactionRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseEditMessageResponse();
+    const message = createBaseSetReactionRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.target = MessageTarget.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.reaction = MessageReaction.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.isSet = reader.bool();
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3437,40 +1220,117 @@ export const EditMessageResponse: MessageFns<EditMessageResponse> = {
     return message;
   },
 
-  fromJSON(_: any): EditMessageResponse {
-    return {};
+  fromJSON(object: any): SetReactionRequest {
+    return {
+      target: isSet(object.target) ? MessageTarget.fromJSON(object.target) : undefined,
+      reaction: isSet(object.reaction) ? MessageReaction.fromJSON(object.reaction) : undefined,
+      isSet: isSet(object.isSet)
+        ? globalThis.Boolean(object.isSet)
+        : isSet(object.is_set)
+        ? globalThis.Boolean(object.is_set)
+        : false,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
   },
 
-  toJSON(_: EditMessageResponse): unknown {
+  toJSON(message: SetReactionRequest): unknown {
     const obj: any = {};
+    if (message.target !== undefined) {
+      obj.target = MessageTarget.toJSON(message.target);
+    }
+    if (message.reaction !== undefined) {
+      obj.reaction = MessageReaction.toJSON(message.reaction);
+    }
+    if (message.isSet !== false) {
+      obj.isSet = message.isSet;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
     return obj;
   },
 
-  create(base?: DeepPartial<EditMessageResponse>): EditMessageResponse {
-    return EditMessageResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<SetReactionRequest>): SetReactionRequest {
+    return SetReactionRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<EditMessageResponse>): EditMessageResponse {
-    const message = createBaseEditMessageResponse();
+  fromPartial(object: DeepPartial<SetReactionRequest>): SetReactionRequest {
+    const message = createBaseSetReactionRequest();
+    message.target = (object.target !== undefined && object.target !== null)
+      ? MessageTarget.fromPartial(object.target)
+      : undefined;
+    message.reaction = (object.reaction !== undefined && object.reaction !== null)
+      ? MessageReaction.fromPartial(object.reaction)
+      : undefined;
+    message.isSet = object.isSet ?? false;
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
-function createBaseUnsendMessageResponse(): UnsendMessageResponse {
-  return {};
+function createBasePlaceStickerRequest(): PlaceStickerRequest {
+  return { target: undefined, sticker: undefined, placement: undefined, clientMessageId: undefined };
 }
 
-export const UnsendMessageResponse: MessageFns<UnsendMessageResponse> = {
-  encode(_: UnsendMessageResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const PlaceStickerRequest: MessageFns<PlaceStickerRequest> = {
+  encode(message: PlaceStickerRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.target !== undefined) {
+      MessageTarget.encode(message.target, writer.uint32(10).fork()).join();
+    }
+    if (message.sticker !== undefined) {
+      AttachmentRef.encode(message.sticker, writer.uint32(18).fork()).join();
+    }
+    if (message.placement !== undefined) {
+      StickerPlacement.encode(message.placement, writer.uint32(26).fork()).join();
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): UnsendMessageResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): PlaceStickerRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseUnsendMessageResponse();
+    const message = createBasePlaceStickerRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.target = MessageTarget.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.sticker = AttachmentRef.decode(reader, reader.uint32());
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.placement = StickerPlacement.decode(reader, reader.uint32());
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3480,43 +1340,77 @@ export const UnsendMessageResponse: MessageFns<UnsendMessageResponse> = {
     return message;
   },
 
-  fromJSON(_: any): UnsendMessageResponse {
-    return {};
+  fromJSON(object: any): PlaceStickerRequest {
+    return {
+      target: isSet(object.target) ? MessageTarget.fromJSON(object.target) : undefined,
+      sticker: isSet(object.sticker) ? AttachmentRef.fromJSON(object.sticker) : undefined,
+      placement: isSet(object.placement) ? StickerPlacement.fromJSON(object.placement) : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
   },
 
-  toJSON(_: UnsendMessageResponse): unknown {
+  toJSON(message: PlaceStickerRequest): unknown {
     const obj: any = {};
+    if (message.target !== undefined) {
+      obj.target = MessageTarget.toJSON(message.target);
+    }
+    if (message.sticker !== undefined) {
+      obj.sticker = AttachmentRef.toJSON(message.sticker);
+    }
+    if (message.placement !== undefined) {
+      obj.placement = StickerPlacement.toJSON(message.placement);
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
     return obj;
   },
 
-  create(base?: DeepPartial<UnsendMessageResponse>): UnsendMessageResponse {
-    return UnsendMessageResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<PlaceStickerRequest>): PlaceStickerRequest {
+    return PlaceStickerRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<UnsendMessageResponse>): UnsendMessageResponse {
-    const message = createBaseUnsendMessageResponse();
+  fromPartial(object: DeepPartial<PlaceStickerRequest>): PlaceStickerRequest {
+    const message = createBasePlaceStickerRequest();
+    message.target = (object.target !== undefined && object.target !== null)
+      ? MessageTarget.fromPartial(object.target)
+      : undefined;
+    message.sticker = (object.sticker !== undefined && object.sticker !== null)
+      ? AttachmentRef.fromPartial(object.sticker)
+      : undefined;
+    message.placement = (object.placement !== undefined && object.placement !== null)
+      ? StickerPlacement.fromPartial(object.placement)
+      : undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
-function createBaseNotifySilencedRequest(): NotifySilencedRequest {
-  return { chatGuid: "", messageGuid: "" };
+function createBaseNotifySilencedMessageRequest(): NotifySilencedMessageRequest {
+  return { chatGuid: "", messageGuid: "", clientMessageId: undefined };
 }
 
-export const NotifySilencedRequest: MessageFns<NotifySilencedRequest> = {
-  encode(message: NotifySilencedRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const NotifySilencedMessageRequest: MessageFns<NotifySilencedMessageRequest> = {
+  encode(message: NotifySilencedMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.chatGuid !== "") {
       writer.uint32(10).string(message.chatGuid);
     }
     if (message.messageGuid !== "") {
       writer.uint32(18).string(message.messageGuid);
     }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): NotifySilencedRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): NotifySilencedMessageRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseNotifySilencedRequest();
+    const message = createBaseNotifySilencedMessageRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3536,6 +1430,14 @@ export const NotifySilencedRequest: MessageFns<NotifySilencedRequest> = {
           message.messageGuid = reader.string();
           continue;
         }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3545,7 +1447,7 @@ export const NotifySilencedRequest: MessageFns<NotifySilencedRequest> = {
     return message;
   },
 
-  fromJSON(object: any): NotifySilencedRequest {
+  fromJSON(object: any): NotifySilencedMessageRequest {
     return {
       chatGuid: isSet(object.chatGuid)
         ? globalThis.String(object.chatGuid)
@@ -3557,10 +1459,15 @@ export const NotifySilencedRequest: MessageFns<NotifySilencedRequest> = {
         : isSet(object.message_guid)
         ? globalThis.String(object.message_guid)
         : "",
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
-  toJSON(message: NotifySilencedRequest): unknown {
+  toJSON(message: NotifySilencedMessageRequest): unknown {
     const obj: any = {};
     if (message.chatGuid !== "") {
       obj.chatGuid = message.chatGuid;
@@ -3568,71 +1475,35 @@ export const NotifySilencedRequest: MessageFns<NotifySilencedRequest> = {
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
     }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
     return obj;
   },
 
-  create(base?: DeepPartial<NotifySilencedRequest>): NotifySilencedRequest {
-    return NotifySilencedRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<NotifySilencedMessageRequest>): NotifySilencedMessageRequest {
+    return NotifySilencedMessageRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<NotifySilencedRequest>): NotifySilencedRequest {
-    const message = createBaseNotifySilencedRequest();
+  fromPartial(object: DeepPartial<NotifySilencedMessageRequest>): NotifySilencedMessageRequest {
+    const message = createBaseNotifySilencedMessageRequest();
     message.chatGuid = object.chatGuid ?? "";
     message.messageGuid = object.messageGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseNotifySilencedResponse(): NotifySilencedResponse {
-  return {};
-}
-
-export const NotifySilencedResponse: MessageFns<NotifySilencedResponse> = {
-  encode(_: NotifySilencedResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): NotifySilencedResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseNotifySilencedResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): NotifySilencedResponse {
-    return {};
-  },
-
-  toJSON(_: NotifySilencedResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<NotifySilencedResponse>): NotifySilencedResponse {
-    return NotifySilencedResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<NotifySilencedResponse>): NotifySilencedResponse {
-    const message = createBaseNotifySilencedResponse();
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
 function createBaseGetMessageRequest(): GetMessageRequest {
-  return { guid: "" };
+  return { chatGuid: "", messageGuid: "" };
 }
 
 export const GetMessageRequest: MessageFns<GetMessageRequest> = {
   encode(message: GetMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.guid !== "") {
-      writer.uint32(10).string(message.guid);
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.messageGuid !== "") {
+      writer.uint32(18).string(message.messageGuid);
     }
     return writer;
   },
@@ -3649,7 +1520,15 @@ export const GetMessageRequest: MessageFns<GetMessageRequest> = {
             break;
           }
 
-          message.guid = reader.string();
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.messageGuid = reader.string();
           continue;
         }
       }
@@ -3662,13 +1541,27 @@ export const GetMessageRequest: MessageFns<GetMessageRequest> = {
   },
 
   fromJSON(object: any): GetMessageRequest {
-    return { guid: isSet(object.guid) ? globalThis.String(object.guid) : "" };
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      messageGuid: isSet(object.messageGuid)
+        ? globalThis.String(object.messageGuid)
+        : isSet(object.message_guid)
+        ? globalThis.String(object.message_guid)
+        : "",
+    };
   },
 
   toJSON(message: GetMessageRequest): unknown {
     const obj: any = {};
-    if (message.guid !== "") {
-      obj.guid = message.guid;
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.messageGuid !== "") {
+      obj.messageGuid = message.messageGuid;
     }
     return obj;
   },
@@ -3678,7 +1571,8 @@ export const GetMessageRequest: MessageFns<GetMessageRequest> = {
   },
   fromPartial(object: DeepPartial<GetMessageRequest>): GetMessageRequest {
     const message = createBaseGetMessageRequest();
-    message.guid = object.guid ?? "";
+    message.chatGuid = object.chatGuid ?? "";
+    message.messageGuid = object.messageGuid ?? "";
     return message;
   },
 };
@@ -3743,65 +1637,53 @@ export const GetMessageResponse: MessageFns<GetMessageResponse> = {
   },
 };
 
-function createBaseListMessagesRequest(): ListMessagesRequest {
+function createBaseListRecentMessagesRequest(): ListRecentMessagesRequest {
   return {
-    chatGuid: undefined,
+    pageSize: undefined,
+    pageToken: undefined,
+    isFromMe: undefined,
+    isRead: undefined,
     before: undefined,
     after: undefined,
-    sort: 0,
-    limit: undefined,
-    offset: 0,
-    withChats: false,
-    withAttachments: false,
-    afterCursor: undefined,
   };
 }
 
-export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
-  encode(message: ListMessagesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== undefined) {
-      writer.uint32(10).string(message.chatGuid);
+export const ListRecentMessagesRequest: MessageFns<ListRecentMessagesRequest> = {
+  encode(message: ListRecentMessagesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.pageSize !== undefined) {
+      writer.uint32(8).int32(message.pageSize);
+    }
+    if (message.pageToken !== undefined) {
+      writer.uint32(18).string(message.pageToken);
+    }
+    if (message.isFromMe !== undefined) {
+      writer.uint32(24).bool(message.isFromMe);
+    }
+    if (message.isRead !== undefined) {
+      writer.uint32(32).bool(message.isRead);
     }
     if (message.before !== undefined) {
-      Timestamp.encode(toTimestamp(message.before), writer.uint32(18).fork()).join();
+      Timestamp.encode(toTimestamp(message.before), writer.uint32(42).fork()).join();
     }
     if (message.after !== undefined) {
-      Timestamp.encode(toTimestamp(message.after), writer.uint32(26).fork()).join();
-    }
-    if (message.sort !== 0) {
-      writer.uint32(32).int32(message.sort);
-    }
-    if (message.limit !== undefined) {
-      writer.uint32(40).int32(message.limit);
-    }
-    if (message.offset !== 0) {
-      writer.uint32(48).int32(message.offset);
-    }
-    if (message.withChats !== false) {
-      writer.uint32(56).bool(message.withChats);
-    }
-    if (message.withAttachments !== false) {
-      writer.uint32(64).bool(message.withAttachments);
-    }
-    if (message.afterCursor !== undefined) {
-      StreamCursor.encode(message.afterCursor, writer.uint32(74).fork()).join();
+      Timestamp.encode(toTimestamp(message.after), writer.uint32(50).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ListMessagesRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): ListRecentMessagesRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseListMessagesRequest();
+    const message = createBaseListRecentMessagesRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.chatGuid = reader.string();
+          message.pageSize = reader.int32();
           continue;
         }
         case 2: {
@@ -3809,15 +1691,15 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
             break;
           }
 
-          message.before = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.pageToken = reader.string();
           continue;
         }
         case 3: {
-          if (tag !== 26) {
+          if (tag !== 24) {
             break;
           }
 
-          message.after = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.isFromMe = reader.bool();
           continue;
         }
         case 4: {
@@ -3825,47 +1707,23 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
             break;
           }
 
-          message.sort = reader.int32() as any;
+          message.isRead = reader.bool();
           continue;
         }
         case 5: {
-          if (tag !== 40) {
+          if (tag !== 42) {
             break;
           }
 
-          message.limit = reader.int32();
+          message.before = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
         case 6: {
-          if (tag !== 48) {
+          if (tag !== 50) {
             break;
           }
 
-          message.offset = reader.int32();
-          continue;
-        }
-        case 7: {
-          if (tag !== 56) {
-            break;
-          }
-
-          message.withChats = reader.bool();
-          continue;
-        }
-        case 8: {
-          if (tag !== 64) {
-            break;
-          }
-
-          message.withAttachments = reader.bool();
-          continue;
-        }
-        case 9: {
-          if (tag !== 74) {
-            break;
-          }
-
-          message.afterCursor = StreamCursor.decode(reader, reader.uint32());
+          message.after = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         }
       }
@@ -3877,40 +1735,46 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
     return message;
   },
 
-  fromJSON(object: any): ListMessagesRequest {
+  fromJSON(object: any): ListRecentMessagesRequest {
     return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : undefined,
+      pageToken: isSet(object.pageToken)
+        ? globalThis.String(object.pageToken)
+        : isSet(object.page_token)
+        ? globalThis.String(object.page_token)
+        : undefined,
+      isFromMe: isSet(object.isFromMe)
+        ? globalThis.Boolean(object.isFromMe)
+        : isSet(object.is_from_me)
+        ? globalThis.Boolean(object.is_from_me)
+        : undefined,
+      isRead: isSet(object.isRead)
+        ? globalThis.Boolean(object.isRead)
+        : isSet(object.is_read)
+        ? globalThis.Boolean(object.is_read)
         : undefined,
       before: isSet(object.before) ? fromJsonTimestamp(object.before) : undefined,
       after: isSet(object.after) ? fromJsonTimestamp(object.after) : undefined,
-      sort: isSet(object.sort) ? sortDirectionFromJSON(object.sort) : 0,
-      limit: isSet(object.limit) ? globalThis.Number(object.limit) : undefined,
-      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
-      withChats: isSet(object.withChats)
-        ? globalThis.Boolean(object.withChats)
-        : isSet(object.with_chats)
-        ? globalThis.Boolean(object.with_chats)
-        : false,
-      withAttachments: isSet(object.withAttachments)
-        ? globalThis.Boolean(object.withAttachments)
-        : isSet(object.with_attachments)
-        ? globalThis.Boolean(object.with_attachments)
-        : false,
-      afterCursor: isSet(object.afterCursor)
-        ? StreamCursor.fromJSON(object.afterCursor)
-        : isSet(object.after_cursor)
-        ? StreamCursor.fromJSON(object.after_cursor)
-        : undefined,
     };
   },
 
-  toJSON(message: ListMessagesRequest): unknown {
+  toJSON(message: ListRecentMessagesRequest): unknown {
     const obj: any = {};
-    if (message.chatGuid !== undefined) {
-      obj.chatGuid = message.chatGuid;
+    if (message.pageSize !== undefined) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    if (message.pageToken !== undefined) {
+      obj.pageToken = message.pageToken;
+    }
+    if (message.isFromMe !== undefined) {
+      obj.isFromMe = message.isFromMe;
+    }
+    if (message.isRead !== undefined) {
+      obj.isRead = message.isRead;
     }
     if (message.before !== undefined) {
       obj.before = message.before.toISOString();
@@ -3918,66 +1782,43 @@ export const ListMessagesRequest: MessageFns<ListMessagesRequest> = {
     if (message.after !== undefined) {
       obj.after = message.after.toISOString();
     }
-    if (message.sort !== 0) {
-      obj.sort = sortDirectionToJSON(message.sort);
-    }
-    if (message.limit !== undefined) {
-      obj.limit = Math.round(message.limit);
-    }
-    if (message.offset !== 0) {
-      obj.offset = Math.round(message.offset);
-    }
-    if (message.withChats !== false) {
-      obj.withChats = message.withChats;
-    }
-    if (message.withAttachments !== false) {
-      obj.withAttachments = message.withAttachments;
-    }
-    if (message.afterCursor !== undefined) {
-      obj.afterCursor = StreamCursor.toJSON(message.afterCursor);
-    }
     return obj;
   },
 
-  create(base?: DeepPartial<ListMessagesRequest>): ListMessagesRequest {
-    return ListMessagesRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<ListRecentMessagesRequest>): ListRecentMessagesRequest {
+    return ListRecentMessagesRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<ListMessagesRequest>): ListMessagesRequest {
-    const message = createBaseListMessagesRequest();
-    message.chatGuid = object.chatGuid ?? undefined;
+  fromPartial(object: DeepPartial<ListRecentMessagesRequest>): ListRecentMessagesRequest {
+    const message = createBaseListRecentMessagesRequest();
+    message.pageSize = object.pageSize ?? undefined;
+    message.pageToken = object.pageToken ?? undefined;
+    message.isFromMe = object.isFromMe ?? undefined;
+    message.isRead = object.isRead ?? undefined;
     message.before = object.before ?? undefined;
     message.after = object.after ?? undefined;
-    message.sort = object.sort ?? 0;
-    message.limit = object.limit ?? undefined;
-    message.offset = object.offset ?? 0;
-    message.withChats = object.withChats ?? false;
-    message.withAttachments = object.withAttachments ?? false;
-    message.afterCursor = (object.afterCursor !== undefined && object.afterCursor !== null)
-      ? StreamCursor.fromPartial(object.afterCursor)
-      : undefined;
     return message;
   },
 };
 
-function createBaseListMessagesResponse(): ListMessagesResponse {
-  return { messages: [], meta: undefined };
+function createBaseListRecentMessagesResponse(): ListRecentMessagesResponse {
+  return { messages: [], nextPageToken: undefined };
 }
 
-export const ListMessagesResponse: MessageFns<ListMessagesResponse> = {
-  encode(message: ListMessagesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const ListRecentMessagesResponse: MessageFns<ListRecentMessagesResponse> = {
+  encode(message: ListRecentMessagesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     for (const v of message.messages) {
       Message.encode(v!, writer.uint32(10).fork()).join();
     }
-    if (message.meta !== undefined) {
-      PaginatedMeta.encode(message.meta, writer.uint32(18).fork()).join();
+    if (message.nextPageToken !== undefined) {
+      writer.uint32(18).string(message.nextPageToken);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): ListMessagesResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): ListRecentMessagesResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseListMessagesResponse();
+    const message = createBaseListRecentMessagesResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -3994,7 +1835,7 @@ export const ListMessagesResponse: MessageFns<ListMessagesResponse> = {
             break;
           }
 
-          message.meta = PaginatedMeta.decode(reader, reader.uint32());
+          message.nextPageToken = reader.string();
           continue;
         }
       }
@@ -4006,33 +1847,299 @@ export const ListMessagesResponse: MessageFns<ListMessagesResponse> = {
     return message;
   },
 
-  fromJSON(object: any): ListMessagesResponse {
+  fromJSON(object: any): ListRecentMessagesResponse {
     return {
       messages: globalThis.Array.isArray(object?.messages) ? object.messages.map((e: any) => Message.fromJSON(e)) : [],
-      meta: isSet(object.meta) ? PaginatedMeta.fromJSON(object.meta) : undefined,
+      nextPageToken: isSet(object.nextPageToken)
+        ? globalThis.String(object.nextPageToken)
+        : isSet(object.next_page_token)
+        ? globalThis.String(object.next_page_token)
+        : undefined,
     };
   },
 
-  toJSON(message: ListMessagesResponse): unknown {
+  toJSON(message: ListRecentMessagesResponse): unknown {
     const obj: any = {};
     if (message.messages?.length) {
       obj.messages = message.messages.map((e) => Message.toJSON(e));
     }
-    if (message.meta !== undefined) {
-      obj.meta = PaginatedMeta.toJSON(message.meta);
+    if (message.nextPageToken !== undefined) {
+      obj.nextPageToken = message.nextPageToken;
     }
     return obj;
   },
 
-  create(base?: DeepPartial<ListMessagesResponse>): ListMessagesResponse {
-    return ListMessagesResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<ListRecentMessagesResponse>): ListRecentMessagesResponse {
+    return ListRecentMessagesResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<ListMessagesResponse>): ListMessagesResponse {
-    const message = createBaseListMessagesResponse();
+  fromPartial(object: DeepPartial<ListRecentMessagesResponse>): ListRecentMessagesResponse {
+    const message = createBaseListRecentMessagesResponse();
     message.messages = object.messages?.map((e) => Message.fromPartial(e)) || [];
-    message.meta = (object.meta !== undefined && object.meta !== null)
-      ? PaginatedMeta.fromPartial(object.meta)
-      : undefined;
+    message.nextPageToken = object.nextPageToken ?? undefined;
+    return message;
+  },
+};
+
+function createBaseListChatMessagesRequest(): ListChatMessagesRequest {
+  return {
+    chatGuid: "",
+    pageSize: undefined,
+    pageToken: undefined,
+    isFromMe: undefined,
+    isRead: undefined,
+    before: undefined,
+    after: undefined,
+  };
+}
+
+export const ListChatMessagesRequest: MessageFns<ListChatMessagesRequest> = {
+  encode(message: ListChatMessagesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.pageSize !== undefined) {
+      writer.uint32(16).int32(message.pageSize);
+    }
+    if (message.pageToken !== undefined) {
+      writer.uint32(26).string(message.pageToken);
+    }
+    if (message.isFromMe !== undefined) {
+      writer.uint32(32).bool(message.isFromMe);
+    }
+    if (message.isRead !== undefined) {
+      writer.uint32(40).bool(message.isRead);
+    }
+    if (message.before !== undefined) {
+      Timestamp.encode(toTimestamp(message.before), writer.uint32(50).fork()).join();
+    }
+    if (message.after !== undefined) {
+      Timestamp.encode(toTimestamp(message.after), writer.uint32(58).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListChatMessagesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListChatMessagesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.pageSize = reader.int32();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.pageToken = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.isFromMe = reader.bool();
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.isRead = reader.bool();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.before = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.after = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListChatMessagesRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : undefined,
+      pageToken: isSet(object.pageToken)
+        ? globalThis.String(object.pageToken)
+        : isSet(object.page_token)
+        ? globalThis.String(object.page_token)
+        : undefined,
+      isFromMe: isSet(object.isFromMe)
+        ? globalThis.Boolean(object.isFromMe)
+        : isSet(object.is_from_me)
+        ? globalThis.Boolean(object.is_from_me)
+        : undefined,
+      isRead: isSet(object.isRead)
+        ? globalThis.Boolean(object.isRead)
+        : isSet(object.is_read)
+        ? globalThis.Boolean(object.is_read)
+        : undefined,
+      before: isSet(object.before) ? fromJsonTimestamp(object.before) : undefined,
+      after: isSet(object.after) ? fromJsonTimestamp(object.after) : undefined,
+    };
+  },
+
+  toJSON(message: ListChatMessagesRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.pageSize !== undefined) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    if (message.pageToken !== undefined) {
+      obj.pageToken = message.pageToken;
+    }
+    if (message.isFromMe !== undefined) {
+      obj.isFromMe = message.isFromMe;
+    }
+    if (message.isRead !== undefined) {
+      obj.isRead = message.isRead;
+    }
+    if (message.before !== undefined) {
+      obj.before = message.before.toISOString();
+    }
+    if (message.after !== undefined) {
+      obj.after = message.after.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ListChatMessagesRequest>): ListChatMessagesRequest {
+    return ListChatMessagesRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ListChatMessagesRequest>): ListChatMessagesRequest {
+    const message = createBaseListChatMessagesRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.pageSize = object.pageSize ?? undefined;
+    message.pageToken = object.pageToken ?? undefined;
+    message.isFromMe = object.isFromMe ?? undefined;
+    message.isRead = object.isRead ?? undefined;
+    message.before = object.before ?? undefined;
+    message.after = object.after ?? undefined;
+    return message;
+  },
+};
+
+function createBaseListChatMessagesResponse(): ListChatMessagesResponse {
+  return { messages: [], nextPageToken: undefined };
+}
+
+export const ListChatMessagesResponse: MessageFns<ListChatMessagesResponse> = {
+  encode(message: ListChatMessagesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.messages) {
+      Message.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.nextPageToken !== undefined) {
+      writer.uint32(18).string(message.nextPageToken);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListChatMessagesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListChatMessagesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.messages.push(Message.decode(reader, reader.uint32()));
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.nextPageToken = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListChatMessagesResponse {
+    return {
+      messages: globalThis.Array.isArray(object?.messages) ? object.messages.map((e: any) => Message.fromJSON(e)) : [],
+      nextPageToken: isSet(object.nextPageToken)
+        ? globalThis.String(object.nextPageToken)
+        : isSet(object.next_page_token)
+        ? globalThis.String(object.next_page_token)
+        : undefined,
+    };
+  },
+
+  toJSON(message: ListChatMessagesResponse): unknown {
+    const obj: any = {};
+    if (message.messages?.length) {
+      obj.messages = message.messages.map((e) => Message.toJSON(e));
+    }
+    if (message.nextPageToken !== undefined) {
+      obj.nextPageToken = message.nextPageToken;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ListChatMessagesResponse>): ListChatMessagesResponse {
+    return ListChatMessagesResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ListChatMessagesResponse>): ListChatMessagesResponse {
+    const message = createBaseListChatMessagesResponse();
+    message.messages = object.messages?.map((e) => Message.fromPartial(e)) || [];
+    message.nextPageToken = object.nextPageToken ?? undefined;
     return message;
   },
 };
@@ -4121,94 +2228,14 @@ export const GetEmbeddedMediaRequest: MessageFns<GetEmbeddedMediaRequest> = {
   },
 };
 
-function createBaseEmbeddedMediaItem(): EmbeddedMediaItem {
-  return { data: new Uint8Array(0), mimeType: "" };
-}
-
-export const EmbeddedMediaItem: MessageFns<EmbeddedMediaItem> = {
-  encode(message: EmbeddedMediaItem, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.data.length !== 0) {
-      writer.uint32(10).bytes(message.data);
-    }
-    if (message.mimeType !== "") {
-      writer.uint32(18).string(message.mimeType);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): EmbeddedMediaItem {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseEmbeddedMediaItem();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.data = reader.bytes();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.mimeType = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): EmbeddedMediaItem {
-    return {
-      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-      mimeType: isSet(object.mimeType)
-        ? globalThis.String(object.mimeType)
-        : isSet(object.mime_type)
-        ? globalThis.String(object.mime_type)
-        : "",
-    };
-  },
-
-  toJSON(message: EmbeddedMediaItem): unknown {
-    const obj: any = {};
-    if (message.data.length !== 0) {
-      obj.data = base64FromBytes(message.data);
-    }
-    if (message.mimeType !== "") {
-      obj.mimeType = message.mimeType;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<EmbeddedMediaItem>): EmbeddedMediaItem {
-    return EmbeddedMediaItem.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<EmbeddedMediaItem>): EmbeddedMediaItem {
-    const message = createBaseEmbeddedMediaItem();
-    message.data = object.data ?? new Uint8Array(0);
-    message.mimeType = object.mimeType ?? "";
-    return message;
-  },
-};
-
 function createBaseGetEmbeddedMediaResponse(): GetEmbeddedMediaResponse {
-  return { items: [] };
+  return { media: undefined };
 }
 
 export const GetEmbeddedMediaResponse: MessageFns<GetEmbeddedMediaResponse> = {
   encode(message: GetEmbeddedMediaResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.items) {
-      EmbeddedMediaItem.encode(v!, writer.uint32(10).fork()).join();
+    if (message.media !== undefined) {
+      EmbeddedMedia.encode(message.media, writer.uint32(10).fork()).join();
     }
     return writer;
   },
@@ -4225,7 +2252,7 @@ export const GetEmbeddedMediaResponse: MessageFns<GetEmbeddedMediaResponse> = {
             break;
           }
 
-          message.items.push(EmbeddedMediaItem.decode(reader, reader.uint32()));
+          message.media = EmbeddedMedia.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -4238,15 +2265,13 @@ export const GetEmbeddedMediaResponse: MessageFns<GetEmbeddedMediaResponse> = {
   },
 
   fromJSON(object: any): GetEmbeddedMediaResponse {
-    return {
-      items: globalThis.Array.isArray(object?.items) ? object.items.map((e: any) => EmbeddedMediaItem.fromJSON(e)) : [],
-    };
+    return { media: isSet(object.media) ? EmbeddedMedia.fromJSON(object.media) : undefined };
   },
 
   toJSON(message: GetEmbeddedMediaResponse): unknown {
     const obj: any = {};
-    if (message.items?.length) {
-      obj.items = message.items.map((e) => EmbeddedMediaItem.toJSON(e));
+    if (message.media !== undefined) {
+      obj.media = EmbeddedMedia.toJSON(message.media);
     }
     return obj;
   },
@@ -4256,154 +2281,21 @@ export const GetEmbeddedMediaResponse: MessageFns<GetEmbeddedMediaResponse> = {
   },
   fromPartial(object: DeepPartial<GetEmbeddedMediaResponse>): GetEmbeddedMediaResponse {
     const message = createBaseGetEmbeddedMediaResponse();
-    message.items = object.items?.map((e) => EmbeddedMediaItem.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseGetMessageStatsRequest(): GetMessageStatsRequest {
-  return {};
-}
-
-export const GetMessageStatsRequest: MessageFns<GetMessageStatsRequest> = {
-  encode(_: GetMessageStatsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetMessageStatsRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetMessageStatsRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): GetMessageStatsRequest {
-    return {};
-  },
-
-  toJSON(_: GetMessageStatsRequest): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetMessageStatsRequest>): GetMessageStatsRequest {
-    return GetMessageStatsRequest.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<GetMessageStatsRequest>): GetMessageStatsRequest {
-    const message = createBaseGetMessageStatsRequest();
-    return message;
-  },
-};
-
-function createBaseGetMessageStatsResponse(): GetMessageStatsResponse {
-  return { total: 0, sent: 0, received: 0 };
-}
-
-export const GetMessageStatsResponse: MessageFns<GetMessageStatsResponse> = {
-  encode(message: GetMessageStatsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.total !== 0) {
-      writer.uint32(8).int64(message.total);
-    }
-    if (message.sent !== 0) {
-      writer.uint32(16).int64(message.sent);
-    }
-    if (message.received !== 0) {
-      writer.uint32(24).int64(message.received);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetMessageStatsResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetMessageStatsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 8) {
-            break;
-          }
-
-          message.total = longToNumber(reader.int64());
-          continue;
-        }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.sent = longToNumber(reader.int64());
-          continue;
-        }
-        case 3: {
-          if (tag !== 24) {
-            break;
-          }
-
-          message.received = longToNumber(reader.int64());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetMessageStatsResponse {
-    return {
-      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
-      sent: isSet(object.sent) ? globalThis.Number(object.sent) : 0,
-      received: isSet(object.received) ? globalThis.Number(object.received) : 0,
-    };
-  },
-
-  toJSON(message: GetMessageStatsResponse): unknown {
-    const obj: any = {};
-    if (message.total !== 0) {
-      obj.total = Math.round(message.total);
-    }
-    if (message.sent !== 0) {
-      obj.sent = Math.round(message.sent);
-    }
-    if (message.received !== 0) {
-      obj.received = Math.round(message.received);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetMessageStatsResponse>): GetMessageStatsResponse {
-    return GetMessageStatsResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetMessageStatsResponse>): GetMessageStatsResponse {
-    const message = createBaseGetMessageStatsResponse();
-    message.total = object.total ?? 0;
-    message.sent = object.sent ?? 0;
-    message.received = object.received ?? 0;
+    message.media = (object.media !== undefined && object.media !== null)
+      ? EmbeddedMedia.fromPartial(object.media)
+      : undefined;
     return message;
   },
 };
 
 function createBaseSubscribeMessageEventsRequest(): SubscribeMessageEventsRequest {
-  return { cursor: undefined };
+  return { chatGuid: undefined };
 }
 
 export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsRequest> = {
   encode(message: SubscribeMessageEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.cursor !== undefined) {
-      StreamCursor.encode(message.cursor, writer.uint32(10).fork()).join();
+    if (message.chatGuid !== undefined) {
+      writer.uint32(10).string(message.chatGuid);
     }
     return writer;
   },
@@ -4420,7 +2312,7 @@ export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsReq
             break;
           }
 
-          message.cursor = StreamCursor.decode(reader, reader.uint32());
+          message.chatGuid = reader.string();
           continue;
         }
       }
@@ -4433,13 +2325,19 @@ export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsReq
   },
 
   fromJSON(object: any): SubscribeMessageEventsRequest {
-    return { cursor: isSet(object.cursor) ? StreamCursor.fromJSON(object.cursor) : undefined };
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : undefined,
+    };
   },
 
   toJSON(message: SubscribeMessageEventsRequest): unknown {
     const obj: any = {};
-    if (message.cursor !== undefined) {
-      obj.cursor = StreamCursor.toJSON(message.cursor);
+    if (message.chatGuid !== undefined) {
+      obj.chatGuid = message.chatGuid;
     }
     return obj;
   },
@@ -4449,40 +2347,22 @@ export const SubscribeMessageEventsRequest: MessageFns<SubscribeMessageEventsReq
   },
   fromPartial(object: DeepPartial<SubscribeMessageEventsRequest>): SubscribeMessageEventsRequest {
     const message = createBaseSubscribeMessageEventsRequest();
-    message.cursor = (object.cursor !== undefined && object.cursor !== null)
-      ? StreamCursor.fromPartial(object.cursor)
-      : undefined;
+    message.chatGuid = object.chatGuid ?? undefined;
     return message;
   },
 };
 
 function createBaseSubscribeMessageEventsResponse(): SubscribeMessageEventsResponse {
-  return {
-    timestamp: undefined,
-    cursor: undefined,
-    messageSent: undefined,
-    messageReceived: undefined,
-    messageUpdated: undefined,
-    heartbeat: undefined,
-  };
+  return { sequence: undefined, messageChanged: undefined, heartbeat: undefined };
 }
 
 export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsResponse> = {
   encode(message: SubscribeMessageEventsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.timestamp !== undefined) {
-      Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(10).fork()).join();
+    if (message.sequence !== undefined) {
+      writer.uint32(8).uint64(message.sequence);
     }
-    if (message.cursor !== undefined) {
-      StreamCursor.encode(message.cursor, writer.uint32(18).fork()).join();
-    }
-    if (message.messageSent !== undefined) {
-      MessageSentEvent.encode(message.messageSent, writer.uint32(82).fork()).join();
-    }
-    if (message.messageReceived !== undefined) {
-      MessageReceivedEvent.encode(message.messageReceived, writer.uint32(90).fork()).join();
-    }
-    if (message.messageUpdated !== undefined) {
-      MessageUpdatedEvent.encode(message.messageUpdated, writer.uint32(98).fork()).join();
+    if (message.messageChanged !== undefined) {
+      MessageChangeEvent.encode(message.messageChanged, writer.uint32(82).fork()).join();
     }
     if (message.heartbeat !== undefined) {
       Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
@@ -4498,19 +2378,11 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.cursor = StreamCursor.decode(reader, reader.uint32());
+          message.sequence = longToNumber(reader.uint64());
           continue;
         }
         case 10: {
@@ -4518,23 +2390,7 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
             break;
           }
 
-          message.messageSent = MessageSentEvent.decode(reader, reader.uint32());
-          continue;
-        }
-        case 11: {
-          if (tag !== 90) {
-            break;
-          }
-
-          message.messageReceived = MessageReceivedEvent.decode(reader, reader.uint32());
-          continue;
-        }
-        case 12: {
-          if (tag !== 98) {
-            break;
-          }
-
-          message.messageUpdated = MessageUpdatedEvent.decode(reader, reader.uint32());
+          message.messageChanged = MessageChangeEvent.decode(reader, reader.uint32());
           continue;
         }
         case 99: {
@@ -4556,22 +2412,11 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
 
   fromJSON(object: any): SubscribeMessageEventsResponse {
     return {
-      timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
-      cursor: isSet(object.cursor) ? StreamCursor.fromJSON(object.cursor) : undefined,
-      messageSent: isSet(object.messageSent)
-        ? MessageSentEvent.fromJSON(object.messageSent)
-        : isSet(object.message_sent)
-        ? MessageSentEvent.fromJSON(object.message_sent)
-        : undefined,
-      messageReceived: isSet(object.messageReceived)
-        ? MessageReceivedEvent.fromJSON(object.messageReceived)
-        : isSet(object.message_received)
-        ? MessageReceivedEvent.fromJSON(object.message_received)
-        : undefined,
-      messageUpdated: isSet(object.messageUpdated)
-        ? MessageUpdatedEvent.fromJSON(object.messageUpdated)
-        : isSet(object.message_updated)
-        ? MessageUpdatedEvent.fromJSON(object.message_updated)
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : undefined,
+      messageChanged: isSet(object.messageChanged)
+        ? MessageChangeEvent.fromJSON(object.messageChanged)
+        : isSet(object.message_changed)
+        ? MessageChangeEvent.fromJSON(object.message_changed)
         : undefined,
       heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
@@ -4579,20 +2424,11 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
 
   toJSON(message: SubscribeMessageEventsResponse): unknown {
     const obj: any = {};
-    if (message.timestamp !== undefined) {
-      obj.timestamp = message.timestamp.toISOString();
+    if (message.sequence !== undefined) {
+      obj.sequence = Math.round(message.sequence);
     }
-    if (message.cursor !== undefined) {
-      obj.cursor = StreamCursor.toJSON(message.cursor);
-    }
-    if (message.messageSent !== undefined) {
-      obj.messageSent = MessageSentEvent.toJSON(message.messageSent);
-    }
-    if (message.messageReceived !== undefined) {
-      obj.messageReceived = MessageReceivedEvent.toJSON(message.messageReceived);
-    }
-    if (message.messageUpdated !== undefined) {
-      obj.messageUpdated = MessageUpdatedEvent.toJSON(message.messageUpdated);
+    if (message.messageChanged !== undefined) {
+      obj.messageChanged = MessageChangeEvent.toJSON(message.messageChanged);
     }
     if (message.heartbeat !== undefined) {
       obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
@@ -4605,18 +2441,9 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
   },
   fromPartial(object: DeepPartial<SubscribeMessageEventsResponse>): SubscribeMessageEventsResponse {
     const message = createBaseSubscribeMessageEventsResponse();
-    message.timestamp = object.timestamp ?? undefined;
-    message.cursor = (object.cursor !== undefined && object.cursor !== null)
-      ? StreamCursor.fromPartial(object.cursor)
-      : undefined;
-    message.messageSent = (object.messageSent !== undefined && object.messageSent !== null)
-      ? MessageSentEvent.fromPartial(object.messageSent)
-      : undefined;
-    message.messageReceived = (object.messageReceived !== undefined && object.messageReceived !== null)
-      ? MessageReceivedEvent.fromPartial(object.messageReceived)
-      : undefined;
-    message.messageUpdated = (object.messageUpdated !== undefined && object.messageUpdated !== null)
-      ? MessageUpdatedEvent.fromPartial(object.messageUpdated)
+    message.sequence = object.sequence ?? undefined;
+    message.messageChanged = (object.messageChanged !== undefined && object.messageChanged !== null)
+      ? MessageChangeEvent.fromPartial(object.messageChanged)
       : undefined;
     message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
       ? Heartbeat.fromPartial(object.heartbeat)
@@ -4625,310 +2452,45 @@ export const SubscribeMessageEventsResponse: MessageFns<SubscribeMessageEventsRe
   },
 };
 
-function createBaseMessageSentEvent(): MessageSentEvent {
-  return { message: undefined, clientMessageId: undefined, chatGuid: "" };
-}
-
-export const MessageSentEvent: MessageFns<MessageSentEvent> = {
-  encode(message: MessageSentEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.message !== undefined) {
-      Message.encode(message.message, writer.uint32(10).fork()).join();
-    }
-    if (message.clientMessageId !== undefined) {
-      writer.uint32(18).string(message.clientMessageId);
-    }
-    if (message.chatGuid !== "") {
-      writer.uint32(26).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessageSentEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessageSentEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.message = Message.decode(reader, reader.uint32());
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.clientMessageId = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessageSentEvent {
-    return {
-      message: isSet(object.message) ? Message.fromJSON(object.message) : undefined,
-      clientMessageId: isSet(object.clientMessageId)
-        ? globalThis.String(object.clientMessageId)
-        : isSet(object.client_message_id)
-        ? globalThis.String(object.client_message_id)
-        : undefined,
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: MessageSentEvent): unknown {
-    const obj: any = {};
-    if (message.message !== undefined) {
-      obj.message = Message.toJSON(message.message);
-    }
-    if (message.clientMessageId !== undefined) {
-      obj.clientMessageId = message.clientMessageId;
-    }
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessageSentEvent>): MessageSentEvent {
-    return MessageSentEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessageSentEvent>): MessageSentEvent {
-    const message = createBaseMessageSentEvent();
-    message.message = (object.message !== undefined && object.message !== null)
-      ? Message.fromPartial(object.message)
-      : undefined;
-    message.clientMessageId = object.clientMessageId ?? undefined;
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseMessageReceivedEvent(): MessageReceivedEvent {
-  return { message: undefined, chatGuid: "" };
-}
-
-export const MessageReceivedEvent: MessageFns<MessageReceivedEvent> = {
-  encode(message: MessageReceivedEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.message !== undefined) {
-      Message.encode(message.message, writer.uint32(10).fork()).join();
-    }
-    if (message.chatGuid !== "") {
-      writer.uint32(18).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessageReceivedEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessageReceivedEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.message = Message.decode(reader, reader.uint32());
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessageReceivedEvent {
-    return {
-      message: isSet(object.message) ? Message.fromJSON(object.message) : undefined,
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: MessageReceivedEvent): unknown {
-    const obj: any = {};
-    if (message.message !== undefined) {
-      obj.message = Message.toJSON(message.message);
-    }
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessageReceivedEvent>): MessageReceivedEvent {
-    return MessageReceivedEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessageReceivedEvent>): MessageReceivedEvent {
-    const message = createBaseMessageReceivedEvent();
-    message.message = (object.message !== undefined && object.message !== null)
-      ? Message.fromPartial(object.message)
-      : undefined;
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseMessageUpdatedEvent(): MessageUpdatedEvent {
-  return { message: undefined, updateType: "", chatGuid: "" };
-}
-
-export const MessageUpdatedEvent: MessageFns<MessageUpdatedEvent> = {
-  encode(message: MessageUpdatedEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.message !== undefined) {
-      Message.encode(message.message, writer.uint32(10).fork()).join();
-    }
-    if (message.updateType !== "") {
-      writer.uint32(18).string(message.updateType);
-    }
-    if (message.chatGuid !== "") {
-      writer.uint32(26).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): MessageUpdatedEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseMessageUpdatedEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.message = Message.decode(reader, reader.uint32());
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.updateType = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): MessageUpdatedEvent {
-    return {
-      message: isSet(object.message) ? Message.fromJSON(object.message) : undefined,
-      updateType: isSet(object.updateType)
-        ? globalThis.String(object.updateType)
-        : isSet(object.update_type)
-        ? globalThis.String(object.update_type)
-        : "",
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: MessageUpdatedEvent): unknown {
-    const obj: any = {};
-    if (message.message !== undefined) {
-      obj.message = Message.toJSON(message.message);
-    }
-    if (message.updateType !== "") {
-      obj.updateType = message.updateType;
-    }
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<MessageUpdatedEvent>): MessageUpdatedEvent {
-    return MessageUpdatedEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<MessageUpdatedEvent>): MessageUpdatedEvent {
-    const message = createBaseMessageUpdatedEvent();
-    message.message = (object.message !== undefined && object.message !== null)
-      ? Message.fromPartial(object.message)
-      : undefined;
-    message.updateType = object.updateType ?? "";
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
+/**
+ * Sends, mutates, reads, and observes messages.
+ *
+ * Writes are synchronous to the command path. Methods that return
+ * `MessageResponse` also perform the reads needed to return a fresh message
+ * snapshot; methods that return `google.protobuf.Empty` do not add a projection
+ * read unless their individual contract says so.
+ *
+ * Durable message changes flow through `SubscribeMessageEvents`. For gap-free
+ * reconnect, drain history with `EventService.CatchUpEvents` before joining
+ * the live subscription.
+ */
 export type MessageServiceDefinition = typeof MessageServiceDefinition;
 export const MessageServiceDefinition = {
   name: "MessageService",
   fullName: "photon.imessage.v1.MessageService",
   methods: {
-    send: {
-      name: "Send",
-      requestType: SendRequest as typeof SendRequest,
+    /** Writes */
+    sendTextMessage: {
+      name: "SendTextMessage",
+      requestType: SendTextMessageRequest as typeof SendTextMessageRequest,
       requestStream: false,
-      responseType: SendResponse as typeof SendResponse,
+      responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
       options: {},
     },
-    sendReaction: {
-      name: "SendReaction",
-      requestType: SendReactionRequest as typeof SendReactionRequest,
+    sendAttachmentMessage: {
+      name: "SendAttachmentMessage",
+      requestType: SendAttachmentMessageRequest as typeof SendAttachmentMessageRequest,
       requestStream: false,
-      responseType: SendReactionResponse as typeof SendReactionResponse,
+      responseType: MessageResponse as typeof MessageResponse,
+      responseStream: false,
+      options: {},
+    },
+    sendMultipartMessage: {
+      name: "SendMultipartMessage",
+      requestType: SendMultipartMessageRequest as typeof SendMultipartMessageRequest,
+      requestStream: false,
+      responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
       options: {},
     },
@@ -4936,26 +2498,45 @@ export const MessageServiceDefinition = {
       name: "EditMessage",
       requestType: EditMessageRequest as typeof EditMessageRequest,
       requestStream: false,
-      responseType: EditMessageResponse as typeof EditMessageResponse,
+      responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
       options: {},
     },
+    /** Retracts an existing message and returns Empty after helper success. */
     unsendMessage: {
       name: "UnsendMessage",
       requestType: UnsendMessageRequest as typeof UnsendMessageRequest,
       requestStream: false,
-      responseType: UnsendMessageResponse as typeof UnsendMessageResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
-    notifySilenced: {
-      name: "NotifySilenced",
-      requestType: NotifySilencedRequest as typeof NotifySilencedRequest,
+    setReaction: {
+      name: "SetReaction",
+      requestType: SetReactionRequest as typeof SetReactionRequest,
       requestStream: false,
-      responseType: NotifySilencedResponse as typeof NotifySilencedResponse,
+      responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
       options: {},
     },
+    placeSticker: {
+      name: "PlaceSticker",
+      requestType: PlaceStickerRequest as typeof PlaceStickerRequest,
+      requestStream: false,
+      responseType: MessageResponse as typeof MessageResponse,
+      responseStream: false,
+      options: {},
+    },
+    /** Triggers Apple's per-message "Notify Anyway" action. */
+    notifySilencedMessage: {
+      name: "NotifySilencedMessage",
+      requestType: NotifySilencedMessageRequest as typeof NotifySilencedMessageRequest,
+      requestStream: false,
+      responseType: Empty as typeof Empty,
+      responseStream: false,
+      options: {},
+    },
+    /** Reads */
     getMessage: {
       name: "GetMessage",
       requestType: GetMessageRequest as typeof GetMessageRequest,
@@ -4964,11 +2545,19 @@ export const MessageServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    listMessages: {
-      name: "ListMessages",
-      requestType: ListMessagesRequest as typeof ListMessagesRequest,
+    listRecentMessages: {
+      name: "ListRecentMessages",
+      requestType: ListRecentMessagesRequest as typeof ListRecentMessagesRequest,
       requestStream: false,
-      responseType: ListMessagesResponse as typeof ListMessagesResponse,
+      responseType: ListRecentMessagesResponse as typeof ListRecentMessagesResponse,
+      responseStream: false,
+      options: {},
+    },
+    listChatMessages: {
+      name: "ListChatMessages",
+      requestType: ListChatMessagesRequest as typeof ListChatMessagesRequest,
+      requestStream: false,
+      responseType: ListChatMessagesResponse as typeof ListChatMessagesResponse,
       responseStream: false,
       options: {},
     },
@@ -4980,14 +2569,10 @@ export const MessageServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    getMessageStats: {
-      name: "GetMessageStats",
-      requestType: GetMessageStatsRequest as typeof GetMessageStatsRequest,
-      requestStream: false,
-      responseType: GetMessageStatsResponse as typeof GetMessageStatsResponse,
-      responseStream: false,
-      options: {},
-    },
+    /**
+     * Live durable-event subscription. Pair with `EventService.CatchUpEvents`
+     * for gap-free history-then-live consumption.
+     */
     subscribeMessageEvents: {
       name: "SubscribeMessageEvents",
       requestType: SubscribeMessageEventsRequest as typeof SubscribeMessageEventsRequest,
@@ -5000,39 +2585,59 @@ export const MessageServiceDefinition = {
 } as const;
 
 export interface MessageServiceImplementation<CallContextExt = {}> {
-  send(request: SendRequest, context: CallContext & CallContextExt): Promise<DeepPartial<SendResponse>>;
-  sendReaction(
-    request: SendReactionRequest,
+  /** Writes */
+  sendTextMessage(
+    request: SendTextMessageRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<SendReactionResponse>>;
+  ): Promise<DeepPartial<MessageResponse>>;
+  sendAttachmentMessage(
+    request: SendAttachmentMessageRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<MessageResponse>>;
+  sendMultipartMessage(
+    request: SendMultipartMessageRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<MessageResponse>>;
   editMessage(
     request: EditMessageRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<EditMessageResponse>>;
-  unsendMessage(
-    request: UnsendMessageRequest,
+  ): Promise<DeepPartial<MessageResponse>>;
+  /** Retracts an existing message and returns Empty after helper success. */
+  unsendMessage(request: UnsendMessageRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  setReaction(
+    request: SetReactionRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<UnsendMessageResponse>>;
-  notifySilenced(
-    request: NotifySilencedRequest,
+  ): Promise<DeepPartial<MessageResponse>>;
+  placeSticker(
+    request: PlaceStickerRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<NotifySilencedResponse>>;
+  ): Promise<DeepPartial<MessageResponse>>;
+  /** Triggers Apple's per-message "Notify Anyway" action. */
+  notifySilencedMessage(
+    request: NotifySilencedMessageRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<Empty>>;
+  /** Reads */
   getMessage(
     request: GetMessageRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetMessageResponse>>;
-  listMessages(
-    request: ListMessagesRequest,
+  listRecentMessages(
+    request: ListRecentMessagesRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<ListMessagesResponse>>;
+  ): Promise<DeepPartial<ListRecentMessagesResponse>>;
+  listChatMessages(
+    request: ListChatMessagesRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<ListChatMessagesResponse>>;
   getEmbeddedMedia(
     request: GetEmbeddedMediaRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetEmbeddedMediaResponse>>;
-  getMessageStats(
-    request: GetMessageStatsRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<GetMessageStatsResponse>>;
+  /**
+   * Live durable-event subscription. Pair with `EventService.CatchUpEvents`
+   * for gap-free history-then-live consumption.
+   */
   subscribeMessageEvents(
     request: SubscribeMessageEventsRequest,
     context: CallContext & CallContextExt,
@@ -5040,68 +2645,63 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
 }
 
 export interface MessageServiceClient<CallOptionsExt = {}> {
-  send(request: DeepPartial<SendRequest>, options?: CallOptions & CallOptionsExt): Promise<SendResponse>;
-  sendReaction(
-    request: DeepPartial<SendReactionRequest>,
+  /** Writes */
+  sendTextMessage(
+    request: DeepPartial<SendTextMessageRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<SendReactionResponse>;
+  ): Promise<MessageResponse>;
+  sendAttachmentMessage(
+    request: DeepPartial<SendAttachmentMessageRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<MessageResponse>;
+  sendMultipartMessage(
+    request: DeepPartial<SendMultipartMessageRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<MessageResponse>;
   editMessage(
     request: DeepPartial<EditMessageRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<EditMessageResponse>;
-  unsendMessage(
-    request: DeepPartial<UnsendMessageRequest>,
+  ): Promise<MessageResponse>;
+  /** Retracts an existing message and returns Empty after helper success. */
+  unsendMessage(request: DeepPartial<UnsendMessageRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  setReaction(
+    request: DeepPartial<SetReactionRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<UnsendMessageResponse>;
-  notifySilenced(
-    request: DeepPartial<NotifySilencedRequest>,
+  ): Promise<MessageResponse>;
+  placeSticker(
+    request: DeepPartial<PlaceStickerRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<NotifySilencedResponse>;
+  ): Promise<MessageResponse>;
+  /** Triggers Apple's per-message "Notify Anyway" action. */
+  notifySilencedMessage(
+    request: DeepPartial<NotifySilencedMessageRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<Empty>;
+  /** Reads */
   getMessage(
     request: DeepPartial<GetMessageRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetMessageResponse>;
-  listMessages(
-    request: DeepPartial<ListMessagesRequest>,
+  listRecentMessages(
+    request: DeepPartial<ListRecentMessagesRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<ListMessagesResponse>;
+  ): Promise<ListRecentMessagesResponse>;
+  listChatMessages(
+    request: DeepPartial<ListChatMessagesRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<ListChatMessagesResponse>;
   getEmbeddedMedia(
     request: DeepPartial<GetEmbeddedMediaRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetEmbeddedMediaResponse>;
-  getMessageStats(
-    request: DeepPartial<GetMessageStatsRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<GetMessageStatsResponse>;
+  /**
+   * Live durable-event subscription. Pair with `EventService.CatchUpEvents`
+   * for gap-free history-then-live consumption.
+   */
   subscribeMessageEvents(
     request: DeepPartial<SubscribeMessageEventsRequest>,
     options?: CallOptions & CallOptionsExt,
   ): AsyncIterable<SubscribeMessageEventsResponse>;
-}
-
-function bytesFromBase64(b64: string): Uint8Array {
-  if ((globalThis as any).Buffer) {
-    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
-  } else {
-    const bin = globalThis.atob(b64);
-    const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; ++i) {
-      arr[i] = bin.charCodeAt(i);
-    }
-    return arr;
-  }
-}
-
-function base64FromBytes(arr: Uint8Array): string {
-  if ((globalThis as any).Buffer) {
-    return (globalThis as any).Buffer.from(arr).toString("base64");
-  } else {
-    const bin: string[] = [];
-    arr.forEach((byte) => {
-      bin.push(globalThis.String.fromCharCode(byte));
-    });
-    return globalThis.btoa(bin.join(""));
-  }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;

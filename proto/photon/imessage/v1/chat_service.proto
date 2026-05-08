@@ -1,148 +1,205 @@
 syntax = "proto3";
+
 package photon.imessage.v1;
+
+import "photon/imessage/v1/address_types.proto";
+import "photon/imessage/v1/chat_types.proto";
+import "google/protobuf/empty.proto";
+import "photon/imessage/v1/message_types.proto";
+import "photon/imessage/v1/streaming.proto";
 
 option swift_prefix = "PIMsg_";
 
-import "google/protobuf/timestamp.proto";
-import "photon/imessage/v1/common.proto";
-import "photon/imessage/v1/message_service.proto";
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
+// Chat-level reads, mutations, and event streams.
 service ChatService {
+
+  // Writes
   rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
+
+  rpc MarkChatRead(MarkChatReadRequest) returns (google.protobuf.Empty);
+
+  rpc SetBackground(SetBackgroundRequest) returns (google.protobuf.Empty);
+
+  rpc RemoveBackground(RemoveBackgroundRequest) returns (google.protobuf.Empty);
+
+  // Pushes the local user's name-and-photo card into the target chat so
+  // the recipient sees it in their contact suggestions. No observable
+  // local state change.
+  rpc ShareContactInfo(ShareContactInfoRequest) returns (google.protobuf.Empty);
+
+  // Transient typing-indicator write. No persisted state.
+  rpc SetTyping(SetTypingRequest) returns (google.protobuf.Empty);
+
+  // Reads
   rpc GetChat(GetChatRequest) returns (GetChatResponse);
+
   rpc GetChatCount(GetChatCountRequest) returns (GetChatCountResponse);
-  rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
-  rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
-  rpc ShareContactInfo(ShareContactInfoRequest) returns (ShareContactInfoResponse);
-  rpc StartTyping(StartTypingRequest) returns (StartTypingResponse);
-  rpc StopTyping(StopTypingRequest) returns (StopTypingResponse);
-  rpc GetParticipants(GetParticipantsRequest) returns (GetParticipantsResponse);
-  rpc SubscribeChatEvents(SubscribeChatEventsRequest) returns (stream SubscribeChatEventsResponse);
+
+  rpc HasBackground(HasBackgroundRequest) returns (HasBackgroundResponse);
+
+  rpc SubscribeChatEvents(SubscribeChatEventsRequest)
+      returns (stream SubscribeChatEventsResponse);
+
 }
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-message Chat {
-  string guid = 1;
-  optional string chat_identifier = 2;
-  optional string group_id = 3;
-  optional string display_name = 4;
-  bool is_group = 5;
-  string service = 6;
-  bool is_archived = 7;
-  bool is_filtered = 8;
-  optional int32 unread_count = 9;
-  repeated AddressInfo participants = 10;
-  optional Message last_message = 11;
-}
 
 // ---------------------------------------------------------------------------
-// Request / Response messages
+// Writes
 // ---------------------------------------------------------------------------
 
 message CreateChatRequest {
+
   repeated string addresses = 1;
-  optional string message = 2;
-  string service = 3;
-  optional bytes attributed_body = 4;
-  optional string effect_id = 5;
-  optional string subject = 6;
-  optional string client_message_id = 7;
+
+  ChatServiceType service = 2;
+
+  optional CreateChatInitialMessage initial_message = 3;
+
+  optional string client_message_id = 100;
+
 }
+
+
+message CreateChatInitialMessage {
+
+  string text = 1;
+
+  optional bytes attributed_body = 2;
+
+  optional string effect_id = 3;
+
+  optional string subject = 4;
+
+}
+
 
 message CreateChatResponse {
+
   Chat chat = 1;
-  optional MessageSendReceipt send_receipt = 2;
+
+  optional Message initial_message = 2;
+
 }
 
-message GetChatRequest {
-  string guid = 1;
-}
 
-message GetChatResponse {
-  Chat chat = 1;
-}
+message MarkChatReadRequest {
 
-message GetChatCountRequest {
-  bool include_archived = 1;
-}
-
-message GetChatCountResponse {
-  int64 count = 1;
-}
-
-message LeaveChatRequest {
-  string guid = 1;
-}
-
-message LeaveChatResponse {}
-
-message MarkReadRequest {
   string chat_guid = 1;
+
 }
 
-message MarkReadResponse {}
+
+message SetBackgroundRequest {
+
+  string chat_guid = 1;
+
+  bytes data = 2;
+
+  // MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers must
+  // reject unsupported types with `INVALID_ARGUMENT`.
+  string mime_type = 3;
+
+}
+
+
+message RemoveBackgroundRequest {
+
+  string chat_guid = 1;
+
+}
+
 
 message ShareContactInfoRequest {
+
   string chat_guid = 1;
+
 }
 
-message ShareContactInfoResponse {}
 
-message StartTypingRequest {
+message SetTypingRequest {
+
   string chat_guid = 1;
+
+  bool is_typing = 2;
+
 }
 
-message StartTypingResponse {}
-
-message StopTypingRequest {
-  string chat_guid = 1;
-}
-
-message StopTypingResponse {}
-
-message GetParticipantsRequest {
-  string chat_guid = 1;
-}
-
-message GetParticipantsResponse {
-  repeated AddressInfo participants = 1;
-}
 
 // ---------------------------------------------------------------------------
-// Event streaming
+// Reads
 // ---------------------------------------------------------------------------
 
-message SubscribeChatEventsRequest {}
+message GetChatRequest {
+
+  string chat_guid = 1;
+
+}
+
+
+message GetChatResponse {
+
+  Chat chat = 1;
+
+}
+
+
+message GetChatCountRequest {
+
+  bool include_archived = 1;
+
+}
+
+
+message GetChatCountResponse {
+
+  int64 count = 1;
+
+}
+
+
+message HasBackgroundRequest {
+
+  string chat_guid = 1;
+
+}
+
+
+message HasBackgroundResponse {
+
+  bool background_present = 1;
+
+}
+
+
+// ---------------------------------------------------------------------------
+// Streams
+// ---------------------------------------------------------------------------
+
+message SubscribeChatEventsRequest {
+
+  // Absent = subscribe to every chat the caller can observe.
+  optional string chat_guid = 1;
+
+}
+
 
 message SubscribeChatEventsResponse {
-  google.protobuf.Timestamp timestamp = 1;
+
+  // Monotonic global sequence shared with `EventService.CatchUpEvents`
+  // and every other `Subscribe*` stream. Absent on heartbeat frames.
+  optional uint64 sequence = 1;
+
   oneof payload {
-    ChatLifecycleEvent chat_created = 12;
-    ChatLifecycleEvent chat_left = 14;
-    ChatReadStatusEvent chat_read_status_changed = 10;
-    TypingEvent typing_indicator = 11;
+
+    ChatChangeEvent chat_changed = 10;
+
     Heartbeat heartbeat = 99;
+
   }
-}
 
-message ChatLifecycleEvent {
-  string chat_guid = 1;
-}
-
-message ChatReadStatusEvent {
-  string chat_guid = 1;
-  bool is_read = 2;
-}
-
-message TypingEvent {
-  string chat_guid = 1;
-  bool is_typing = 2;
-  optional string display_name = 3;
 }

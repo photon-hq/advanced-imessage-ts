@@ -1,26 +1,25 @@
-/**
- * PollsResource -- poll creation, voting, and event streaming.
- *
- * Wraps the gRPC PollService to provide high-level methods for creating
- * polls, casting votes, adding options, and subscribing to poll events.
- */
-
 import { fromGrpcError } from "../errors/error-handler.ts";
-import type { PollChangeEvent as ProtoPollChangeEvent } from "../generated/photon/imessage/v1/poll_service.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { PollServiceClient } from "../transport/grpc-client.ts";
-import { mapPollChangeEvent, mapPollInfo } from "../transport/mapper.ts";
-import type { ChatGuid, MessageGuid } from "../types/branded.ts";
-import { messageGuid } from "../types/branded.ts";
-import type { CommandReceipt } from "../types/common.ts";
+import { mapPoll, mapPollEvent } from "../transport/mapper.ts";
+import { normalizeChatGuid } from "../types/chat-guid.ts";
+import type { IdempotencyOptions } from "../types/common.ts";
 import type { PollEvent } from "../types/events.ts";
-import type { PollInfo } from "../types/polls.ts";
+import type { Poll } from "../types/polls.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
-// ---------------------------------------------------------------------------
-// Resource
-// ---------------------------------------------------------------------------
-
+/**
+ * Poll APIs.
+ *
+ * - `create(chat, title, choices, options)` creates a poll message in a chat.
+ * - `get(pollMessage)` reads the current poll title, choices, and votes.
+ * - `vote(pollMessage, optionId, options)` casts or changes the local
+ *   account's vote.
+ * - `unvote(pollMessage, options)` removes the local account's vote.
+ * - `addOption(pollMessage, text, options)` appends a new choice to a poll.
+ * - `subscribeEvents(filter)` streams poll creation, option, vote, and unvote
+ *   changes; use `events.catchUp(since)` for disconnect recovery.
+ */
 export class PollsResource {
   private readonly _client: PollServiceClient;
 
@@ -28,139 +27,145 @@ export class PollsResource {
     this._client = client;
   }
 
-  // -------------------------------------------------------------------------
-  // Commands
-  // -------------------------------------------------------------------------
-
-  /** Create a new poll in the given chat. */
+  /**
+   * Create a poll in `chat` with `title` and an initial set of `choices`.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param title - Poll title shown above the choices.
+   * @param choices - Initial choice texts.
+   */
   async create(
-    chat: ChatGuid,
+    chat: string,
     title: string,
-    options: string[]
-  ): Promise<CommandReceipt> {
+    choices: string[],
+    options?: IdempotencyOptions
+  ): Promise<Poll> {
     try {
       const response = await this._client.createPoll({
-        chatGuid: chat,
+        chatGuid: normalizeChatGuid(chat),
         title,
-        options,
+        options: choices,
+        clientMessageId: options?.clientMessageId,
       });
-      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
-    } catch (error) {
-      throw fromGrpcError(error);
+      return mapPoll(unwrap(response.poll, "poll"));
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
-
-  /** Vote on a poll option. */
-  async vote(
-    chat: ChatGuid,
-    pollMessage: MessageGuid,
-    optionIdentifier: string
-  ): Promise<CommandReceipt> {
-    try {
-      const response = await this._client.vote({
-        chatGuid: chat,
-        pollMessageGuid: pollMessage,
-        optionIdentifier,
-      });
-      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  /** Remove your vote from a poll. */
-  async unvote(
-    chat: ChatGuid,
-    pollMessage: MessageGuid
-  ): Promise<CommandReceipt> {
-    try {
-      const response = await this._client.unvote({
-        chatGuid: chat,
-        pollMessageGuid: pollMessage,
-      });
-      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  /** Add a new option to an existing poll. */
-  async addOption(
-    chat: ChatGuid,
-    pollMessage: MessageGuid,
-    optionText: string
-  ): Promise<CommandReceipt> {
-    try {
-      const response = await this._client.addOption({
-        chatGuid: chat,
-        pollMessageGuid: pollMessage,
-        optionText,
-      });
-      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Queries
-  // -------------------------------------------------------------------------
-
-  /** Get poll info by the message GUID that contains the poll. */
-  async get(messageGuidValue: MessageGuid): Promise<PollInfo> {
-    try {
-      const response = await this._client.getPoll({
-        messageGuid: messageGuidValue,
-      });
-      return mapPollInfo(unwrap(response.poll, "poll"));
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Event subscription
-  // -------------------------------------------------------------------------
 
   /**
-   * Subscribe to poll change events.
+   * Fetch the current state of a poll (title, choices, votes).
    *
-   * Each event is self-contained: `delta` is a discriminated union that
-   * carries the full post-change poll state (`created`, `optionAdded`) or
-   * the voter's current selection (`voted`). `actor` identifies who
-   * triggered the change; `at` is the triggering message's timestamp.
-   *
-   * No `polls.get()` round-trip is required for typical UI rendering.
+   * @param pollMessage - The guid of the poll message
+   *                      (`poll.pollMessageGuid` or any prior result).
    */
-  subscribe(): TypedEventStream<PollEvent> {
-    const rpcStream = this._client.subscribePollEvents({});
+  async get(pollMessage: string): Promise<Poll> {
+    try {
+      const response = await this._client.getPoll({
+        pollMessageGuid: pollMessage,
+      });
+      return mapPoll(unwrap(response.poll, "poll"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Cast (or re-cast) the current account's vote on a poll.
+   *
+   * @param pollMessage - The guid of the poll message.
+   * @param optionId - The `optionIdentifier` of the chosen choice.
+   */
+  async vote(
+    pollMessage: string,
+    optionId: string,
+    options?: IdempotencyOptions
+  ): Promise<Poll> {
+    try {
+      const response = await this._client.votePoll({
+        pollMessageGuid: pollMessage,
+        optionIdentifier: optionId,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapPoll(unwrap(response.poll, "poll"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Withdraw the current account's vote on a poll.
+   *
+   * @param pollMessage - The guid of the poll message.
+   */
+  async unvote(
+    pollMessage: string,
+    options?: IdempotencyOptions
+  ): Promise<Poll> {
+    try {
+      const response = await this._client.unvotePoll({
+        pollMessageGuid: pollMessage,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapPoll(unwrap(response.poll, "poll"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Append a new choice to an existing poll.
+   *
+   * @param pollMessage - The guid of the poll message.
+   * @param text - The choice's display text.
+   */
+  async addOption(
+    pollMessage: string,
+    text: string,
+    options?: IdempotencyOptions
+  ): Promise<Poll> {
+    try {
+      const response = await this._client.addPollOption({
+        pollMessageGuid: pollMessage,
+        optionText: text,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapPoll(unwrap(response.poll, "poll"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Subscribe to poll lifecycle events (created / option added / voted /
+   * unvoted).
+   *
+   * Pass `filter.pollMessage` to scope the stream to a single poll.
+   */
+  subscribeEvents(filter?: {
+    pollMessage?: string;
+  }): TypedEventStream<PollEvent> {
+    const rpcStream = this._client.subscribePollEvents({
+      pollMessageGuid: filter?.pollMessage,
+    });
 
     async function* mapEvents(): AsyncGenerator<PollEvent> {
       try {
-        for await (const proto of rpcStream) {
-          if (proto.pollChanged === undefined) {
+        for await (const frame of rpcStream) {
+          if (frame.sequence === undefined || !frame.pollChanged) {
             continue;
           }
-
-          const evt: ProtoPollChangeEvent = proto.pollChanged;
-          const mapped = mapPollChangeEvent(evt);
-
-          yield {
-            type: "poll.changed" as const,
-            chatGuid: mapped.chatGuid,
-            pollMessageGuid: mapped.pollMessageGuid,
-            actor: mapped.actor,
-            at: mapped.at,
-            delta: mapped.delta,
-            action: mapped.delta.type,
-            timestamp: proto.timestamp ?? new Date(),
-          };
+          const event = mapPollEvent(frame.sequence, frame.pollChanged);
+          if (event) {
+            yield event;
+          }
         }
       } catch (err) {
         throw fromGrpcError(err);
       }
     }
 
-    return new TypedEventStream<PollEvent>(mapEvents());
+    return new TypedEventStream(mapEvents());
   }
 }

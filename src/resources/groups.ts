@@ -1,27 +1,33 @@
-/**
- * GroupsResource -- group chat management operations.
- *
- * Wraps the gRPC GroupService to provide high-level methods for managing
- * group chat properties: display name, participants, icon, and background.
- * Also exposes a `subscribe()` method for streaming group change events.
- */
-
 import { fromGrpcError } from "../errors/error-handler.ts";
-import type { GroupChangeEvent } from "../generated/photon/imessage/v1/group_service.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { GroupServiceClient } from "../transport/grpc-client.ts";
-import { mapChat } from "../transport/mapper.ts";
-import type { ChatGuid } from "../types/branded.ts";
-import { chatGuid } from "../types/branded.ts";
+import { mapChat, mapGroupEvent } from "../transport/mapper.ts";
+import { normalizeChatGuid } from "../types/chat-guid.ts";
 import type { Chat } from "../types/chats.ts";
-import type { GroupChange, GroupEvent } from "../types/events.ts";
-import type { BackgroundInfo } from "../types/groups.ts";
+import type { IdempotencyOptions } from "../types/common.ts";
+import type { GroupEvent } from "../types/events.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
-// ---------------------------------------------------------------------------
-// Resource
-// ---------------------------------------------------------------------------
+export interface GroupIcon {
+  readonly data: Uint8Array;
+  readonly mimeType: string;
+}
 
+/**
+ * Group APIs.
+ *
+ * - `setDisplayName(chat, displayName, options)` renames a group chat.
+ * - `addParticipants(chat, addresses, options)` invites one or more addresses
+ *   into a group chat.
+ * - `removeParticipants(chat, addresses, options)` removes one or more
+ *   addresses from a group chat.
+ * - `leave(chat, options)` makes the local account leave the group chat.
+ * - `setIcon(chat, data, options)` replaces the group photo with image bytes.
+ * - `getIcon(chat)` downloads the current group photo bytes and MIME type.
+ * - `removeIcon(chat, options)` clears the group photo.
+ * - `subscribeEvents(filter)` streams group name, membership, and icon changes;
+ *   use `events.catchUp(since)` for disconnect recovery.
+ */
 export class GroupsResource {
   private readonly _client: GroupServiceClient;
 
@@ -29,210 +35,180 @@ export class GroupsResource {
     this._client = client;
   }
 
-  // -------------------------------------------------------------------------
-  // Display name
-  // -------------------------------------------------------------------------
-
-  /** Rename a group chat. Returns the updated chat. */
-  async setDisplayName(chat: ChatGuid, name: string): Promise<Chat> {
+  /**
+   * Rename a group chat.
+   *
+   * @param chat - An `any;+;...` group chat guid. In practice, pass
+   *               `chat.guid` from a prior SDK call.
+   *               Direct chats reject this operation server-side.
+   */
+  async setDisplayName(
+    chat: string,
+    displayName: string,
+    options?: IdempotencyOptions
+  ): Promise<Chat> {
     try {
       const response = await this._client.setDisplayName({
-        chatGuid: chat,
-        name,
+        chatGuid: normalizeChatGuid(chat),
+        displayName,
+        clientMessageId: options?.clientMessageId,
       });
       return mapChat(unwrap(response.chat, "chat"));
-    } catch (error) {
-      throw fromGrpcError(error);
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Participants
-  // -------------------------------------------------------------------------
-
-  /** Add a participant to a group chat by address. Returns the updated chat. */
-  async addParticipant(chat: ChatGuid, address: string): Promise<Chat> {
+  /**
+   * Add one or more participants to a group chat.
+   *
+   * @param chat - An `any;+;...` group chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param addresses - Email addresses or phone numbers to invite.
+   */
+  async addParticipants(
+    chat: string,
+    addresses: string[],
+    options?: IdempotencyOptions
+  ): Promise<Chat> {
     try {
-      const response = await this._client.addParticipant({
-        chatGuid: chat,
-        address,
+      const response = await this._client.addParticipants({
+        chatGuid: normalizeChatGuid(chat),
+        addresses,
+        clientMessageId: options?.clientMessageId,
       });
       return mapChat(unwrap(response.chat, "chat"));
-    } catch (error) {
-      throw fromGrpcError(error);
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
 
-  /** Remove a participant from a group chat by address. Returns the updated chat. */
-  async removeParticipant(chat: ChatGuid, address: string): Promise<Chat> {
+  /**
+   * Remove participants from a group chat (only the chat creator can do this).
+   *
+   * @param chat - An `any;+;...` group chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param addresses - Email addresses or phone numbers to remove.
+   */
+  async removeParticipants(
+    chat: string,
+    addresses: string[],
+    options?: IdempotencyOptions
+  ): Promise<Chat> {
     try {
-      const response = await this._client.removeParticipant({
-        chatGuid: chat,
-        address,
+      const response = await this._client.removeParticipants({
+        chatGuid: normalizeChatGuid(chat),
+        addresses,
+        clientMessageId: options?.clientMessageId,
       });
       return mapChat(unwrap(response.chat, "chat"));
-    } catch (error) {
-      throw fromGrpcError(error);
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Icon
-  // -------------------------------------------------------------------------
-
-  /** Set the group chat icon from raw image bytes. */
-  async setIcon(chat: ChatGuid, data: Uint8Array): Promise<void> {
+  /**
+   * Leave a group chat.
+   *
+   * @param chat - An `any;+;...` group chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async leave(chat: string, options?: IdempotencyOptions): Promise<void> {
     try {
-      await this._client.setIcon({ chatGuid: chat, data });
-    } catch (error) {
-      throw fromGrpcError(error);
+      await this._client.leaveGroup({
+        chatGuid: normalizeChatGuid(chat),
+        clientMessageId: options?.clientMessageId,
+      });
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
 
-  /** Get the group chat icon as raw bytes, or `null` if none is set. */
-  async getIcon(chat: ChatGuid): Promise<Uint8Array | null> {
+  /**
+   * Set the group photo to the supplied image bytes.
+   *
+   * @param chat - An `any;+;...` group chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async setIcon(
+    chat: string,
+    data: Uint8Array,
+    options?: IdempotencyOptions
+  ): Promise<void> {
     try {
-      const response = await this._client.getIcon({ chatGuid: chat });
-      return response.data ?? null;
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  /** Remove the group chat icon. */
-  async removeIcon(chat: ChatGuid): Promise<void> {
-    try {
-      await this._client.removeIcon({ chatGuid: chat });
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Background
-  // -------------------------------------------------------------------------
-
-  /** Set the group chat background from raw image bytes. */
-  async setBackground(
-    chat: ChatGuid,
-    data: Uint8Array
-  ): Promise<BackgroundInfo> {
-    try {
-      const response = await this._client.setBackground({
-        chatGuid: chat,
+      await this._client.setIcon({
+        chatGuid: normalizeChatGuid(chat),
         data,
+        clientMessageId: options?.clientMessageId,
+      });
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Fetch the current group photo bytes.
+   *
+   * @param chat - An `any;+;...` group chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async getIcon(chat: string): Promise<GroupIcon> {
+    try {
+      const response = await this._client.getIcon({
+        chatGuid: normalizeChatGuid(chat),
       });
       return {
-        channelGuid: response.channelGuid,
-        imageUrl: response.imageUrl,
-        backgroundId: response.backgroundId,
+        data: response.data,
+        mimeType: response.mimeType,
       };
-    } catch (error) {
-      throw fromGrpcError(error);
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
 
-  /** Get the group chat background info, or `null` if none is set. */
-  async getBackground(chat: ChatGuid): Promise<BackgroundInfo | null> {
+  /**
+   * Clear the group photo.
+   *
+   * @param chat - An `any;+;...` group chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async removeIcon(chat: string, options?: IdempotencyOptions): Promise<void> {
     try {
-      const response = await this._client.getBackground({ chatGuid: chat });
-      // If all fields are absent, consider it as no background.
-      if (
-        response.channelGuid === undefined &&
-        response.imageUrl === undefined &&
-        response.backgroundId === undefined
-      ) {
-        return null;
-      }
-      return {
-        channelGuid: response.channelGuid,
-        imageUrl: response.imageUrl,
-        backgroundId: response.backgroundId,
-      };
-    } catch (error) {
-      throw fromGrpcError(error);
+      await this._client.removeIcon({
+        chatGuid: normalizeChatGuid(chat),
+        clientMessageId: options?.clientMessageId,
+      });
+    } catch (err) {
+      throw fromGrpcError(err);
     }
   }
 
-  /** Remove the group chat background. */
-  async removeBackground(chat: ChatGuid): Promise<void> {
-    try {
-      await this._client.removeBackground({ chatGuid: chat });
-    } catch (error) {
-      throw fromGrpcError(error);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Event subscription
-  // -------------------------------------------------------------------------
-
-  /** Subscribe to group change events. Returns a typed event stream. */
-  subscribe(): TypedEventStream<GroupEvent> {
-    const rpcStream = this._client.subscribeGroupEvents({});
+  /**
+   * Subscribe to group-membership / metadata events.
+   *
+   * Pass `filter.chat` to scope the stream to a single group.
+   */
+  subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent> {
+    const rpcStream = this._client.subscribeGroupEvents({
+      chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
+    });
 
     async function* mapEvents(): AsyncGenerator<GroupEvent> {
       try {
-        for await (const proto of rpcStream) {
-          const timestamp = proto.timestamp ?? new Date();
-
-          if (proto.groupChanged === undefined) {
+        for await (const frame of rpcStream) {
+          if (frame.sequence === undefined || !frame.groupChanged) {
             continue;
           }
-
-          const evt: GroupChangeEvent = proto.groupChanged;
-          const change = mapGroupChange(evt);
-          if (!change) {
-            continue;
+          const event = mapGroupEvent(frame.sequence, frame.groupChanged);
+          if (event) {
+            yield event;
           }
-
-          yield {
-            type: "group.changed" as const,
-            chatGuid: chatGuid(evt.chatGuid),
-            timestamp,
-            change,
-          };
         }
       } catch (err) {
         throw fromGrpcError(err);
       }
     }
 
-    return new TypedEventStream<GroupEvent>(mapEvents());
+    return new TypedEventStream(mapEvents());
   }
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Map a proto GroupChangeEvent to the SDK GroupChange discriminated union.
- *
- * ts-proto represents oneof fields as optional properties on the message.
- * We check each field to determine which change occurred.
- */
-function mapGroupChange(evt: GroupChangeEvent): GroupChange | undefined {
-  if (evt.renamedTo !== undefined) {
-    return { type: "renamed", name: evt.renamedTo };
-  }
-  if (evt.participantAdded !== undefined) {
-    return { type: "participantAdded", address: evt.participantAdded };
-  }
-  if (evt.participantRemoved !== undefined) {
-    return { type: "participantRemoved", address: evt.participantRemoved };
-  }
-  if (evt.iconChanged !== undefined) {
-    return { type: "iconChanged" };
-  }
-  if (evt.iconRemoved !== undefined) {
-    return { type: "iconRemoved" };
-  }
-  if (evt.backgroundChanged !== undefined) {
-    return { type: "backgroundChanged" };
-  }
-  if (evt.backgroundRemoved !== undefined) {
-    return { type: "backgroundRemoved" };
-  }
-  return undefined;
 }

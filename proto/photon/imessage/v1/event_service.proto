@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package photon.imessage.v1;
+
+import "photon/imessage/v1/chat_types.proto";
+import "photon/imessage/v1/group_types.proto";
+import "photon/imessage/v1/message_types.proto";
+import "photon/imessage/v1/poll_types.proto";
+import "photon/imessage/v1/streaming.proto";
+
+option swift_prefix = "PIMsg_";
+
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+// Unified finite replay across every durable event domain:
+// messages, group state, polls, and chats.
+//
+// Drains everything newer than `after_sequence` and terminates with
+// `CatchUpEventsComplete`, after which the caller hands off to the live
+// `Subscribe*` streams without gaps.
+//
+// All `sequence` values returned here share the same global event log
+// as `SubscribeMessageEvents`, `SubscribeGroupEvents`, `SubscribePollEvents`,
+// and `SubscribeChatEvents`.
+service EventService {
+
+  rpc CatchUpEvents(CatchUpEventsRequest) returns (stream CatchUpEventsResponse);
+
+}
+
+
+// ---------------------------------------------------------------------------
+// Catch-up
+// ---------------------------------------------------------------------------
+
+message CatchUpEventsRequest {
+
+  // Resume cursor; absent = replay every event the server still holds.
+  optional uint64 after_sequence = 1;
+
+}
+
+
+// Terminal frame.
+//
+// `head_sequence` is the fixed global head captured when this catch-up
+// started. This stream replays every event with:
+//
+//   after_sequence < sequence <= head_sequence
+//
+// Then it terminates. The caller resumes live by passing `head_sequence`
+// as `after_sequence` to a `Subscribe*` stream.
+message CatchUpEventsComplete {
+
+  uint64 head_sequence = 1;
+
+}
+
+
+message CatchUpEventsResponse {
+
+  // Monotonic global sequence; absent only on the terminal `complete`
+  // frame.
+  optional uint64 sequence = 1;
+
+  oneof payload {
+
+    MessageChangeEvent message_changed = 10;
+
+    GroupChangeEvent group_changed = 11;
+
+    PollChangeEvent poll_changed = 12;
+
+    ChatChangeEvent chat_changed = 13;
+
+    CatchUpEventsComplete complete = 20;
+
+    Heartbeat heartbeat = 99;
+
+  }
+
+}

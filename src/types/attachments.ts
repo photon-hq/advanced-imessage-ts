@@ -1,141 +1,63 @@
 /**
  * Attachment-related domain types.
- *
- * Wraps the proto `AttachmentInfo` with branded GUIDs and SDK-friendly enums.
  */
 
-import type { AttachmentGuid } from "./branded.js";
-import type { TransferState } from "./enums.js";
+import type { CompanionKind, TransferState } from "./enums.js";
 
-// ---------------------------------------------------------------------------
-// AttachmentInfo
-// ---------------------------------------------------------------------------
-
-/** Metadata about a message attachment as returned by the server. */
 export interface AttachmentInfo {
-  /** Escape hatch to the underlying proto message. */
-  readonly _raw?: unknown;
-  /** The file name (e.g. "photo.heic"). */
+  readonly companionKind?: CompanionKind;
   readonly fileName: string;
-  /** Unique attachment identifier. */
-  readonly guid: AttachmentGuid;
-  /** Whether the attachment has an associated Live Photo video. */
-  readonly hasLivePhoto: boolean;
-  /** Image height in pixels, when applicable. */
-  readonly height?: number;
-  /** Whether the attachment should be hidden from the conversation view. */
-  readonly hideAttachment: boolean;
-  /** Whether this attachment was sent by the local user. */
+  readonly guid: string;
+  readonly isHidden: boolean;
   readonly isOutgoing: boolean;
-  /** Whether this attachment is a sticker. */
   readonly isSticker: boolean;
-  /** MIME type (e.g. "image/heic"). */
   readonly mimeType: string;
-  /** The original GUID before any server-side transformation. */
-  readonly originalGuid?: AttachmentGuid;
-  /** Total size in bytes. */
+  readonly originalGuid?: string;
   readonly totalBytes: number;
-  /** Current transfer state of the attachment. */
   readonly transferState: TransferState;
-  /** Uniform Type Identifier (e.g. "public.heic"). */
   readonly uti: string;
-  /** Image width in pixels, when applicable. */
-  readonly width?: number;
 }
 
-// ---------------------------------------------------------------------------
-// AttachmentInput
-// ---------------------------------------------------------------------------
+export interface CompanionInfo {
+  readonly fileName: string;
+  readonly kind: CompanionKind;
+  readonly mimeType: string;
+  readonly totalBytes: number;
+}
 
-/**
- * Input for uploading an attachment -- either raw bytes or a file path.
- *
- * @example
- * ```ts
- * // From bytes
- * const input: AttachmentInput = {
- *   data: new Uint8Array([...]),
- *   fileName: "photo.png",
- *   mimeType: "image/png",
- * };
- *
- * // From a file path on the server
- * const input: AttachmentInput = { path: "/tmp/photo.png" };
- * ```
- */
-export type AttachmentInput =
+export interface UploadAttachmentResult {
+  /** Primary attachment metadata. Use `attachment.guid` with `messages.sendAttachment(...)`. */
+  readonly attachment: AttachmentInfo;
+  /** Live Photo companion metadata when `input.companion` was provided. */
+  readonly companion?: CompanionInfo;
+}
+
+export interface AttachmentInput {
+  /** Optional Live Photo video bytes paired with the primary image. */
+  readonly companion?: {
+    /** Raw companion video bytes. */
+    readonly data: Uint8Array;
+  };
+  /** Raw file bytes to upload. */
+  readonly data: Uint8Array;
+  /** Display filename stored with the attachment, including extension. */
+  readonly fileName: string;
+}
+
+export type DownloadAttachmentChunk =
   | {
-      readonly data: Uint8Array;
-      readonly fileName: string;
-      readonly mimeType: string;
+      /** First frame: attachment metadata and optional companion metadata. */
+      readonly type: "header";
+      readonly info: AttachmentInfo;
+      readonly companionInfo?: CompanionInfo;
     }
   | {
-      readonly path: string;
-      readonly fileName?: string;
-      readonly mimeType?: string;
+      /** Byte chunk for the primary attachment. */
+      readonly type: "primaryChunk";
+      readonly data: Uint8Array;
+    }
+  | {
+      /** Byte chunk for the Live Photo companion video. */
+      readonly type: "companionChunk";
+      readonly data: Uint8Array;
     };
-
-// ---------------------------------------------------------------------------
-// LivePhotoInput
-// ---------------------------------------------------------------------------
-
-/**
- * Input for uploading a Live Photo (paired image + video).
- *
- * Supply raw bytes for both components. The server writes the video as a
- * companion `.mov` sibling file, matching the convention used by
- * `getLivePhoto()` for download. The video file name and MIME type are
- * determined server-side (always `.mov` / `video/quicktime`).
- *
- * @example
- * ```ts
- * const att = await im.attachments.uploadLivePhoto({
- *   image: { data: heicBytes, fileName: "photo.HEIC", mimeType: "image/heic" },
- *   video: { data: movBytes },
- * });
- * console.log(att.hasLivePhoto); // true
- * ```
- */
-export interface LivePhotoInput {
-  /** The still-image component (typically HEIC or JPEG). */
-  readonly image: {
-    readonly data: Uint8Array;
-    readonly fileName: string;
-    readonly mimeType: string;
-  };
-  /** The companion video component (raw `.mov` bytes). */
-  readonly video: {
-    readonly data: Uint8Array;
-  };
-}
-
-// ---------------------------------------------------------------------------
-// StreamedDownload
-// ---------------------------------------------------------------------------
-
-/**
- * A streaming attachment download.
- *
- * Provides both streaming and buffered consumption paths so callers can
- * choose whichever fits their use case.
- *
- * @example
- * ```ts
- * const dl = await im.attachments.download(guid);
- * console.log(`Downloading ${dl.totalBytes} bytes...`);
- *
- * // Stream
- * for await (const chunk of dl.stream) { ... }
- *
- * // Or buffer the whole thing
- * const bytes = await dl.arrayBuffer();
- * ```
- */
-export interface StreamedDownload {
-  /** Convenience method to buffer the entire download into a single `Uint8Array`. */
-  arrayBuffer(): Promise<Uint8Array>;
-  /** A web-standard `ReadableStream` of binary chunks. */
-  readonly stream: ReadableStream<Uint8Array>;
-  /** Total size in bytes, known upfront from the first chunk. */
-  readonly totalBytes: number;
-}

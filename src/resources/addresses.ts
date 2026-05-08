@@ -1,19 +1,18 @@
-/**
- * AddressesResource -- resolves address metadata, checks Focus Mode status,
- * and verifies iMessage availability for phone numbers and email addresses.
- */
-
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { AvailabilityType } from "../generated/photon/imessage/v1/address_service.ts";
 import type { AddressServiceClient } from "../transport/grpc-client.ts";
-import { mapAddressInfo } from "../transport/mapper.ts";
-import type { AddressInfo } from "../types/addresses.ts";
+import { mapMultiServiceAddressInfo } from "../transport/mapper.ts";
+import type { MultiServiceAddressInfo } from "../types/addresses.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
-// ---------------------------------------------------------------------------
-// AddressesResource
-// ---------------------------------------------------------------------------
-
+/**
+ * Address APIs.
+ *
+ * - `get(address)` returns the server's known address record, country, and
+ *   available transport services.
+ * - `isFocusSilenced(address)` checks whether this device's Focus settings
+ *   would silence notifications from the address.
+ * - `isIMessageAvailable(address)` checks live iMessage reachability.
+ */
 export class AddressesResource {
   private readonly _client: AddressServiceClient;
 
@@ -22,56 +21,51 @@ export class AddressesResource {
   }
 
   /**
-   * Resolve metadata for an address (phone number or email).
+   * Look up the server's address record for a peer.
    *
-   * Returns the canonical form of the address along with service information
-   * and country code.
+   * Throws `NotFoundError` when the server has no record for the address.
    */
-  async get(address: string): Promise<AddressInfo> {
+  async get(address: string): Promise<MultiServiceAddressInfo> {
     try {
-      const response = await this._client.getAddress({ address });
-      return mapAddressInfo(unwrap(response.address, "address"));
+      const response = await this._client.getAddressInfo({ address });
+      return mapMultiServiceAddressInfo(unwrap(response.info, "info"));
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
   /**
-   * Check whether an address currently has Focus Mode (Do Not Disturb)
-   * enabled.
+   * Whether this device's current Focus configuration would silence
+   * notifications from the given address.
    *
-   * @returns `true` if the address has a Focus mode active.
+   * @example
+   * ```ts
+   * const silenced = await im.addresses.isFocusSilenced("alice@example.com");
+   * ```
    */
-  async getFocusStatus(address: string): Promise<boolean> {
+  async isFocusSilenced(address: string): Promise<boolean> {
     try {
       const response = await this._client.getFocusStatus({ address });
-      return response.isFocused;
+      return response.isSilencedByFocus;
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
   /**
-   * Check whether an address is available on iMessage.
+   * Whether Apple currently reports the address as reachable on iMessage.
    *
-   * @param address - The phone number or email to check.
-   * @param type    - The service type to check availability for.
-   *                  Defaults to `"iMessage"`.
-   * @returns `true` if the address is reachable on the specified service.
+   * @example
+   * ```ts
+   * const available = await im.addresses.isIMessageAvailable(
+   *   "alice@example.com"
+   * );
+   * ```
    */
-  async checkAvailability(
-    address: string,
-    type?: "iMessage"
-  ): Promise<boolean> {
+  async isIMessageAvailable(address: string): Promise<boolean> {
     try {
-      const response = await this._client.checkAvailability({
-        address,
-        type:
-          type === "iMessage" || type === undefined
-            ? AvailabilityType.AVAILABILITY_TYPE_IMESSAGE
-            : AvailabilityType.AVAILABILITY_TYPE_UNSPECIFIED,
-      });
-      return response.available;
+      const response = await this._client.getIMessageAvailability({ address });
+      return response.isAvailable;
     } catch (err) {
       throw fromGrpcError(err);
     }

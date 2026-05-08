@@ -7,487 +7,59 @@
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
-import { Timestamp } from "../../../google/protobuf/timestamp.js";
-import { Heartbeat } from "./common.js";
+import { SharedFriendLocation, SharedFriendLocationUpdated } from "./location_types.js";
+import { Heartbeat } from "./streaming.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
-export enum FindMyLocationType {
-  FIND_MY_LOCATION_TYPE_UNSPECIFIED = 0,
-  FIND_MY_LOCATION_TYPE_LIVE = 1,
-  FIND_MY_LOCATION_TYPE_SHALLOW = 2,
-  FIND_MY_LOCATION_TYPE_LEGACY = 3,
-  UNRECOGNIZED = -1,
+export interface ListSharedFriendLocationsRequest {
 }
 
-export function findMyLocationTypeFromJSON(object: any): FindMyLocationType {
-  switch (object) {
-    case 0:
-    case "FIND_MY_LOCATION_TYPE_UNSPECIFIED":
-      return FindMyLocationType.FIND_MY_LOCATION_TYPE_UNSPECIFIED;
-    case 1:
-    case "FIND_MY_LOCATION_TYPE_LIVE":
-      return FindMyLocationType.FIND_MY_LOCATION_TYPE_LIVE;
-    case 2:
-    case "FIND_MY_LOCATION_TYPE_SHALLOW":
-      return FindMyLocationType.FIND_MY_LOCATION_TYPE_SHALLOW;
-    case 3:
-    case "FIND_MY_LOCATION_TYPE_LEGACY":
-      return FindMyLocationType.FIND_MY_LOCATION_TYPE_LEGACY;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return FindMyLocationType.UNRECOGNIZED;
-  }
+export interface ListSharedFriendLocationsResponse {
+  locations: SharedFriendLocation[];
 }
 
-export function findMyLocationTypeToJSON(object: FindMyLocationType): string {
-  switch (object) {
-    case FindMyLocationType.FIND_MY_LOCATION_TYPE_UNSPECIFIED:
-      return "FIND_MY_LOCATION_TYPE_UNSPECIFIED";
-    case FindMyLocationType.FIND_MY_LOCATION_TYPE_LIVE:
-      return "FIND_MY_LOCATION_TYPE_LIVE";
-    case FindMyLocationType.FIND_MY_LOCATION_TYPE_SHALLOW:
-      return "FIND_MY_LOCATION_TYPE_SHALLOW";
-    case FindMyLocationType.FIND_MY_LOCATION_TYPE_LEGACY:
-      return "FIND_MY_LOCATION_TYPE_LEGACY";
-    case FindMyLocationType.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
+/**
+ * Returns the current shared location for one address.
+ *
+ * Errors:
+ *   INVALID_ARGUMENT  malformed address
+ *   NOT_FOUND         address is valid but not currently sharing a location
+ */
+export interface GetSharedFriendLocationRequest {
+  address: string;
 }
 
-export interface FindMyFriend {
-  id: string;
-  name?: string | undefined;
-  latitude?: number | undefined;
-  longitude?: number | undefined;
-  accuracy?: number | undefined;
-  locationTimestamp?: Date | undefined;
-  longAddress?: string | undefined;
-  shortAddress?: string | undefined;
-  isLocatingInProgress: boolean;
-  locationType: FindMyLocationType;
-  expiresAt?: Date | undefined;
+export interface GetSharedFriendLocationResponse {
+  location: SharedFriendLocation | undefined;
 }
 
-export interface GetFriendsRequest {
-  /** Filter by specific friend IDs. Empty = return all friends. */
-  friendIds: string[];
+/**
+ * Absent `address` = watch every shared location update. Present
+ * `address` = watch updates for one address only.
+ */
+export interface WatchSharedFriendLocationsRequest {
+  address?: string | undefined;
 }
 
-export interface GetFriendsResponse {
-  friends: FindMyFriend[];
-}
-
-export interface SubscribeLocationEventsRequest {
-}
-
-export interface SubscribeLocationEventsResponse {
-  timestamp: Date | undefined;
-  findMyLocationUpdated?: FindMyEvent | undefined;
+export interface WatchSharedFriendLocationsResponse {
+  locationUpdated?: SharedFriendLocationUpdated | undefined;
   heartbeat?: Heartbeat | undefined;
 }
 
-export interface FindMyEvent {
-  friends: FindMyFriend[];
-}
-
-function createBaseFindMyFriend(): FindMyFriend {
-  return {
-    id: "",
-    name: undefined,
-    latitude: undefined,
-    longitude: undefined,
-    accuracy: undefined,
-    locationTimestamp: undefined,
-    longAddress: undefined,
-    shortAddress: undefined,
-    isLocatingInProgress: false,
-    locationType: 0,
-    expiresAt: undefined,
-  };
-}
-
-export const FindMyFriend: MessageFns<FindMyFriend> = {
-  encode(message: FindMyFriend, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.id !== "") {
-      writer.uint32(10).string(message.id);
-    }
-    if (message.name !== undefined) {
-      writer.uint32(18).string(message.name);
-    }
-    if (message.latitude !== undefined) {
-      writer.uint32(25).double(message.latitude);
-    }
-    if (message.longitude !== undefined) {
-      writer.uint32(33).double(message.longitude);
-    }
-    if (message.accuracy !== undefined) {
-      writer.uint32(41).double(message.accuracy);
-    }
-    if (message.locationTimestamp !== undefined) {
-      Timestamp.encode(toTimestamp(message.locationTimestamp), writer.uint32(50).fork()).join();
-    }
-    if (message.longAddress !== undefined) {
-      writer.uint32(58).string(message.longAddress);
-    }
-    if (message.shortAddress !== undefined) {
-      writer.uint32(66).string(message.shortAddress);
-    }
-    if (message.isLocatingInProgress !== false) {
-      writer.uint32(72).bool(message.isLocatingInProgress);
-    }
-    if (message.locationType !== 0) {
-      writer.uint32(80).int32(message.locationType);
-    }
-    if (message.expiresAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.expiresAt), writer.uint32(90).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): FindMyFriend {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFindMyFriend();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.id = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.name = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 25) {
-            break;
-          }
-
-          message.latitude = reader.double();
-          continue;
-        }
-        case 4: {
-          if (tag !== 33) {
-            break;
-          }
-
-          message.longitude = reader.double();
-          continue;
-        }
-        case 5: {
-          if (tag !== 41) {
-            break;
-          }
-
-          message.accuracy = reader.double();
-          continue;
-        }
-        case 6: {
-          if (tag !== 50) {
-            break;
-          }
-
-          message.locationTimestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-        case 7: {
-          if (tag !== 58) {
-            break;
-          }
-
-          message.longAddress = reader.string();
-          continue;
-        }
-        case 8: {
-          if (tag !== 66) {
-            break;
-          }
-
-          message.shortAddress = reader.string();
-          continue;
-        }
-        case 9: {
-          if (tag !== 72) {
-            break;
-          }
-
-          message.isLocatingInProgress = reader.bool();
-          continue;
-        }
-        case 10: {
-          if (tag !== 80) {
-            break;
-          }
-
-          message.locationType = reader.int32() as any;
-          continue;
-        }
-        case 11: {
-          if (tag !== 90) {
-            break;
-          }
-
-          message.expiresAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): FindMyFriend {
-    return {
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
-      latitude: isSet(object.latitude) ? globalThis.Number(object.latitude) : undefined,
-      longitude: isSet(object.longitude) ? globalThis.Number(object.longitude) : undefined,
-      accuracy: isSet(object.accuracy) ? globalThis.Number(object.accuracy) : undefined,
-      locationTimestamp: isSet(object.locationTimestamp)
-        ? fromJsonTimestamp(object.locationTimestamp)
-        : isSet(object.location_timestamp)
-        ? fromJsonTimestamp(object.location_timestamp)
-        : undefined,
-      longAddress: isSet(object.longAddress)
-        ? globalThis.String(object.longAddress)
-        : isSet(object.long_address)
-        ? globalThis.String(object.long_address)
-        : undefined,
-      shortAddress: isSet(object.shortAddress)
-        ? globalThis.String(object.shortAddress)
-        : isSet(object.short_address)
-        ? globalThis.String(object.short_address)
-        : undefined,
-      isLocatingInProgress: isSet(object.isLocatingInProgress)
-        ? globalThis.Boolean(object.isLocatingInProgress)
-        : isSet(object.is_locating_in_progress)
-        ? globalThis.Boolean(object.is_locating_in_progress)
-        : false,
-      locationType: isSet(object.locationType)
-        ? findMyLocationTypeFromJSON(object.locationType)
-        : isSet(object.location_type)
-        ? findMyLocationTypeFromJSON(object.location_type)
-        : 0,
-      expiresAt: isSet(object.expiresAt)
-        ? fromJsonTimestamp(object.expiresAt)
-        : isSet(object.expires_at)
-        ? fromJsonTimestamp(object.expires_at)
-        : undefined,
-    };
-  },
-
-  toJSON(message: FindMyFriend): unknown {
-    const obj: any = {};
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    if (message.name !== undefined) {
-      obj.name = message.name;
-    }
-    if (message.latitude !== undefined) {
-      obj.latitude = message.latitude;
-    }
-    if (message.longitude !== undefined) {
-      obj.longitude = message.longitude;
-    }
-    if (message.accuracy !== undefined) {
-      obj.accuracy = message.accuracy;
-    }
-    if (message.locationTimestamp !== undefined) {
-      obj.locationTimestamp = message.locationTimestamp.toISOString();
-    }
-    if (message.longAddress !== undefined) {
-      obj.longAddress = message.longAddress;
-    }
-    if (message.shortAddress !== undefined) {
-      obj.shortAddress = message.shortAddress;
-    }
-    if (message.isLocatingInProgress !== false) {
-      obj.isLocatingInProgress = message.isLocatingInProgress;
-    }
-    if (message.locationType !== 0) {
-      obj.locationType = findMyLocationTypeToJSON(message.locationType);
-    }
-    if (message.expiresAt !== undefined) {
-      obj.expiresAt = message.expiresAt.toISOString();
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<FindMyFriend>): FindMyFriend {
-    return FindMyFriend.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<FindMyFriend>): FindMyFriend {
-    const message = createBaseFindMyFriend();
-    message.id = object.id ?? "";
-    message.name = object.name ?? undefined;
-    message.latitude = object.latitude ?? undefined;
-    message.longitude = object.longitude ?? undefined;
-    message.accuracy = object.accuracy ?? undefined;
-    message.locationTimestamp = object.locationTimestamp ?? undefined;
-    message.longAddress = object.longAddress ?? undefined;
-    message.shortAddress = object.shortAddress ?? undefined;
-    message.isLocatingInProgress = object.isLocatingInProgress ?? false;
-    message.locationType = object.locationType ?? 0;
-    message.expiresAt = object.expiresAt ?? undefined;
-    return message;
-  },
-};
-
-function createBaseGetFriendsRequest(): GetFriendsRequest {
-  return { friendIds: [] };
-}
-
-export const GetFriendsRequest: MessageFns<GetFriendsRequest> = {
-  encode(message: GetFriendsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.friendIds) {
-      writer.uint32(10).string(v!);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetFriendsRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetFriendsRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.friendIds.push(reader.string());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetFriendsRequest {
-    return {
-      friendIds: globalThis.Array.isArray(object?.friendIds)
-        ? object.friendIds.map((e: any) => globalThis.String(e))
-        : globalThis.Array.isArray(object?.friend_ids)
-        ? object.friend_ids.map((e: any) => globalThis.String(e))
-        : [],
-    };
-  },
-
-  toJSON(message: GetFriendsRequest): unknown {
-    const obj: any = {};
-    if (message.friendIds?.length) {
-      obj.friendIds = message.friendIds;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetFriendsRequest>): GetFriendsRequest {
-    return GetFriendsRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetFriendsRequest>): GetFriendsRequest {
-    const message = createBaseGetFriendsRequest();
-    message.friendIds = object.friendIds?.map((e) => e) || [];
-    return message;
-  },
-};
-
-function createBaseGetFriendsResponse(): GetFriendsResponse {
-  return { friends: [] };
-}
-
-export const GetFriendsResponse: MessageFns<GetFriendsResponse> = {
-  encode(message: GetFriendsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.friends) {
-      FindMyFriend.encode(v!, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetFriendsResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetFriendsResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.friends.push(FindMyFriend.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetFriendsResponse {
-    return {
-      friends: globalThis.Array.isArray(object?.friends)
-        ? object.friends.map((e: any) => FindMyFriend.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: GetFriendsResponse): unknown {
-    const obj: any = {};
-    if (message.friends?.length) {
-      obj.friends = message.friends.map((e) => FindMyFriend.toJSON(e));
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetFriendsResponse>): GetFriendsResponse {
-    return GetFriendsResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetFriendsResponse>): GetFriendsResponse {
-    const message = createBaseGetFriendsResponse();
-    message.friends = object.friends?.map((e) => FindMyFriend.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseSubscribeLocationEventsRequest(): SubscribeLocationEventsRequest {
+function createBaseListSharedFriendLocationsRequest(): ListSharedFriendLocationsRequest {
   return {};
 }
 
-export const SubscribeLocationEventsRequest: MessageFns<SubscribeLocationEventsRequest> = {
-  encode(_: SubscribeLocationEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const ListSharedFriendLocationsRequest: MessageFns<ListSharedFriendLocationsRequest> = {
+  encode(_: ListSharedFriendLocationsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): SubscribeLocationEventsRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): ListSharedFriendLocationsRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSubscribeLocationEventsRequest();
+    const message = createBaseListSharedFriendLocationsRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -500,35 +72,270 @@ export const SubscribeLocationEventsRequest: MessageFns<SubscribeLocationEventsR
     return message;
   },
 
-  fromJSON(_: any): SubscribeLocationEventsRequest {
+  fromJSON(_: any): ListSharedFriendLocationsRequest {
     return {};
   },
 
-  toJSON(_: SubscribeLocationEventsRequest): unknown {
+  toJSON(_: ListSharedFriendLocationsRequest): unknown {
     const obj: any = {};
     return obj;
   },
 
-  create(base?: DeepPartial<SubscribeLocationEventsRequest>): SubscribeLocationEventsRequest {
-    return SubscribeLocationEventsRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<ListSharedFriendLocationsRequest>): ListSharedFriendLocationsRequest {
+    return ListSharedFriendLocationsRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<SubscribeLocationEventsRequest>): SubscribeLocationEventsRequest {
-    const message = createBaseSubscribeLocationEventsRequest();
+  fromPartial(_: DeepPartial<ListSharedFriendLocationsRequest>): ListSharedFriendLocationsRequest {
+    const message = createBaseListSharedFriendLocationsRequest();
     return message;
   },
 };
 
-function createBaseSubscribeLocationEventsResponse(): SubscribeLocationEventsResponse {
-  return { timestamp: undefined, findMyLocationUpdated: undefined, heartbeat: undefined };
+function createBaseListSharedFriendLocationsResponse(): ListSharedFriendLocationsResponse {
+  return { locations: [] };
 }
 
-export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEventsResponse> = {
-  encode(message: SubscribeLocationEventsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.timestamp !== undefined) {
-      Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(10).fork()).join();
+export const ListSharedFriendLocationsResponse: MessageFns<ListSharedFriendLocationsResponse> = {
+  encode(message: ListSharedFriendLocationsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.locations) {
+      SharedFriendLocation.encode(v!, writer.uint32(10).fork()).join();
     }
-    if (message.findMyLocationUpdated !== undefined) {
-      FindMyEvent.encode(message.findMyLocationUpdated, writer.uint32(82).fork()).join();
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ListSharedFriendLocationsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseListSharedFriendLocationsResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.locations.push(SharedFriendLocation.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ListSharedFriendLocationsResponse {
+    return {
+      locations: globalThis.Array.isArray(object?.locations)
+        ? object.locations.map((e: any) => SharedFriendLocation.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: ListSharedFriendLocationsResponse): unknown {
+    const obj: any = {};
+    if (message.locations?.length) {
+      obj.locations = message.locations.map((e) => SharedFriendLocation.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ListSharedFriendLocationsResponse>): ListSharedFriendLocationsResponse {
+    return ListSharedFriendLocationsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ListSharedFriendLocationsResponse>): ListSharedFriendLocationsResponse {
+    const message = createBaseListSharedFriendLocationsResponse();
+    message.locations = object.locations?.map((e) => SharedFriendLocation.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseGetSharedFriendLocationRequest(): GetSharedFriendLocationRequest {
+  return { address: "" };
+}
+
+export const GetSharedFriendLocationRequest: MessageFns<GetSharedFriendLocationRequest> = {
+  encode(message: GetSharedFriendLocationRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== "") {
+      writer.uint32(10).string(message.address);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetSharedFriendLocationRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetSharedFriendLocationRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.address = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetSharedFriendLocationRequest {
+    return { address: isSet(object.address) ? globalThis.String(object.address) : "" };
+  },
+
+  toJSON(message: GetSharedFriendLocationRequest): unknown {
+    const obj: any = {};
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GetSharedFriendLocationRequest>): GetSharedFriendLocationRequest {
+    return GetSharedFriendLocationRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GetSharedFriendLocationRequest>): GetSharedFriendLocationRequest {
+    const message = createBaseGetSharedFriendLocationRequest();
+    message.address = object.address ?? "";
+    return message;
+  },
+};
+
+function createBaseGetSharedFriendLocationResponse(): GetSharedFriendLocationResponse {
+  return { location: undefined };
+}
+
+export const GetSharedFriendLocationResponse: MessageFns<GetSharedFriendLocationResponse> = {
+  encode(message: GetSharedFriendLocationResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.location !== undefined) {
+      SharedFriendLocation.encode(message.location, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GetSharedFriendLocationResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetSharedFriendLocationResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.location = SharedFriendLocation.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetSharedFriendLocationResponse {
+    return { location: isSet(object.location) ? SharedFriendLocation.fromJSON(object.location) : undefined };
+  },
+
+  toJSON(message: GetSharedFriendLocationResponse): unknown {
+    const obj: any = {};
+    if (message.location !== undefined) {
+      obj.location = SharedFriendLocation.toJSON(message.location);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GetSharedFriendLocationResponse>): GetSharedFriendLocationResponse {
+    return GetSharedFriendLocationResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GetSharedFriendLocationResponse>): GetSharedFriendLocationResponse {
+    const message = createBaseGetSharedFriendLocationResponse();
+    message.location = (object.location !== undefined && object.location !== null)
+      ? SharedFriendLocation.fromPartial(object.location)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseWatchSharedFriendLocationsRequest(): WatchSharedFriendLocationsRequest {
+  return { address: undefined };
+}
+
+export const WatchSharedFriendLocationsRequest: MessageFns<WatchSharedFriendLocationsRequest> = {
+  encode(message: WatchSharedFriendLocationsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WatchSharedFriendLocationsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWatchSharedFriendLocationsRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.address = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WatchSharedFriendLocationsRequest {
+    return { address: isSet(object.address) ? globalThis.String(object.address) : undefined };
+  },
+
+  toJSON(message: WatchSharedFriendLocationsRequest): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WatchSharedFriendLocationsRequest>): WatchSharedFriendLocationsRequest {
+    return WatchSharedFriendLocationsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WatchSharedFriendLocationsRequest>): WatchSharedFriendLocationsRequest {
+    const message = createBaseWatchSharedFriendLocationsRequest();
+    message.address = object.address ?? undefined;
+    return message;
+  },
+};
+
+function createBaseWatchSharedFriendLocationsResponse(): WatchSharedFriendLocationsResponse {
+  return { locationUpdated: undefined, heartbeat: undefined };
+}
+
+export const WatchSharedFriendLocationsResponse: MessageFns<WatchSharedFriendLocationsResponse> = {
+  encode(message: WatchSharedFriendLocationsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.locationUpdated !== undefined) {
+      SharedFriendLocationUpdated.encode(message.locationUpdated, writer.uint32(82).fork()).join();
     }
     if (message.heartbeat !== undefined) {
       Heartbeat.encode(message.heartbeat, writer.uint32(794).fork()).join();
@@ -536,27 +343,19 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): SubscribeLocationEventsResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): WatchSharedFriendLocationsResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSubscribeLocationEventsResponse();
+    const message = createBaseWatchSharedFriendLocationsResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        }
         case 10: {
           if (tag !== 82) {
             break;
           }
 
-          message.findMyLocationUpdated = FindMyEvent.decode(reader, reader.uint32());
+          message.locationUpdated = SharedFriendLocationUpdated.decode(reader, reader.uint32());
           continue;
         }
         case 99: {
@@ -576,25 +375,21 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
     return message;
   },
 
-  fromJSON(object: any): SubscribeLocationEventsResponse {
+  fromJSON(object: any): WatchSharedFriendLocationsResponse {
     return {
-      timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
-      findMyLocationUpdated: isSet(object.findMyLocationUpdated)
-        ? FindMyEvent.fromJSON(object.findMyLocationUpdated)
-        : isSet(object.find_my_location_updated)
-        ? FindMyEvent.fromJSON(object.find_my_location_updated)
+      locationUpdated: isSet(object.locationUpdated)
+        ? SharedFriendLocationUpdated.fromJSON(object.locationUpdated)
+        : isSet(object.location_updated)
+        ? SharedFriendLocationUpdated.fromJSON(object.location_updated)
         : undefined,
       heartbeat: isSet(object.heartbeat) ? Heartbeat.fromJSON(object.heartbeat) : undefined,
     };
   },
 
-  toJSON(message: SubscribeLocationEventsResponse): unknown {
+  toJSON(message: WatchSharedFriendLocationsResponse): unknown {
     const obj: any = {};
-    if (message.timestamp !== undefined) {
-      obj.timestamp = message.timestamp.toISOString();
-    }
-    if (message.findMyLocationUpdated !== undefined) {
-      obj.findMyLocationUpdated = FindMyEvent.toJSON(message.findMyLocationUpdated);
+    if (message.locationUpdated !== undefined) {
+      obj.locationUpdated = SharedFriendLocationUpdated.toJSON(message.locationUpdated);
     }
     if (message.heartbeat !== undefined) {
       obj.heartbeat = Heartbeat.toJSON(message.heartbeat);
@@ -602,16 +397,14 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
     return obj;
   },
 
-  create(base?: DeepPartial<SubscribeLocationEventsResponse>): SubscribeLocationEventsResponse {
-    return SubscribeLocationEventsResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<WatchSharedFriendLocationsResponse>): WatchSharedFriendLocationsResponse {
+    return WatchSharedFriendLocationsResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<SubscribeLocationEventsResponse>): SubscribeLocationEventsResponse {
-    const message = createBaseSubscribeLocationEventsResponse();
-    message.timestamp = object.timestamp ?? undefined;
-    message.findMyLocationUpdated =
-      (object.findMyLocationUpdated !== undefined && object.findMyLocationUpdated !== null)
-        ? FindMyEvent.fromPartial(object.findMyLocationUpdated)
-        : undefined;
+  fromPartial(object: DeepPartial<WatchSharedFriendLocationsResponse>): WatchSharedFriendLocationsResponse {
+    const message = createBaseWatchSharedFriendLocationsResponse();
+    message.locationUpdated = (object.locationUpdated !== undefined && object.locationUpdated !== null)
+      ? SharedFriendLocationUpdated.fromPartial(object.locationUpdated)
+      : undefined;
     message.heartbeat = (object.heartbeat !== undefined && object.heartbeat !== null)
       ? Heartbeat.fromPartial(object.heartbeat)
       : undefined;
@@ -619,91 +412,37 @@ export const SubscribeLocationEventsResponse: MessageFns<SubscribeLocationEvents
   },
 };
 
-function createBaseFindMyEvent(): FindMyEvent {
-  return { friends: [] };
-}
-
-export const FindMyEvent: MessageFns<FindMyEvent> = {
-  encode(message: FindMyEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.friends) {
-      FindMyFriend.encode(v!, writer.uint32(10).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): FindMyEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseFindMyEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.friends.push(FindMyFriend.decode(reader, reader.uint32()));
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): FindMyEvent {
-    return {
-      friends: globalThis.Array.isArray(object?.friends)
-        ? object.friends.map((e: any) => FindMyFriend.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: FindMyEvent): unknown {
-    const obj: any = {};
-    if (message.friends?.length) {
-      obj.friends = message.friends.map((e) => FindMyFriend.toJSON(e));
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<FindMyEvent>): FindMyEvent {
-    return FindMyEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<FindMyEvent>): FindMyEvent {
-    const message = createBaseFindMyEvent();
-    message.friends = object.friends?.map((e) => FindMyFriend.fromPartial(e)) || [];
-    return message;
-  },
-};
-
+/**
+ * Find My friend-location queries and live updates.
+ * Reads issue one-shot source queries; the watch stream forwards pushed
+ * observations and is not server-polled on a timer.
+ */
 export type LocationServiceDefinition = typeof LocationServiceDefinition;
 export const LocationServiceDefinition = {
   name: "LocationService",
   fullName: "photon.imessage.v1.LocationService",
   methods: {
-    /** Returns the current cached snapshot and triggers a background refresh. */
-    getFriends: {
-      name: "GetFriends",
-      requestType: GetFriendsRequest as typeof GetFriendsRequest,
+    listSharedFriendLocations: {
+      name: "ListSharedFriendLocations",
+      requestType: ListSharedFriendLocationsRequest as typeof ListSharedFriendLocationsRequest,
       requestStream: false,
-      responseType: GetFriendsResponse as typeof GetFriendsResponse,
+      responseType: ListSharedFriendLocationsResponse as typeof ListSharedFriendLocationsResponse,
       responseStream: false,
       options: {},
     },
-    /**
-     * Forwards real helper push events. While at least one subscriber is active,
-     * the server triggers periodic background refreshes.
-     */
-    subscribeLocationEvents: {
-      name: "SubscribeLocationEvents",
-      requestType: SubscribeLocationEventsRequest as typeof SubscribeLocationEventsRequest,
+    getSharedFriendLocation: {
+      name: "GetSharedFriendLocation",
+      requestType: GetSharedFriendLocationRequest as typeof GetSharedFriendLocationRequest,
       requestStream: false,
-      responseType: SubscribeLocationEventsResponse as typeof SubscribeLocationEventsResponse,
+      responseType: GetSharedFriendLocationResponse as typeof GetSharedFriendLocationResponse,
+      responseStream: false,
+      options: {},
+    },
+    watchSharedFriendLocations: {
+      name: "WatchSharedFriendLocations",
+      requestType: WatchSharedFriendLocationsRequest as typeof WatchSharedFriendLocationsRequest,
+      requestStream: false,
+      responseType: WatchSharedFriendLocationsResponse as typeof WatchSharedFriendLocationsResponse,
       responseStream: true,
       options: {},
     },
@@ -711,35 +450,33 @@ export const LocationServiceDefinition = {
 } as const;
 
 export interface LocationServiceImplementation<CallContextExt = {}> {
-  /** Returns the current cached snapshot and triggers a background refresh. */
-  getFriends(
-    request: GetFriendsRequest,
+  listSharedFriendLocations(
+    request: ListSharedFriendLocationsRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<GetFriendsResponse>>;
-  /**
-   * Forwards real helper push events. While at least one subscriber is active,
-   * the server triggers periodic background refreshes.
-   */
-  subscribeLocationEvents(
-    request: SubscribeLocationEventsRequest,
+  ): Promise<DeepPartial<ListSharedFriendLocationsResponse>>;
+  getSharedFriendLocation(
+    request: GetSharedFriendLocationRequest,
     context: CallContext & CallContextExt,
-  ): ServerStreamingMethodResult<DeepPartial<SubscribeLocationEventsResponse>>;
+  ): Promise<DeepPartial<GetSharedFriendLocationResponse>>;
+  watchSharedFriendLocations(
+    request: WatchSharedFriendLocationsRequest,
+    context: CallContext & CallContextExt,
+  ): ServerStreamingMethodResult<DeepPartial<WatchSharedFriendLocationsResponse>>;
 }
 
 export interface LocationServiceClient<CallOptionsExt = {}> {
-  /** Returns the current cached snapshot and triggers a background refresh. */
-  getFriends(
-    request: DeepPartial<GetFriendsRequest>,
+  listSharedFriendLocations(
+    request: DeepPartial<ListSharedFriendLocationsRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<GetFriendsResponse>;
-  /**
-   * Forwards real helper push events. While at least one subscriber is active,
-   * the server triggers periodic background refreshes.
-   */
-  subscribeLocationEvents(
-    request: DeepPartial<SubscribeLocationEventsRequest>,
+  ): Promise<ListSharedFriendLocationsResponse>;
+  getSharedFriendLocation(
+    request: DeepPartial<GetSharedFriendLocationRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): AsyncIterable<SubscribeLocationEventsResponse>;
+  ): Promise<GetSharedFriendLocationResponse>;
+  watchSharedFriendLocations(
+    request: DeepPartial<WatchSharedFriendLocationsRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): AsyncIterable<WatchSharedFriendLocationsResponse>;
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
@@ -749,28 +486,6 @@ export type DeepPartial<T> = T extends Builtin ? T
   : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
   : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
-
-function toTimestamp(date: Date): Timestamp {
-  const seconds = Math.trunc(date.getTime() / 1_000);
-  const nanos = (date.getTime() % 1_000) * 1_000_000;
-  return { seconds, nanos };
-}
-
-function fromTimestamp(t: Timestamp): Date {
-  let millis = (t.seconds || 0) * 1_000;
-  millis += (t.nanos || 0) / 1_000_000;
-  return new globalThis.Date(millis);
-}
-
-function fromJsonTimestamp(o: any): Date {
-  if (o instanceof globalThis.Date) {
-    return o;
-  } else if (typeof o === "string") {
-    return new globalThis.Date(o);
-  } else {
-    return fromTimestamp(Timestamp.fromJSON(o));
-  }
-}
 
 function isSet(value: any): boolean {
   return value !== null && value !== undefined;

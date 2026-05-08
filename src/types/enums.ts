@@ -6,18 +6,16 @@
  */
 
 // ---------------------------------------------------------------------------
-// SortDirection
-// ---------------------------------------------------------------------------
-
-/** Sort order for paginated list endpoints. */
-export type SortDirection = "ascending" | "descending";
-
-// ---------------------------------------------------------------------------
 // TransferState
 // ---------------------------------------------------------------------------
 
 /** Current transfer state of an attachment. */
-export type TransferState = "transferring" | "failed" | "finished" | "pending";
+export type TransferState =
+  | "pending"
+  | "transferring"
+  | "failed"
+  | "finished"
+  | "unknown";
 
 // ---------------------------------------------------------------------------
 // MessageItemType
@@ -28,11 +26,18 @@ export type MessageItemType =
   | "normal"
   | "groupNameChange"
   | "participantChange"
-  | "leftGroup";
+  | "chatAction"
+  | "unknown";
 
 // ---------------------------------------------------------------------------
 // ChatServiceType
 // ---------------------------------------------------------------------------
 
-/** The underlying transport service for a chat. */
-export type ChatServiceType = "iMessage" | "SMS";
+/** The underlying transport service for a chat or address. */
+export type ChatServiceType = "iMessage" | "SMS" | "RCS" | "unknown";
+
+/** Services callers are allowed to send back to the server. */
+export type SendableChatServiceType = Exclude<ChatServiceType, "unknown">;
+
+/** Sidecar attachment kind. */
+export type CompanionKind = "live-photo-video" | "unknown";

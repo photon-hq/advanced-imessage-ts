@@ -7,49 +7,16 @@
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
-import { AddressInfo } from "./message_service.js";
+import { MultiServiceAddressInfo } from "./address_types.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
-export enum AvailabilityType {
-  AVAILABILITY_TYPE_UNSPECIFIED = 0,
-  AVAILABILITY_TYPE_IMESSAGE = 1,
-  UNRECOGNIZED = -1,
-}
-
-export function availabilityTypeFromJSON(object: any): AvailabilityType {
-  switch (object) {
-    case 0:
-    case "AVAILABILITY_TYPE_UNSPECIFIED":
-      return AvailabilityType.AVAILABILITY_TYPE_UNSPECIFIED;
-    case 1:
-    case "AVAILABILITY_TYPE_IMESSAGE":
-      return AvailabilityType.AVAILABILITY_TYPE_IMESSAGE;
-    case -1:
-    case "UNRECOGNIZED":
-    default:
-      return AvailabilityType.UNRECOGNIZED;
-  }
-}
-
-export function availabilityTypeToJSON(object: AvailabilityType): string {
-  switch (object) {
-    case AvailabilityType.AVAILABILITY_TYPE_UNSPECIFIED:
-      return "AVAILABILITY_TYPE_UNSPECIFIED";
-    case AvailabilityType.AVAILABILITY_TYPE_IMESSAGE:
-      return "AVAILABILITY_TYPE_IMESSAGE";
-    case AvailabilityType.UNRECOGNIZED:
-    default:
-      return "UNRECOGNIZED";
-  }
-}
-
-export interface GetAddressRequest {
+export interface GetAddressInfoRequest {
   address: string;
 }
 
-export interface GetAddressResponse {
-  address: AddressInfo | undefined;
+export interface GetAddressInfoResponse {
+  info: MultiServiceAddressInfo | undefined;
 }
 
 export interface GetFocusStatusRequest {
@@ -57,34 +24,37 @@ export interface GetFocusStatusRequest {
 }
 
 export interface GetFocusStatusResponse {
-  isFocused: boolean;
+  /**
+   * True when Messages currently shows this address as silenced by Focus.
+   * False also covers unknown, not shared, and not silenced.
+   */
+  isSilencedByFocus: boolean;
 }
 
-export interface CheckAvailabilityRequest {
+export interface GetIMessageAvailabilityRequest {
   address: string;
-  type: AvailabilityType;
 }
 
-export interface CheckAvailabilityResponse {
-  available: boolean;
+export interface GetIMessageAvailabilityResponse {
+  isAvailable: boolean;
 }
 
-function createBaseGetAddressRequest(): GetAddressRequest {
+function createBaseGetAddressInfoRequest(): GetAddressInfoRequest {
   return { address: "" };
 }
 
-export const GetAddressRequest: MessageFns<GetAddressRequest> = {
-  encode(message: GetAddressRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const GetAddressInfoRequest: MessageFns<GetAddressInfoRequest> = {
+  encode(message: GetAddressInfoRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.address !== "") {
       writer.uint32(10).string(message.address);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): GetAddressRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): GetAddressInfoRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetAddressRequest();
+    const message = createBaseGetAddressInfoRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -105,11 +75,11 @@ export const GetAddressRequest: MessageFns<GetAddressRequest> = {
     return message;
   },
 
-  fromJSON(object: any): GetAddressRequest {
+  fromJSON(object: any): GetAddressInfoRequest {
     return { address: isSet(object.address) ? globalThis.String(object.address) : "" };
   },
 
-  toJSON(message: GetAddressRequest): unknown {
+  toJSON(message: GetAddressInfoRequest): unknown {
     const obj: any = {};
     if (message.address !== "") {
       obj.address = message.address;
@@ -117,32 +87,32 @@ export const GetAddressRequest: MessageFns<GetAddressRequest> = {
     return obj;
   },
 
-  create(base?: DeepPartial<GetAddressRequest>): GetAddressRequest {
-    return GetAddressRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<GetAddressInfoRequest>): GetAddressInfoRequest {
+    return GetAddressInfoRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<GetAddressRequest>): GetAddressRequest {
-    const message = createBaseGetAddressRequest();
+  fromPartial(object: DeepPartial<GetAddressInfoRequest>): GetAddressInfoRequest {
+    const message = createBaseGetAddressInfoRequest();
     message.address = object.address ?? "";
     return message;
   },
 };
 
-function createBaseGetAddressResponse(): GetAddressResponse {
-  return { address: undefined };
+function createBaseGetAddressInfoResponse(): GetAddressInfoResponse {
+  return { info: undefined };
 }
 
-export const GetAddressResponse: MessageFns<GetAddressResponse> = {
-  encode(message: GetAddressResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.address !== undefined) {
-      AddressInfo.encode(message.address, writer.uint32(10).fork()).join();
+export const GetAddressInfoResponse: MessageFns<GetAddressInfoResponse> = {
+  encode(message: GetAddressInfoResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.info !== undefined) {
+      MultiServiceAddressInfo.encode(message.info, writer.uint32(10).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): GetAddressResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): GetAddressInfoResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetAddressResponse();
+    const message = createBaseGetAddressInfoResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -151,7 +121,7 @@ export const GetAddressResponse: MessageFns<GetAddressResponse> = {
             break;
           }
 
-          message.address = AddressInfo.decode(reader, reader.uint32());
+          message.info = MultiServiceAddressInfo.decode(reader, reader.uint32());
           continue;
         }
       }
@@ -163,25 +133,25 @@ export const GetAddressResponse: MessageFns<GetAddressResponse> = {
     return message;
   },
 
-  fromJSON(object: any): GetAddressResponse {
-    return { address: isSet(object.address) ? AddressInfo.fromJSON(object.address) : undefined };
+  fromJSON(object: any): GetAddressInfoResponse {
+    return { info: isSet(object.info) ? MultiServiceAddressInfo.fromJSON(object.info) : undefined };
   },
 
-  toJSON(message: GetAddressResponse): unknown {
+  toJSON(message: GetAddressInfoResponse): unknown {
     const obj: any = {};
-    if (message.address !== undefined) {
-      obj.address = AddressInfo.toJSON(message.address);
+    if (message.info !== undefined) {
+      obj.info = MultiServiceAddressInfo.toJSON(message.info);
     }
     return obj;
   },
 
-  create(base?: DeepPartial<GetAddressResponse>): GetAddressResponse {
-    return GetAddressResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<GetAddressInfoResponse>): GetAddressInfoResponse {
+    return GetAddressInfoResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<GetAddressResponse>): GetAddressResponse {
-    const message = createBaseGetAddressResponse();
-    message.address = (object.address !== undefined && object.address !== null)
-      ? AddressInfo.fromPartial(object.address)
+  fromPartial(object: DeepPartial<GetAddressInfoResponse>): GetAddressInfoResponse {
+    const message = createBaseGetAddressInfoResponse();
+    message.info = (object.info !== undefined && object.info !== null)
+      ? MultiServiceAddressInfo.fromPartial(object.info)
       : undefined;
     return message;
   },
@@ -246,13 +216,13 @@ export const GetFocusStatusRequest: MessageFns<GetFocusStatusRequest> = {
 };
 
 function createBaseGetFocusStatusResponse(): GetFocusStatusResponse {
-  return { isFocused: false };
+  return { isSilencedByFocus: false };
 }
 
 export const GetFocusStatusResponse: MessageFns<GetFocusStatusResponse> = {
   encode(message: GetFocusStatusResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.isFocused !== false) {
-      writer.uint32(8).bool(message.isFocused);
+    if (message.isSilencedByFocus !== false) {
+      writer.uint32(8).bool(message.isSilencedByFocus);
     }
     return writer;
   },
@@ -269,7 +239,7 @@ export const GetFocusStatusResponse: MessageFns<GetFocusStatusResponse> = {
             break;
           }
 
-          message.isFocused = reader.bool();
+          message.isSilencedByFocus = reader.bool();
           continue;
         }
       }
@@ -283,18 +253,18 @@ export const GetFocusStatusResponse: MessageFns<GetFocusStatusResponse> = {
 
   fromJSON(object: any): GetFocusStatusResponse {
     return {
-      isFocused: isSet(object.isFocused)
-        ? globalThis.Boolean(object.isFocused)
-        : isSet(object.is_focused)
-        ? globalThis.Boolean(object.is_focused)
+      isSilencedByFocus: isSet(object.isSilencedByFocus)
+        ? globalThis.Boolean(object.isSilencedByFocus)
+        : isSet(object.is_silenced_by_focus)
+        ? globalThis.Boolean(object.is_silenced_by_focus)
         : false,
     };
   },
 
   toJSON(message: GetFocusStatusResponse): unknown {
     const obj: any = {};
-    if (message.isFocused !== false) {
-      obj.isFocused = message.isFocused;
+    if (message.isSilencedByFocus !== false) {
+      obj.isSilencedByFocus = message.isSilencedByFocus;
     }
     return obj;
   },
@@ -304,30 +274,27 @@ export const GetFocusStatusResponse: MessageFns<GetFocusStatusResponse> = {
   },
   fromPartial(object: DeepPartial<GetFocusStatusResponse>): GetFocusStatusResponse {
     const message = createBaseGetFocusStatusResponse();
-    message.isFocused = object.isFocused ?? false;
+    message.isSilencedByFocus = object.isSilencedByFocus ?? false;
     return message;
   },
 };
 
-function createBaseCheckAvailabilityRequest(): CheckAvailabilityRequest {
-  return { address: "", type: 0 };
+function createBaseGetIMessageAvailabilityRequest(): GetIMessageAvailabilityRequest {
+  return { address: "" };
 }
 
-export const CheckAvailabilityRequest: MessageFns<CheckAvailabilityRequest> = {
-  encode(message: CheckAvailabilityRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const GetIMessageAvailabilityRequest: MessageFns<GetIMessageAvailabilityRequest> = {
+  encode(message: GetIMessageAvailabilityRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.address !== "") {
       writer.uint32(10).string(message.address);
-    }
-    if (message.type !== 0) {
-      writer.uint32(16).int32(message.type);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): CheckAvailabilityRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): GetIMessageAvailabilityRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCheckAvailabilityRequest();
+    const message = createBaseGetIMessageAvailabilityRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -339,14 +306,6 @@ export const CheckAvailabilityRequest: MessageFns<CheckAvailabilityRequest> = {
           message.address = reader.string();
           continue;
         }
-        case 2: {
-          if (tag !== 16) {
-            break;
-          }
-
-          message.type = reader.int32() as any;
-          continue;
-        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -356,51 +315,44 @@ export const CheckAvailabilityRequest: MessageFns<CheckAvailabilityRequest> = {
     return message;
   },
 
-  fromJSON(object: any): CheckAvailabilityRequest {
-    return {
-      address: isSet(object.address) ? globalThis.String(object.address) : "",
-      type: isSet(object.type) ? availabilityTypeFromJSON(object.type) : 0,
-    };
+  fromJSON(object: any): GetIMessageAvailabilityRequest {
+    return { address: isSet(object.address) ? globalThis.String(object.address) : "" };
   },
 
-  toJSON(message: CheckAvailabilityRequest): unknown {
+  toJSON(message: GetIMessageAvailabilityRequest): unknown {
     const obj: any = {};
     if (message.address !== "") {
       obj.address = message.address;
     }
-    if (message.type !== 0) {
-      obj.type = availabilityTypeToJSON(message.type);
-    }
     return obj;
   },
 
-  create(base?: DeepPartial<CheckAvailabilityRequest>): CheckAvailabilityRequest {
-    return CheckAvailabilityRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<GetIMessageAvailabilityRequest>): GetIMessageAvailabilityRequest {
+    return GetIMessageAvailabilityRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<CheckAvailabilityRequest>): CheckAvailabilityRequest {
-    const message = createBaseCheckAvailabilityRequest();
+  fromPartial(object: DeepPartial<GetIMessageAvailabilityRequest>): GetIMessageAvailabilityRequest {
+    const message = createBaseGetIMessageAvailabilityRequest();
     message.address = object.address ?? "";
-    message.type = object.type ?? 0;
     return message;
   },
 };
 
-function createBaseCheckAvailabilityResponse(): CheckAvailabilityResponse {
-  return { available: false };
+function createBaseGetIMessageAvailabilityResponse(): GetIMessageAvailabilityResponse {
+  return { isAvailable: false };
 }
 
-export const CheckAvailabilityResponse: MessageFns<CheckAvailabilityResponse> = {
-  encode(message: CheckAvailabilityResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.available !== false) {
-      writer.uint32(8).bool(message.available);
+export const GetIMessageAvailabilityResponse: MessageFns<GetIMessageAvailabilityResponse> = {
+  encode(message: GetIMessageAvailabilityResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.isAvailable !== false) {
+      writer.uint32(8).bool(message.isAvailable);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): CheckAvailabilityResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): GetIMessageAvailabilityResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCheckAvailabilityResponse();
+    const message = createBaseGetIMessageAvailabilityResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -409,7 +361,7 @@ export const CheckAvailabilityResponse: MessageFns<CheckAvailabilityResponse> = 
             break;
           }
 
-          message.available = reader.bool();
+          message.isAvailable = reader.bool();
           continue;
         }
       }
@@ -421,41 +373,63 @@ export const CheckAvailabilityResponse: MessageFns<CheckAvailabilityResponse> = 
     return message;
   },
 
-  fromJSON(object: any): CheckAvailabilityResponse {
-    return { available: isSet(object.available) ? globalThis.Boolean(object.available) : false };
+  fromJSON(object: any): GetIMessageAvailabilityResponse {
+    return {
+      isAvailable: isSet(object.isAvailable)
+        ? globalThis.Boolean(object.isAvailable)
+        : isSet(object.is_available)
+        ? globalThis.Boolean(object.is_available)
+        : false,
+    };
   },
 
-  toJSON(message: CheckAvailabilityResponse): unknown {
+  toJSON(message: GetIMessageAvailabilityResponse): unknown {
     const obj: any = {};
-    if (message.available !== false) {
-      obj.available = message.available;
+    if (message.isAvailable !== false) {
+      obj.isAvailable = message.isAvailable;
     }
     return obj;
   },
 
-  create(base?: DeepPartial<CheckAvailabilityResponse>): CheckAvailabilityResponse {
-    return CheckAvailabilityResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<GetIMessageAvailabilityResponse>): GetIMessageAvailabilityResponse {
+    return GetIMessageAvailabilityResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<CheckAvailabilityResponse>): CheckAvailabilityResponse {
-    const message = createBaseCheckAvailabilityResponse();
-    message.available = object.available ?? false;
+  fromPartial(object: DeepPartial<GetIMessageAvailabilityResponse>): GetIMessageAvailabilityResponse {
+    const message = createBaseGetIMessageAvailabilityResponse();
+    message.isAvailable = object.isAvailable ?? false;
     return message;
   },
 };
 
+/**
+ * All RPCs share the same `address` query rules:
+ *
+ *   - accept an E.164 phone number such as `+14155550123`
+ *   - accept a full email such as `alice@example.com`
+ *   - the server trims whitespace and lowercases email queries before lookup
+ *     or external availability checks
+ *   - empty or malformed inputs are rejected with `INVALID_ARGUMENT`
+ */
 export type AddressServiceDefinition = typeof AddressServiceDefinition;
 export const AddressServiceDefinition = {
   name: "AddressService",
   fullName: "photon.imessage.v1.AddressService",
   methods: {
-    getAddress: {
-      name: "GetAddress",
-      requestType: GetAddressRequest as typeof GetAddressRequest,
+    /**
+     * Returns services seen and country for the address.
+     *
+     * Errors: NOT_FOUND when the address has never been seen in this device's
+     * iMessage history.
+     */
+    getAddressInfo: {
+      name: "GetAddressInfo",
+      requestType: GetAddressInfoRequest as typeof GetAddressInfoRequest,
       requestStream: false,
-      responseType: GetAddressResponse as typeof GetAddressResponse,
+      responseType: GetAddressInfoResponse as typeof GetAddressInfoResponse,
       responseStream: false,
       options: {},
     },
+    /** Returns whether Messages currently reports this address as Focus-silenced. */
     getFocusStatus: {
       name: "GetFocusStatus",
       requestType: GetFocusStatusRequest as typeof GetFocusStatusRequest,
@@ -464,11 +438,12 @@ export const AddressServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    checkAvailability: {
-      name: "CheckAvailability",
-      requestType: CheckAvailabilityRequest as typeof CheckAvailabilityRequest,
+    /** Returns whether the address is reachable via iMessage at query time. */
+    getIMessageAvailability: {
+      name: "GetIMessageAvailability",
+      requestType: GetIMessageAvailabilityRequest as typeof GetIMessageAvailabilityRequest,
       requestStream: false,
-      responseType: CheckAvailabilityResponse as typeof CheckAvailabilityResponse,
+      responseType: GetIMessageAvailabilityResponse as typeof GetIMessageAvailabilityResponse,
       responseStream: false,
       options: {},
     },
@@ -476,33 +451,49 @@ export const AddressServiceDefinition = {
 } as const;
 
 export interface AddressServiceImplementation<CallContextExt = {}> {
-  getAddress(
-    request: GetAddressRequest,
+  /**
+   * Returns services seen and country for the address.
+   *
+   * Errors: NOT_FOUND when the address has never been seen in this device's
+   * iMessage history.
+   */
+  getAddressInfo(
+    request: GetAddressInfoRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<GetAddressResponse>>;
+  ): Promise<DeepPartial<GetAddressInfoResponse>>;
+  /** Returns whether Messages currently reports this address as Focus-silenced. */
   getFocusStatus(
     request: GetFocusStatusRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetFocusStatusResponse>>;
-  checkAvailability(
-    request: CheckAvailabilityRequest,
+  /** Returns whether the address is reachable via iMessage at query time. */
+  getIMessageAvailability(
+    request: GetIMessageAvailabilityRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<CheckAvailabilityResponse>>;
+  ): Promise<DeepPartial<GetIMessageAvailabilityResponse>>;
 }
 
 export interface AddressServiceClient<CallOptionsExt = {}> {
-  getAddress(
-    request: DeepPartial<GetAddressRequest>,
+  /**
+   * Returns services seen and country for the address.
+   *
+   * Errors: NOT_FOUND when the address has never been seen in this device's
+   * iMessage history.
+   */
+  getAddressInfo(
+    request: DeepPartial<GetAddressInfoRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<GetAddressResponse>;
+  ): Promise<GetAddressInfoResponse>;
+  /** Returns whether Messages currently reports this address as Focus-silenced. */
   getFocusStatus(
     request: DeepPartial<GetFocusStatusRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetFocusStatusResponse>;
-  checkAvailability(
-    request: DeepPartial<CheckAvailabilityRequest>,
+  /** Returns whether the address is reachable via iMessage at query time. */
+  getIMessageAvailability(
+    request: DeepPartial<GetIMessageAvailabilityRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<CheckAvailabilityResponse>;
+  ): Promise<GetIMessageAvailabilityResponse>;
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;

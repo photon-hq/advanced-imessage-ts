@@ -1,0 +1,514 @@
+syntax = "proto3";
+
+package photon.imessage.v1;
+
+import "photon/imessage/v1/address_types.proto";
+import "photon/imessage/v1/attachment_types.proto";
+import "google/protobuf/timestamp.proto";
+
+option swift_prefix = "PIMsg_";
+
+
+// ---------------------------------------------------------------------------
+// Enumerations
+// ---------------------------------------------------------------------------
+
+// Discriminates regular messages from the synthetic "system" rows Apple
+// uses to record chat lifecycle changes.
+//
+// Wire values mirror chat.db `message.item_type`.
+//
+// `0` is a real "normal" value, not "unspecified".
+enum MessageItemType {
+
+  MESSAGE_ITEM_TYPE_NORMAL = 0;
+
+  MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE = 1;
+
+  MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE = 2;
+
+  MESSAGE_ITEM_TYPE_CHAT_ACTION = 3;
+
+}
+
+
+// Tapback families understood by Apple's Messages stack.
+//
+// `EMOJI` and `STICKER` are the post-iOS 18 generic carriers; the wrapped
+// value is delivered out-of-band (`MessageReaction.emoji` for emoji
+// tapbacks, the associated message itself for sticker tapbacks).
+//
+// Wire values are transport-internal. Apple stores tapback kind in a composite
+// `associated_message_type` column, not as a direct integer match for these
+// tags.
+enum MessageReactionKind {
+
+  MESSAGE_REACTION_KIND_LOVE = 0;
+
+  MESSAGE_REACTION_KIND_LIKE = 1;
+
+  MESSAGE_REACTION_KIND_DISLIKE = 2;
+
+  MESSAGE_REACTION_KIND_LAUGH = 3;
+
+  MESSAGE_REACTION_KIND_EMPHASIZE = 4;
+
+  MESSAGE_REACTION_KIND_QUESTION = 5;
+
+  MESSAGE_REACTION_KIND_EMOJI = 6;
+
+  // Carrier for sticker tapbacks.
+  //
+  // The placed sticker arrives as its own attachment row, not as a
+  // `MessageReaction`. Servers reject `SetReaction` calls that pass
+  // `STICKER`; use `PlaceSticker` instead.
+  MESSAGE_REACTION_KIND_STICKER = 7;
+
+}
+
+
+// ---------------------------------------------------------------------------
+// Composition fragments
+// ---------------------------------------------------------------------------
+
+message MessageReaction {
+
+  MessageReactionKind kind = 1;
+
+  optional string emoji = 2;
+
+}
+
+
+// `@`-mention into a UTF-16 range of the message text.
+message MessageMention {
+
+  string address = 1;
+
+  int32 start = 2;
+
+  int32 length = 3;
+
+}
+
+
+// Inline rich-text run (bold, italic, expressive effect) over a UTF-16
+// range of the parent text.
+message TextFormat {
+
+  string type = 1;
+
+  int32 start = 2;
+
+  int32 length = 3;
+
+  optional string effect_name = 4;
+
+}
+
+
+// Reference to an attachment by either its server-local on-disk path or
+// its GUID.
+message AttachmentRef {
+
+  oneof source {
+
+    string attachment_path = 1;
+
+    string attachment_guid = 2;
+
+  }
+
+  optional string attachment_name = 3;
+
+}
+
+
+// Pointer to the message being replied to. `target_part_index` selects a
+// single bubble in a multipart message; absent means the whole message.
+message ReplyTarget {
+
+  string message_guid = 1;
+
+  optional int32 target_part_index = 2;
+
+}
+
+
+// Spatial placement of a sticker on its target bubble. All values are in
+// Apple's normalised coordinate space.
+message StickerPlacement {
+
+  double x = 1;
+
+  double y = 2;
+
+  optional double scale = 3;
+
+  optional double rotation = 4;
+
+  optional double width = 5;
+
+}
+
+
+// One bubble in an outgoing multipart send. Exactly one of `text` or
+// `attachment` is set per part; mentions and formatting apply to `text`.
+message MessagePart {
+
+  optional string text = 1;
+
+  optional AttachmentRef attachment = 2;
+
+  optional string mentioned_address = 3;
+
+  optional int32 bubble_index = 4;
+
+  repeated TextFormat formatting = 5;
+
+}
+
+
+// Rendered content of an inbound or persisted message, with attachments,
+// mentions, and effects.
+message MessageContent {
+
+  optional string text = 1;
+
+  repeated AttachmentInfo attachments = 2;
+
+  repeated TextFormat formatting = 3;
+
+  repeated MessageMention mentions = 4;
+
+  optional string balloon_bundle_id = 5;
+
+  optional string expressive_send_style_id = 6;
+
+}
+
+
+// One currently-applied reaction folded onto its target message from an
+// associated tapback row.
+message MessageAppliedReaction {
+
+  string message_guid = 1;
+
+  optional int32 target_part_index = 2;
+
+  MessageReaction reaction = 3;
+
+  optional SingleServiceAddressInfo sender = 4;
+
+  bool is_from_me = 5;
+
+  google.protobuf.Timestamp date_created = 6;
+
+}
+
+
+// One sticker currently placed onto its target message from an associated
+// sticker row.
+message MessagePlacedSticker {
+
+  string message_guid = 1;
+
+  optional int32 target_part_index = 2;
+
+  optional SingleServiceAddressInfo sender = 3;
+
+  bool is_from_me = 4;
+
+  google.protobuf.Timestamp date_created = 5;
+
+  optional AttachmentInfo sticker = 6;
+
+  optional StickerPlacement placement = 7;
+
+}
+
+
+// ---------------------------------------------------------------------------
+// Message
+// ---------------------------------------------------------------------------
+
+// Canonical projection of a row in chat.db's `message` table, joined with
+// its attachments and any associated tapback.
+message Message {
+
+  string guid = 1;
+
+  MessageContent content = 2;
+
+  optional string subject = 3;
+
+  google.protobuf.Timestamp date_created = 10;
+
+  optional google.protobuf.Timestamp date_read = 11;
+
+  optional google.protobuf.Timestamp date_delivered = 12;
+
+  optional google.protobuf.Timestamp date_edited = 13;
+
+  optional google.protobuf.Timestamp date_retracted = 14;
+
+  optional google.protobuf.Timestamp date_played = 15;
+
+  optional google.protobuf.Timestamp date_expressive_send_played = 16;
+
+  optional SingleServiceAddressInfo sender = 20;
+
+  bool is_from_me = 21;
+
+  bool is_sent = 30;
+
+  bool is_delivered = 31;
+
+  // Monterey+. Delivered without firing a recipient notification.
+  bool is_delivered_quietly = 32;
+
+  // Monterey+. The recipient's device was actually woken to surface the
+  // message. Pair with `is_delivered_quietly` to distinguish silent vs
+  // notified delivery.
+  bool did_notify_recipient = 33;
+
+  // Apple's internal send-error code (0 = no error). Distinct from any
+  // gRPC error returned for the RPC itself.
+  int32 send_error_code = 34;
+
+  bool is_audio_message = 40;
+
+  bool is_auto_reply = 41;
+
+  // Synthetic system row (e.g. "iMessage activated", group name change).
+  bool is_system_message = 42;
+
+  // Mirrors chat.db `message.is_forward`. Set on Continuity SMS-forwarded
+  // rows and a handful of Apple-internal forwarding paths; rarely true
+  // on iMessage traffic.
+  bool is_forward = 43;
+
+  // Mirrors chat.db `message.is_delayed`. Set on rows queued for
+  // scheduled delivery (iOS 18 "Send Later"); cleared once Apple
+  // dispatches the send.
+  bool is_delayed = 44;
+
+  // Mirrors chat.db `message.is_spam`. Apple sets this on rows its
+  // junk filter has classified as spam; user-visible state is
+  // controlled at chat scope via `Chat.is_filtered`.
+  bool is_spam = 45;
+
+  // Apple's data detectors found URLs / phone numbers / addresses in
+  // the body.
+  bool data_detector_results_present = 46;
+
+  // Mirrors chat.db `message.is_archive`. Per-row archival flag,
+  // distinct from the chat-level `Chat.is_archived` view state. Set
+  // on individual messages Apple has hidden from default queries.
+  bool is_archived = 47;
+
+  // Carrier or platform service message (e.g. SMS billing notice).
+  bool is_service_message = 48;
+
+  // chat.db reports the row as corrupt; content fields may be partial.
+  bool is_corrupt = 49;
+
+  // Disappearing / ephemeral message that will expire client-side.
+  bool is_expirable = 50;
+
+  // Name-and-photo sharing status. `0` = not shared, `1` = shared. Raw
+  // mirror of Apple's column; promoted to a typed enum is future work.
+  optional int32 share_status = 51;
+
+  // Name-and-photo sharing direction. `0` = received from peer, `1` =
+  // sent by local user.
+  optional int32 share_direction = 52;
+
+  MessageItemType item_type = 60;
+
+  // Set on `MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE` rows: the new group
+  // title.
+  optional string group_title = 61;
+
+  // Subtype for `MESSAGE_ITEM_TYPE_CHAT_ACTION` rows (Apple private
+  // schema). Promoted to a typed enum is future work; see
+  // domain `ChatActionType`.
+  optional int32 chat_action_type = 62;
+
+  reserved 70;
+  reserved "association";
+
+  // Apple's `thread_originator_guid` (BigSur+): GUID of the message
+  // that started this reply thread. Reliable indicator of a public
+  // threaded reply.
+  optional string thread_originator_guid = 71;
+
+  // Apple's `thread_originator_part`: opaque part locator within the
+  // originator (string form, e.g. `0:0/0`).
+  optional string thread_originator_part = 72;
+
+  // Raw Apple `reply_to_guid` storage column. Frequently populated on
+  // ordinary non-reply messages and may point at unrelated rows;
+  // surface for diagnostics only. Prefer `reply_target_guid` to
+  // determine a real reply.
+  optional string reply_to_guid = 73;
+
+  // Canonical public reply target. Set iff `thread_originator_guid` is
+  // a reliable public threaded-reply target (non-self, non-empty).
+  optional string reply_target_guid = 74;
+
+  // The local Caller ID (phone / email) the message was sent from or
+  // delivered to. Apple uses `e:` / `p:` prefixes.
+  optional string destination_caller_id = 75;
+
+  // Ventura+. Number of bubble parts in a multipart message.
+  optional int32 part_count = 76;
+
+  // Denormalized group chat name cached on the message row by Apple
+  // ("room" is Apple's internal term for what surface APIs call a
+  // chat).
+  optional string cached_room_names = 77;
+
+  // Tapback-row fields. Set iff this Message row is itself a tapback
+  // against another message (i.e. a synthetic associated row), in which
+  // case `reaction_target_guid` points at the message being reacted to.
+  // Plain user messages leave all three absent.
+  optional string reaction_target_guid = 80;
+
+  optional int32 reaction_target_part_index = 81;
+
+  optional MessageReaction reaction = 82;
+
+  // `true` = reaction added; `false` = reaction removed.
+  optional bool reaction_selected = 83;
+
+  // Aggregated current state from associated rows that target this message.
+  repeated MessageAppliedReaction applied_reactions = 90;
+
+  repeated MessagePlacedSticker placed_stickers = 91;
+
+  repeated string chat_guids = 92;
+
+}
+
+
+// Inline media payload returned by `MessageService.GetEmbeddedMedia`;
+// e.g. a sticker bundle or a balloon-app preview image.
+message EmbeddedMedia {
+
+  bytes data = 1;
+
+  string mime_type = 2;
+
+}
+
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+// A new message has landed in a chat.
+message MessageReceived {
+
+  Message message = 1;
+
+}
+
+
+// An existing message was edited.
+message MessageEdited {
+
+  string message_guid = 1;
+
+  MessageContent content = 2;
+
+  google.protobuf.Timestamp edited_at = 3;
+
+}
+
+
+// A message originally sent by the local user was read.
+message MessageRead {
+
+  string message_guid = 1;
+
+  google.protobuf.Timestamp read_at = 2;
+
+}
+
+
+// A message was retracted.
+message MessageUnsent {
+
+  string message_guid = 1;
+
+  google.protobuf.Timestamp retracted_at = 2;
+
+}
+
+
+message MessageReactionAdded {
+
+  string message_guid = 1;
+
+  optional int32 target_part_index = 2;
+
+  MessageReaction reaction = 3;
+
+}
+
+
+message MessageReactionRemoved {
+
+  string message_guid = 1;
+
+  optional int32 target_part_index = 2;
+
+  MessageReaction reaction = 3;
+
+}
+
+
+message StickerPlaced {
+
+  string message_guid = 1;
+
+  optional int32 target_part_index = 2;
+
+  optional AttachmentInfo sticker = 3;
+
+  optional StickerPlacement placement = 4;
+
+}
+
+
+// A discrete state transition observed for a message.
+message MessageChangeEvent {
+
+  string chat_guid = 1;
+
+  google.protobuf.Timestamp occurred_at = 2;
+
+  optional SingleServiceAddressInfo actor = 3;
+
+  bool is_from_me = 4;
+
+  oneof change {
+
+    MessageReceived message_received = 10;
+
+    MessageEdited message_edited = 11;
+
+    MessageRead message_read = 12;
+
+    MessageUnsent message_unsent = 13;
+
+    MessageReactionAdded reaction_added = 14;
+
+    MessageReactionRemoved reaction_removed = 15;
+
+    StickerPlaced sticker_placed = 16;
+
+  }
+
+}

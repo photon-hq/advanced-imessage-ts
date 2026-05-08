@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+
+// ---------------------------------------------------------------------------
+// Protocol-wide contracts
+// ---------------------------------------------------------------------------
+//
+// Write RPC semantics
+//
+//   Write RPCs are synchronous to the command path: the response is sent
+//   after Apple's stack, helper, or backing service reports success.
+//
+//   Writes that return a resource snapshot (`Message`, `Chat`, `PollInfo`,
+//   etc.) perform the reads needed to build that response. Writes whose
+//   effect is fully captured by the request itself return
+//   `google.protobuf.Empty`; callers that need projected state should issue
+//   an explicit read RPC.
+//
+//   `Subscribe*` streams emit durable state changes observed from local
+//   storage. Callers must not assume locally initiated writes are always
+//   suppressed from subscriptions; the write response remains the
+//   authoritative synchronous result.
+//
+// Stream prefixes
+//
+//   Watch*      transient state (typing, live location). Each frame is
+//               a fresh snapshot; not resumable.
+//   Subscribe*  durable event log. Each frame carries a global
+//               `sequence`; pair with `EventService.CatchUpEvents` for
+//               gap-free reconnect.
+//   CatchUp*    finite replay stream, terminated by a sentinel frame.
+//
+// Sequence space
+//
+//   `sequence` on every `Subscribe*` frame and every `CatchUp*` frame
+//   draws from one monotonic, server-wide event log. After consuming a
+//   CatchUp stream that ends with `head_sequence = N`, every subsequent
+//   `Subscribe*` frame the caller receives is guaranteed to satisfy
+//   `sequence > N`. Clients persist the highest seen `sequence`, use
+//   `EventService.CatchUpEvents(after_sequence)` to drain everything
+//   missed, then open a fresh live-only `Subscribe*` stream.
+//
+// Heartbeats
+//
+//   Every long-lived streaming response payload `oneof` embeds `Heartbeat`
+//   so idle proxies keep the connection open; clients discard heartbeat
+//   frames. Finite `CatchUp*` streams may also embed heartbeats while
+//   replaying before their terminal sentinel frame.
+
+message Heartbeat {}

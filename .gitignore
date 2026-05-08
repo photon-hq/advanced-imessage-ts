@@ -1,29 +1,45 @@
 # dependencies
-node_modules
+node_modules/
 
 # output
-dist
+dist/
 *.tgz
+*.tar.gz
 
 # code coverage
-coverage
+coverage/
 *.lcov
+coverage-final.json
+junit*.xml
 
 # logs
-logs
+logs/
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+bun-debug.log*
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # dotenv
 .env
+.env.*
+!.env.example
 .env.*.local
-.env.local
 
 # caches
 .eslintcache
-.cache
+.cache/
+.turbo/
+.tsup/
 *.tsbuildinfo
 
 # IDE
-.idea
+.idea/
+.vscode/
+.zed/
 .DS_Store
+
+# Local testing scratch (not part of repo)
+.scratch/

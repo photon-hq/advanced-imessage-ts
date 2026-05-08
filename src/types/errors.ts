@@ -15,6 +15,11 @@ export const ErrorCode = {
   // Rate limiting
   dailyLimitExceeded: "dailyLimitExceeded",
   recipientLimitExceeded: "recipientLimitExceeded",
+  uploadRateExceeded: "uploadRateExceeded",
+  contentDuplicateExceeded: "contentDuplicateExceeded",
+  recipientCoolingDown: "recipientCoolingDown",
+  recipientLocked: "recipientLocked",
+  sendReceiveRatioExceeded: "sendReceiveRatioExceeded",
 
   // Duplicate
   duplicateMessage: "duplicateMessage",
@@ -24,12 +29,15 @@ export const ErrorCode = {
   messageNotFound: "messageNotFound",
   attachmentNotFound: "attachmentNotFound",
   addressNotFound: "addressNotFound",
+  sharedFriendLocationNotFound: "sharedFriendLocationNotFound",
+  groupIconNotFound: "groupIconNotFound",
   pollNotFound: "pollNotFound",
 
   // Validation / precondition
   invalidArgument: "invalidArgument",
   preconditionFailed: "preconditionFailed",
   operationNotSupported: "operationNotSupported",
+  attachmentNotReady: "attachmentNotReady",
   privateApiUnavailable: "privateApiUnavailable",
 
   // Infrastructure

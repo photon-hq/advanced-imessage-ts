@@ -1,122 +1,19 @@
 /**
  * Message-related domain types.
- *
- * These are the handwritten public types that wrap the generated proto
- * definitions. Branded identifiers prevent mixing GUIDs at compile time,
- * `Date` replaces proto `Timestamp`, and SDK enums replace proto numeric
- * enums.
  */
 
-import type { AddressInfo } from "./addresses.js";
+import type { SingleServiceAddressInfo } from "./addresses.js";
 import type { AttachmentInfo } from "./attachments.js";
-import type { AttachmentGuid, ChatGuid, MessageGuid } from "./branded.js";
 import type { MessageEffect, TextEffect } from "./effects.js";
-import type { MessageItemType, SortDirection } from "./enums.js";
+import type { MessageItemType } from "./enums.js";
 
-// ---------------------------------------------------------------------------
-// Message
-// ---------------------------------------------------------------------------
-
-/** A single iMessage / SMS / RCS message. */
-export interface Message {
-  // -- Escape hatch ----------------------------------------------------------
-
-  /** Access to the raw proto message for fields not exposed here. */
-  readonly _raw?: unknown;
-  /** Emoji used in an emoji tapback reaction. */
-  readonly associatedMessageEmoji?: string;
-  /** The GUID of a message this message is associated with (e.g. a tapback). */
-  readonly associatedMessageGuid?: MessageGuid;
-
-  // -- Relations -------------------------------------------------------------
-
-  /** Attachment metadata for files sent with this message. */
-  readonly attachments: readonly AttachmentInfo[];
-  /** GUIDs of chats this message belongs to. */
-  readonly chatGuids: readonly ChatGuid[];
-  /** Client-provided idempotency key, if one was supplied when sending. */
-  readonly clientMessageId?: string;
-
-  // -- Timeline --------------------------------------------------------------
-
-  /** When the message was created on the sending device. */
-  readonly dateCreated: Date;
-  /** When the message was delivered to the recipient device. */
-  readonly dateDelivered?: Date;
-  /** When the message was last edited. */
-  readonly dateEdited?: Date;
-  /** When an audio message was played by the recipient. */
-  readonly datePlayed?: Date;
-  /** When the recipient read the message. */
-  readonly dateRead?: Date;
-  /** When the message was retracted (unsent). */
-  readonly dateRetracted?: Date;
-  /** Whether the silenced-notification recipient was explicitly notified. */
-  readonly didNotifyRecipient: boolean;
-
-  // -- Rich content ----------------------------------------------------------
-
-  /** The expressive send style ID (screen or bubble effect). */
-  readonly expressiveSendStyleId?: string;
-  /** Server-assigned unique identifier. */
-  readonly guid: MessageGuid;
-
-  // -- Flags -----------------------------------------------------------------
-
-  /** Whether this is an audio message. */
-  readonly isAudioMessage: boolean;
-  /** Whether the message has been delivered to the recipient. */
-  readonly isDelivered: boolean;
-  /** Whether the message was delivered quietly (notification suppressed). */
-  readonly isDeliveredQuietly: boolean;
-  /** Whether the local user sent this message. */
-  readonly isFromMe: boolean;
-
-  // -- Delivery status -------------------------------------------------------
-
-  /** Whether the message has been accepted for sending. */
-  readonly isSent: boolean;
-  /** Whether this is a system-generated message (e.g. group change). */
-  readonly isSystemMessage: boolean;
-
-  // -- Type / association ----------------------------------------------------
-
-  /** Discriminates the kind of item this message represents. */
-  readonly itemType: MessageItemType;
-
-  // -- Runtime ---------------------------------------------------------------
-
-  /** Server-measured latency in milliseconds, when available. */
-  readonly latencyMs?: number;
-  /** The GUID of the message this is a direct reply to. */
-  readonly replyToGuid?: MessageGuid;
-  /** Non-zero when the message failed to send. */
-  readonly sendErrorCode: number;
-
-  // -- Sender ----------------------------------------------------------------
-
-  /** The sender's address info. Absent for outgoing messages from "me". */
-  readonly sender?: AddressInfo;
-  /** Subject line (used with MMS-style messages). */
-  readonly subject?: string;
-
-  // -- Content ---------------------------------------------------------------
-
-  /** Plain-text body of the message. */
-  readonly text?: string;
+export interface TextFormat {
+  readonly effectName?: string;
+  readonly length: number;
+  readonly start: number;
+  readonly type: string;
 }
 
-// ---------------------------------------------------------------------------
-// TextFormatInput
-// ---------------------------------------------------------------------------
-
-/**
- * Discriminated union describing a text formatting instruction.
- *
- * For simple styles (`bold`, `italic`, etc.) only `start` and `length` are
- * needed. For text effects, an additional `effect` field specifies which
- * animation to apply.
- */
 export type TextFormatInput =
   | {
       readonly type: "bold";
@@ -145,154 +42,194 @@ export type TextFormatInput =
       readonly effect: TextEffect;
     };
 
-// ---------------------------------------------------------------------------
-// StickerPlacement
-// ---------------------------------------------------------------------------
+export interface MessageMention {
+  readonly address: string;
+  readonly length: number;
+  readonly start: number;
+}
 
-/** Coordinates and transform for placing a sticker on a message bubble. */
+export interface MessageReaction {
+  readonly emoji?: string;
+  readonly kind:
+    | "love"
+    | "like"
+    | "dislike"
+    | "laugh"
+    | "emphasize"
+    | "question"
+    | "emoji"
+    | "sticker"
+    | "unknown";
+}
+
+export interface SettableMessageReaction {
+  /** Emoji character to send when `kind` is `"emoji"`. */
+  readonly emoji?: string;
+  /** Tapback family to add or remove. Use `placeSticker(...)` for stickers. */
+  readonly kind:
+    | "love"
+    | "like"
+    | "dislike"
+    | "laugh"
+    | "emphasize"
+    | "question"
+    | "emoji";
+}
+
 export interface StickerPlacement {
+  /** Optional clockwise rotation in Apple's normalized coordinate space. */
   readonly rotation?: number;
+  /** Optional scale factor for the sticker. */
   readonly scale?: number;
+  /** Optional rendered sticker width. */
   readonly width?: number;
+  /** Horizontal position in Apple's normalized coordinate space. */
   readonly x: number;
+  /** Vertical position in Apple's normalized coordinate space. */
   readonly y: number;
 }
 
-// ---------------------------------------------------------------------------
-// SendOptions
-// ---------------------------------------------------------------------------
-
-/** Optional parameters for `messages.send()` (the Tier 2 API). */
-export interface SendOptions {
-  /** A previously uploaded attachment to include. */
-  readonly attachment?: AttachmentGuid;
-  /** Send as an audio message. */
-  readonly audioMessage?: boolean;
-  /** Client-provided idempotency key. */
-  readonly clientMessageId?: string;
-  /** Enable data-detector scanning (links, phone numbers, etc.). */
-  readonly ddScan?: boolean;
-  /** Full-screen or bubble effect to apply. */
-  readonly effect?: MessageEffect;
-  /** Inline text formatting instructions. */
-  readonly formatting?: readonly TextFormatInput[];
-  /** Reply to an existing message, optionally targeting a specific part. */
-  readonly replyTo?:
-    | MessageGuid
-    | { readonly guid: MessageGuid; readonly partIndex?: number };
-  /** Enable rich link previews. */
-  readonly richLink?: boolean;
-  /** Place a sticker on an existing message. */
-  readonly sticker?: {
-    readonly attachment: AttachmentGuid;
-    readonly target: MessageGuid;
-    readonly placement?: StickerPlacement;
-  };
-  /** Subject line. */
-  readonly subject?: string;
-}
-
-// ---------------------------------------------------------------------------
-// MessagePart
-// ---------------------------------------------------------------------------
-
-/** A single part within a multi-part composed message. */
-export interface MessagePart {
-  /** GUID returned by `attachments.upload()`. */
-  readonly attachmentGuid?: AttachmentGuid;
-  /** Display name for the attachment file. */
-  readonly attachmentName?: string;
-  /** Formatting instructions for the text in this part. */
-  readonly formatting?: readonly TextFormatInput[];
-  /** Address to mention (e.g. "john@icloud.com"). */
-  readonly mention?: string;
-  /** Zero-based part index within the message. */
-  readonly partIndex?: number;
-  /** Text content for this part. */
+export interface MessageContent {
+  readonly attachments: readonly AttachmentInfo[];
+  readonly balloonBundleId?: string;
+  readonly expressiveSendStyleId?: string;
+  readonly formatting: readonly TextFormat[];
+  readonly mentions: readonly MessageMention[];
   readonly text?: string;
 }
 
-// ---------------------------------------------------------------------------
-// ComposedMessage
-// ---------------------------------------------------------------------------
+export interface MessageAppliedReaction {
+  readonly dateCreated: Date;
+  readonly isFromMe: boolean;
+  readonly messageGuid: string;
+  readonly reaction: MessageReaction;
+  readonly sender?: SingleServiceAddressInfo;
+  readonly targetPartIndex?: number;
+}
 
-/**
- * A fully composed multi-part message ready for sending via
- * `messages.sendComposed()` (the Tier 3 API).
- */
-export interface ComposedMessage {
-  /** Full-screen or bubble effect. */
+export interface MessagePlacedSticker {
+  readonly dateCreated: Date;
+  readonly isFromMe: boolean;
+  readonly messageGuid: string;
+  readonly placement?: StickerPlacement;
+  readonly sender?: SingleServiceAddressInfo;
+  readonly sticker?: AttachmentInfo;
+  readonly targetPartIndex?: number;
+}
+
+export interface Message {
+  readonly appliedReactions: readonly MessageAppliedReaction[];
+  readonly cachedRoomNames?: string;
+  readonly chatActionType?: number;
+  readonly chatGuids: readonly string[];
+  readonly content: MessageContent;
+  readonly dataDetectorResultsPresent: boolean;
+  readonly dateCreated: Date;
+  readonly dateDelivered?: Date;
+  readonly dateEdited?: Date;
+  readonly dateExpressiveSendPlayed?: Date;
+  readonly datePlayed?: Date;
+  readonly dateRead?: Date;
+  readonly dateRetracted?: Date;
+  readonly destinationCallerId?: string;
+  readonly didNotifyRecipient: boolean;
+  readonly groupTitle?: string;
+  readonly guid: string;
+  readonly isArchived: boolean;
+  readonly isAudioMessage: boolean;
+  readonly isAutoReply: boolean;
+  readonly isCorrupt: boolean;
+  readonly isDelayed: boolean;
+  readonly isDelivered: boolean;
+  readonly isDeliveredQuietly: boolean;
+  readonly isExpirable: boolean;
+  readonly isForward: boolean;
+  readonly isFromMe: boolean;
+  readonly isSent: boolean;
+  readonly isServiceMessage: boolean;
+  readonly isSpam: boolean;
+  readonly isSystemMessage: boolean;
+  readonly itemType: MessageItemType;
+  readonly partCount?: number;
+  readonly placedStickers: readonly MessagePlacedSticker[];
+  readonly reaction?: MessageReaction;
+  readonly reactionSelected?: boolean;
+  readonly reactionTargetGuid?: string;
+  readonly reactionTargetPartIndex?: number;
+  readonly replyTargetGuid?: string;
+  readonly sendErrorCode: number;
+  readonly sender?: SingleServiceAddressInfo;
+  readonly shareDirection?: number;
+  readonly shareStatus?: number;
+  readonly subject?: string;
+  readonly threadOriginatorGuid?: string;
+  readonly threadOriginatorPart?: string;
+}
+
+export interface SendOptions {
+  /** Stable idempotency key for this logical send. */
+  readonly clientMessageId?: string;
+  /** Enable Apple's data-detector pass for links, dates, addresses, and similar text. */
+  readonly enableDataDetection?: boolean;
+  /** Full-screen or bubble effect to apply to the outgoing message. */
   readonly effect?: MessageEffect;
-  /** Ordered list of message parts. */
-  readonly parts: readonly MessagePart[];
-  /** Reply to an existing message, optionally targeting a specific part. */
+  /** UTF-16 ranges for bold, italic, underline, strikethrough, or text effects. */
+  readonly formatting?: readonly TextFormatInput[];
+  /** Message guid, or message guid plus multipart bubble index, to reply to. */
   readonly replyTo?:
-    | MessageGuid
-    | { readonly guid: MessageGuid; readonly partIndex?: number };
-  /** Subject line. */
+    | string
+    | { readonly guid: string; readonly partIndex?: number };
+  /** Ask Messages to generate rich URL previews when possible. */
+  readonly enableLinkPreview?: boolean;
+  /** Optional subject line for the outgoing message. */
   readonly subject?: string;
 }
 
-// ---------------------------------------------------------------------------
-// MessageListOptions
-// ---------------------------------------------------------------------------
+export interface MessagePart {
+  /** Uploaded attachment guid for an attachment bubble. */
+  readonly attachmentGuid?: string;
+  /** Optional display name for the attachment bubble. */
+  readonly attachmentName?: string;
+  /** Server bubble index override for advanced multipart layouts. */
+  readonly bubbleIndex?: number;
+  /** UTF-16 formatting ranges that apply to this part's `text`. */
+  readonly formatting?: readonly TextFormatInput[];
+  /** Address represented by this text part when sending an `@` mention. */
+  readonly mentionedAddress?: string;
+  /** Text for a text or mention bubble. */
+  readonly text?: string;
+}
 
-/** Query parameters for `messages.list()`. */
-export interface MessageListOptions {
-  /** Return only messages created after this date. */
+/**
+ * Filter + paging knobs shared by `messages.listRecent` and `messages.listInChat`.
+ *
+ * Note: `chatGuid` is *not* on this type. `listInChat` takes it as its own
+ * required argument so the type system rejects calling `listRecent({ chatGuid })`
+ * (which the server silently ignores).
+ */
+export interface MessageListFilter {
+  /** Return messages created after this time. */
   readonly after?: Date;
-  /**
-   * Resume cursor from a stream event. When set, returns messages with
-   * ROWID > cursor position, overriding `after`.
-   * Sort is forced to ascending by ROWID (chronological order for catch-up).
-   * `offset` and `limit` still apply for pagination within catch-up results.
-   */
-  readonly afterCursor?: string;
-  /** Return only messages created before this date. */
+  /** Return messages created before this time. */
   readonly before?: Date;
-  /** Restrict to messages in a specific chat. */
-  readonly chatGuid?: ChatGuid;
-  /** Maximum number of messages per page. */
-  readonly limit?: number;
-  /** Offset into the result set (for manual pagination). */
-  readonly offset?: number;
-  /** Sort order for results. */
-  readonly sort?: SortDirection;
-  /** Include attachment metadata in the response. */
-  readonly withAttachments?: boolean;
-  /** Include chat metadata in the response. */
-  readonly withChats?: boolean;
+  /** Limit results to outgoing (`true`) or incoming (`false`) messages. */
+  readonly isFromMe?: boolean;
+  /** Limit results to read (`true`) or unread (`false`) messages. */
+  readonly isRead?: boolean;
+  /** Number of messages per page. The server currently requires `1..100`. */
+  readonly pageSize?: number;
+  /** Token returned by the previous page. */
+  readonly pageToken?: string;
 }
 
-// ---------------------------------------------------------------------------
-// FetchMissedOptions
-// ---------------------------------------------------------------------------
-
-/** Options for `messages.fetchMissed()`. */
-export interface FetchMissedOptions {
-  /** Restrict to messages in a specific chat. */
-  readonly chatGuid?: ChatGuid;
-  /** Maximum number of messages per page. */
-  readonly limit?: number;
+export interface MessageListPage {
+  readonly messages: readonly Message[];
+  readonly nextPageToken?: string;
 }
 
-// ---------------------------------------------------------------------------
-// MessageStats
-// ---------------------------------------------------------------------------
-
-/** Aggregate message statistics returned by `messages.stats()`. */
-export interface MessageStats {
-  readonly received: number;
-  readonly sent: number;
-  readonly total: number;
-}
-
-// ---------------------------------------------------------------------------
-// EmbeddedMediaItem
-// ---------------------------------------------------------------------------
-
-/** An embedded media item extracted from a rich message (e.g. a link preview image). */
 export interface EmbeddedMediaItem {
   readonly data: Uint8Array;
   readonly mimeType: string;
 }
+
+export type EmbeddedMedia = EmbeddedMediaItem;

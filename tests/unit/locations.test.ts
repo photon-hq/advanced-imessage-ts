@@ -1,62 +1,71 @@
 import { describe, expect, it } from "bun:test";
-import { FindMyLocationType } from "../../src/generated/photon/imessage/v1/location_service.ts";
+import { FriendLocationType } from "../../src/generated/photon/imessage/v1/location_types.ts";
 import { LocationsResource } from "../../src/resources/locations.ts";
 
 describe("LocationsResource", () => {
-  it("passes friendIds through getFriends requests", async () => {
-    const requests: Array<{ friendIds: string[] }> = [];
+  it("sends an empty request for list()", async () => {
+    const requests: Record<string, unknown>[] = [];
     const resource = new LocationsResource({
-      async *subscribeLocationEvents() {
-        yield* [];
-      },
-      async getFriends(request: { friendIds?: string[] }) {
-        requests.push({ friendIds: request.friendIds ?? [] });
-        return { friends: [] };
+      async listSharedFriendLocations(request: Record<string, unknown>) {
+        requests.push(request);
+        return { locations: [] };
       },
     } as any);
 
-    await resource.getFriends(["friend-1", "friend-2"]);
+    await resource.list();
 
-    expect(requests).toEqual([
-      {
-        friendIds: ["friend-1", "friend-2"],
-      },
-    ]);
+    expect(requests).toEqual([{}]);
   });
 
-  it("does not expose the removed refreshFriends API", () => {
+  it("scopes watch(string) to one address", async () => {
+    const requests: Record<string, unknown>[] = [];
     const resource = new LocationsResource({
-      async *subscribeLocationEvents() {
+      async *watchSharedFriendLocations(request: Record<string, unknown>) {
+        requests.push(request);
         yield* [];
-      },
-      async getFriends() {
-        return { friends: [] };
       },
     } as any);
 
-    expect("refreshFriends" in resource).toBe(false);
+    const stream = resource.watch("friend-1@example.com");
+    for await (const _update of stream) {
+      break;
+    }
+
+    expect(requests).toEqual([{ address: "friend-1@example.com" }]);
   });
 
-  it("maps legacy location types from the proto enum", async () => {
+  it("sends an empty watch request when address is omitted", async () => {
+    const requests: Record<string, unknown>[] = [];
     const resource = new LocationsResource({
-      async *subscribeLocationEvents() {
+      async *watchSharedFriendLocations(request: Record<string, unknown>) {
+        requests.push(request);
         yield* [];
       },
-      async getFriends() {
+    } as any);
+
+    const stream = resource.watch();
+    for await (const _update of stream) {
+      break;
+    }
+
+    expect(requests).toEqual([{}]);
+  });
+
+  it("maps FRIEND_LOCATION_TYPE_LEGACY from the proto enum", async () => {
+    const resource = new LocationsResource({
+      async getSharedFriendLocation() {
         return {
-          friends: [
-            {
-              id: "friend-legacy",
-              isLocatingInProgress: false,
-              locationType: FindMyLocationType.FIND_MY_LOCATION_TYPE_LEGACY,
-            },
-          ],
+          location: {
+            address: "friend-legacy@example.com",
+            isLocatingInProgress: false,
+            locationType: FriendLocationType.FRIEND_LOCATION_TYPE_LEGACY,
+          },
         };
       },
     } as any);
 
-    const [friend] = await resource.getFriends();
+    const friend = await resource.get("friend-legacy@example.com");
 
-    expect(friend?.locationType).toBe("legacy");
+    expect(friend.locationType).toBe("legacy");
   });
 });

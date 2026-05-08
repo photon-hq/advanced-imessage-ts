@@ -1,25 +1,27 @@
 /**
  * Address-related domain types.
- *
- * Wraps the proto `AddressInfo` with branded types and SDK-friendly enums.
  */
 
 import type { ChatServiceType } from "./enums.js";
 
-// ---------------------------------------------------------------------------
-// AddressInfo
-// ---------------------------------------------------------------------------
-
-/** A resolved address (phone number or email) and its service metadata. */
-export interface AddressInfo {
-  /** Escape hatch to the underlying proto message. */
-  readonly _raw?: unknown;
-  /** The canonical address string (e.g. "+1234567890" or "user@icloud.com"). */
+/**
+ * An address bound to one concrete transport service.
+ */
+export interface SingleServiceAddressInfo {
+  /** Canonical email or E.164 phone number for this participant. */
   readonly address: string;
-  /** ISO country code, when known. */
+  /** ISO 3166-1 alpha-2 country code when Messages has one, else omitted. */
   readonly country?: string;
-  /** The service this address is registered on. */
+  /** The concrete service this participant record is bound to. */
   readonly service: ChatServiceType;
-  /** The original, uncanonicalized form if it differs from `address`. */
-  readonly uncanonicalizedId?: string;
+}
+
+/** A canonical address paired with every service reported by the server. */
+export interface MultiServiceAddressInfo {
+  /** Canonical email or E.164 phone number. */
+  readonly address: string;
+  /** ISO 3166-1 alpha-2 country code when known, else `null`. */
+  readonly country: string | null;
+  /** Service set reported by the server. */
+  readonly services: readonly ChatServiceType[];
 }

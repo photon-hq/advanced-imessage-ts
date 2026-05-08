@@ -28,7 +28,7 @@
     "proto"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=18.17"
   },
   "scripts": {
     "generate": "PATH=./node_modules/.bin:$PATH buf generate",
@@ -42,11 +42,10 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
+    "@bufbuild/protobuf": "^2.11.0",
     "@grpc/grpc-js": "^1.12.6",
-    "long": "^5.2.4",
     "nice-grpc": "^2.1.11",
-    "nice-grpc-common": "^2.0.2",
-    "protobufjs": "^7.4.0"
+    "nice-grpc-common": "^2.0.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.7",

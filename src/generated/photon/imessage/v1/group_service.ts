@@ -7,45 +7,66 @@
 /* eslint-disable */
 import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
-import { Timestamp } from "../../../google/protobuf/timestamp.js";
-import { Chat } from "./chat_service.js";
-import { Heartbeat } from "./common.js";
+import { Empty } from "../../../google/protobuf/empty.js";
+import { Chat } from "./chat_types.js";
+import { GroupChangeEvent } from "./group_types.js";
+import { Heartbeat } from "./streaming.js";
 
 export const protobufPackage = "photon.imessage.v1";
 
 export interface SetDisplayNameRequest {
   chatGuid: string;
-  name: string;
+  displayName: string;
+  clientMessageId?: string | undefined;
 }
 
 export interface SetDisplayNameResponse {
   chat: Chat | undefined;
 }
 
-export interface AddParticipantRequest {
+/**
+ * Adds one or more participants. An empty `addresses` list
+ * is rejected with `INVALID_ARGUMENT`.
+ */
+export interface AddParticipantsRequest {
   chatGuid: string;
-  address: string;
+  addresses: string[];
+  clientMessageId?: string | undefined;
 }
 
-export interface AddParticipantResponse {
+export interface AddParticipantsResponse {
   chat: Chat | undefined;
 }
 
-export interface RemoveParticipantRequest {
+/**
+ * Removes one or more participants. An empty `addresses`
+ * list is rejected with `INVALID_ARGUMENT`.
+ */
+export interface RemoveParticipantsRequest {
   chatGuid: string;
-  address: string;
+  addresses: string[];
+  clientMessageId?: string | undefined;
 }
 
-export interface RemoveParticipantResponse {
+export interface RemoveParticipantsResponse {
   chat: Chat | undefined;
+}
+
+export interface LeaveGroupRequest {
+  chatGuid: string;
+  clientMessageId?: string | undefined;
 }
 
 export interface SetIconRequest {
   chatGuid: string;
+  /** Server infers MIME type and file extension from `data`. */
   data: Uint8Array;
+  clientMessageId?: string | undefined;
 }
 
-export interface SetIconResponse {
+export interface RemoveIconRequest {
+  chatGuid: string;
+  clientMessageId?: string | undefined;
 }
 
 export interface GetIconRequest {
@@ -53,78 +74,31 @@ export interface GetIconRequest {
 }
 
 export interface GetIconResponse {
-  data?: Uint8Array | undefined;
-}
-
-export interface RemoveIconRequest {
-  chatGuid: string;
-}
-
-export interface RemoveIconResponse {
-}
-
-export interface SetBackgroundRequest {
-  chatGuid: string;
   data: Uint8Array;
-}
-
-export interface SetBackgroundResponse {
-  channelGuid?: string | undefined;
-  imageUrl?: string | undefined;
-  backgroundId?: string | undefined;
-}
-
-export interface GetBackgroundRequest {
-  chatGuid: string;
-}
-
-export interface GetBackgroundResponse {
-  channelGuid?: string | undefined;
-  imageUrl?: string | undefined;
-  backgroundId?: string | undefined;
-}
-
-export interface RemoveBackgroundRequest {
-  chatGuid: string;
-}
-
-export interface RemoveBackgroundResponse {
+  /**
+   * MIME type of `data`. Always set on success; a missing icon returns
+   * `NOT_FOUND` instead of an empty payload.
+   */
+  mimeType: string;
 }
 
 export interface SubscribeGroupEventsRequest {
+  /** Absent = subscribe to every group chat the caller can observe. */
+  chatGuid?: string | undefined;
 }
 
 export interface SubscribeGroupEventsResponse {
-  timestamp: Date | undefined;
+  /**
+   * Monotonic global sequence shared with `EventService.CatchUpEvents`
+   * and every other `Subscribe*` stream. Absent on heartbeat frames.
+   */
+  sequence?: number | undefined;
   groupChanged?: GroupChangeEvent | undefined;
   heartbeat?: Heartbeat | undefined;
 }
 
-export interface IconChanged {
-}
-
-export interface IconRemoved {
-}
-
-export interface BackgroundChanged {
-}
-
-export interface BackgroundRemoved {
-}
-
-export interface GroupChangeEvent {
-  chatGuid: string;
-  renamedTo?: string | undefined;
-  participantAdded?: string | undefined;
-  participantRemoved?: string | undefined;
-  iconChanged?: IconChanged | undefined;
-  iconRemoved?: IconRemoved | undefined;
-  backgroundChanged?: BackgroundChanged | undefined;
-  backgroundRemoved?: BackgroundRemoved | undefined;
-}
-
 function createBaseSetDisplayNameRequest(): SetDisplayNameRequest {
-  return { chatGuid: "", name: "" };
+  return { chatGuid: "", displayName: "", clientMessageId: undefined };
 }
 
 export const SetDisplayNameRequest: MessageFns<SetDisplayNameRequest> = {
@@ -132,8 +106,11 @@ export const SetDisplayNameRequest: MessageFns<SetDisplayNameRequest> = {
     if (message.chatGuid !== "") {
       writer.uint32(10).string(message.chatGuid);
     }
-    if (message.name !== "") {
-      writer.uint32(18).string(message.name);
+    if (message.displayName !== "") {
+      writer.uint32(18).string(message.displayName);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
@@ -158,7 +135,15 @@ export const SetDisplayNameRequest: MessageFns<SetDisplayNameRequest> = {
             break;
           }
 
-          message.name = reader.string();
+          message.displayName = reader.string();
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
           continue;
         }
       }
@@ -177,7 +162,16 @@ export const SetDisplayNameRequest: MessageFns<SetDisplayNameRequest> = {
         : isSet(object.chat_guid)
         ? globalThis.String(object.chat_guid)
         : "",
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      displayName: isSet(object.displayName)
+        ? globalThis.String(object.displayName)
+        : isSet(object.display_name)
+        ? globalThis.String(object.display_name)
+        : "",
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
@@ -186,8 +180,11 @@ export const SetDisplayNameRequest: MessageFns<SetDisplayNameRequest> = {
     if (message.chatGuid !== "") {
       obj.chatGuid = message.chatGuid;
     }
-    if (message.name !== "") {
-      obj.name = message.name;
+    if (message.displayName !== "") {
+      obj.displayName = message.displayName;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
     }
     return obj;
   },
@@ -198,7 +195,8 @@ export const SetDisplayNameRequest: MessageFns<SetDisplayNameRequest> = {
   fromPartial(object: DeepPartial<SetDisplayNameRequest>): SetDisplayNameRequest {
     const message = createBaseSetDisplayNameRequest();
     message.chatGuid = object.chatGuid ?? "";
-    message.name = object.name ?? "";
+    message.displayName = object.displayName ?? "";
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
@@ -261,25 +259,28 @@ export const SetDisplayNameResponse: MessageFns<SetDisplayNameResponse> = {
   },
 };
 
-function createBaseAddParticipantRequest(): AddParticipantRequest {
-  return { chatGuid: "", address: "" };
+function createBaseAddParticipantsRequest(): AddParticipantsRequest {
+  return { chatGuid: "", addresses: [], clientMessageId: undefined };
 }
 
-export const AddParticipantRequest: MessageFns<AddParticipantRequest> = {
-  encode(message: AddParticipantRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const AddParticipantsRequest: MessageFns<AddParticipantsRequest> = {
+  encode(message: AddParticipantsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.chatGuid !== "") {
       writer.uint32(10).string(message.chatGuid);
     }
-    if (message.address !== "") {
-      writer.uint32(18).string(message.address);
+    for (const v of message.addresses) {
+      writer.uint32(18).string(v!);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): AddParticipantRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): AddParticipantsRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseAddParticipantRequest();
+    const message = createBaseAddParticipantsRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -296,7 +297,15 @@ export const AddParticipantRequest: MessageFns<AddParticipantRequest> = {
             break;
           }
 
-          message.address = reader.string();
+          message.addresses.push(reader.string());
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
           continue;
         }
       }
@@ -308,55 +317,66 @@ export const AddParticipantRequest: MessageFns<AddParticipantRequest> = {
     return message;
   },
 
-  fromJSON(object: any): AddParticipantRequest {
+  fromJSON(object: any): AddParticipantsRequest {
     return {
       chatGuid: isSet(object.chatGuid)
         ? globalThis.String(object.chatGuid)
         : isSet(object.chat_guid)
         ? globalThis.String(object.chat_guid)
         : "",
-      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      addresses: globalThis.Array.isArray(object?.addresses)
+        ? object.addresses.map((e: any) => globalThis.String(e))
+        : [],
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
-  toJSON(message: AddParticipantRequest): unknown {
+  toJSON(message: AddParticipantsRequest): unknown {
     const obj: any = {};
     if (message.chatGuid !== "") {
       obj.chatGuid = message.chatGuid;
     }
-    if (message.address !== "") {
-      obj.address = message.address;
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
     }
     return obj;
   },
 
-  create(base?: DeepPartial<AddParticipantRequest>): AddParticipantRequest {
-    return AddParticipantRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<AddParticipantsRequest>): AddParticipantsRequest {
+    return AddParticipantsRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<AddParticipantRequest>): AddParticipantRequest {
-    const message = createBaseAddParticipantRequest();
+  fromPartial(object: DeepPartial<AddParticipantsRequest>): AddParticipantsRequest {
+    const message = createBaseAddParticipantsRequest();
     message.chatGuid = object.chatGuid ?? "";
-    message.address = object.address ?? "";
+    message.addresses = object.addresses?.map((e) => e) || [];
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
-function createBaseAddParticipantResponse(): AddParticipantResponse {
+function createBaseAddParticipantsResponse(): AddParticipantsResponse {
   return { chat: undefined };
 }
 
-export const AddParticipantResponse: MessageFns<AddParticipantResponse> = {
-  encode(message: AddParticipantResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const AddParticipantsResponse: MessageFns<AddParticipantsResponse> = {
+  encode(message: AddParticipantsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.chat !== undefined) {
       Chat.encode(message.chat, writer.uint32(10).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): AddParticipantResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): AddParticipantsResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseAddParticipantResponse();
+    const message = createBaseAddParticipantsResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -377,11 +397,11 @@ export const AddParticipantResponse: MessageFns<AddParticipantResponse> = {
     return message;
   },
 
-  fromJSON(object: any): AddParticipantResponse {
+  fromJSON(object: any): AddParticipantsResponse {
     return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
   },
 
-  toJSON(message: AddParticipantResponse): unknown {
+  toJSON(message: AddParticipantsResponse): unknown {
     const obj: any = {};
     if (message.chat !== undefined) {
       obj.chat = Chat.toJSON(message.chat);
@@ -389,35 +409,38 @@ export const AddParticipantResponse: MessageFns<AddParticipantResponse> = {
     return obj;
   },
 
-  create(base?: DeepPartial<AddParticipantResponse>): AddParticipantResponse {
-    return AddParticipantResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<AddParticipantsResponse>): AddParticipantsResponse {
+    return AddParticipantsResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<AddParticipantResponse>): AddParticipantResponse {
-    const message = createBaseAddParticipantResponse();
+  fromPartial(object: DeepPartial<AddParticipantsResponse>): AddParticipantsResponse {
+    const message = createBaseAddParticipantsResponse();
     message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
     return message;
   },
 };
 
-function createBaseRemoveParticipantRequest(): RemoveParticipantRequest {
-  return { chatGuid: "", address: "" };
+function createBaseRemoveParticipantsRequest(): RemoveParticipantsRequest {
+  return { chatGuid: "", addresses: [], clientMessageId: undefined };
 }
 
-export const RemoveParticipantRequest: MessageFns<RemoveParticipantRequest> = {
-  encode(message: RemoveParticipantRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const RemoveParticipantsRequest: MessageFns<RemoveParticipantsRequest> = {
+  encode(message: RemoveParticipantsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.chatGuid !== "") {
       writer.uint32(10).string(message.chatGuid);
     }
-    if (message.address !== "") {
-      writer.uint32(18).string(message.address);
+    for (const v of message.addresses) {
+      writer.uint32(18).string(v!);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveParticipantRequest {
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoveParticipantsRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveParticipantRequest();
+    const message = createBaseRemoveParticipantsRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -434,7 +457,15 @@ export const RemoveParticipantRequest: MessageFns<RemoveParticipantRequest> = {
             break;
           }
 
-          message.address = reader.string();
+          message.addresses.push(reader.string());
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
           continue;
         }
       }
@@ -446,55 +477,66 @@ export const RemoveParticipantRequest: MessageFns<RemoveParticipantRequest> = {
     return message;
   },
 
-  fromJSON(object: any): RemoveParticipantRequest {
+  fromJSON(object: any): RemoveParticipantsRequest {
     return {
       chatGuid: isSet(object.chatGuid)
         ? globalThis.String(object.chatGuid)
         : isSet(object.chat_guid)
         ? globalThis.String(object.chat_guid)
         : "",
-      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      addresses: globalThis.Array.isArray(object?.addresses)
+        ? object.addresses.map((e: any) => globalThis.String(e))
+        : [],
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
-  toJSON(message: RemoveParticipantRequest): unknown {
+  toJSON(message: RemoveParticipantsRequest): unknown {
     const obj: any = {};
     if (message.chatGuid !== "") {
       obj.chatGuid = message.chatGuid;
     }
-    if (message.address !== "") {
-      obj.address = message.address;
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
     }
     return obj;
   },
 
-  create(base?: DeepPartial<RemoveParticipantRequest>): RemoveParticipantRequest {
-    return RemoveParticipantRequest.fromPartial(base ?? {});
+  create(base?: DeepPartial<RemoveParticipantsRequest>): RemoveParticipantsRequest {
+    return RemoveParticipantsRequest.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<RemoveParticipantRequest>): RemoveParticipantRequest {
-    const message = createBaseRemoveParticipantRequest();
+  fromPartial(object: DeepPartial<RemoveParticipantsRequest>): RemoveParticipantsRequest {
+    const message = createBaseRemoveParticipantsRequest();
     message.chatGuid = object.chatGuid ?? "";
-    message.address = object.address ?? "";
+    message.addresses = object.addresses?.map((e) => e) || [];
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
-function createBaseRemoveParticipantResponse(): RemoveParticipantResponse {
+function createBaseRemoveParticipantsResponse(): RemoveParticipantsResponse {
   return { chat: undefined };
 }
 
-export const RemoveParticipantResponse: MessageFns<RemoveParticipantResponse> = {
-  encode(message: RemoveParticipantResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const RemoveParticipantsResponse: MessageFns<RemoveParticipantsResponse> = {
+  encode(message: RemoveParticipantsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.chat !== undefined) {
       Chat.encode(message.chat, writer.uint32(10).fork()).join();
     }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveParticipantResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoveParticipantsResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveParticipantResponse();
+    const message = createBaseRemoveParticipantsResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -515,11 +557,11 @@ export const RemoveParticipantResponse: MessageFns<RemoveParticipantResponse> = 
     return message;
   },
 
-  fromJSON(object: any): RemoveParticipantResponse {
+  fromJSON(object: any): RemoveParticipantsResponse {
     return { chat: isSet(object.chat) ? Chat.fromJSON(object.chat) : undefined };
   },
 
-  toJSON(message: RemoveParticipantResponse): unknown {
+  toJSON(message: RemoveParticipantsResponse): unknown {
     const obj: any = {};
     if (message.chat !== undefined) {
       obj.chat = Chat.toJSON(message.chat);
@@ -527,18 +569,102 @@ export const RemoveParticipantResponse: MessageFns<RemoveParticipantResponse> = 
     return obj;
   },
 
-  create(base?: DeepPartial<RemoveParticipantResponse>): RemoveParticipantResponse {
-    return RemoveParticipantResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<RemoveParticipantsResponse>): RemoveParticipantsResponse {
+    return RemoveParticipantsResponse.fromPartial(base ?? {});
   },
-  fromPartial(object: DeepPartial<RemoveParticipantResponse>): RemoveParticipantResponse {
-    const message = createBaseRemoveParticipantResponse();
+  fromPartial(object: DeepPartial<RemoveParticipantsResponse>): RemoveParticipantsResponse {
+    const message = createBaseRemoveParticipantsResponse();
     message.chat = (object.chat !== undefined && object.chat !== null) ? Chat.fromPartial(object.chat) : undefined;
+    return message;
+  },
+};
+
+function createBaseLeaveGroupRequest(): LeaveGroupRequest {
+  return { chatGuid: "", clientMessageId: undefined };
+}
+
+export const LeaveGroupRequest: MessageFns<LeaveGroupRequest> = {
+  encode(message: LeaveGroupRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LeaveGroupRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseLeaveGroupRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): LeaveGroupRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LeaveGroupRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LeaveGroupRequest>): LeaveGroupRequest {
+    return LeaveGroupRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LeaveGroupRequest>): LeaveGroupRequest {
+    const message = createBaseLeaveGroupRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
 function createBaseSetIconRequest(): SetIconRequest {
-  return { chatGuid: "", data: new Uint8Array(0) };
+  return { chatGuid: "", data: new Uint8Array(0), clientMessageId: undefined };
 }
 
 export const SetIconRequest: MessageFns<SetIconRequest> = {
@@ -548,6 +674,9 @@ export const SetIconRequest: MessageFns<SetIconRequest> = {
     }
     if (message.data.length !== 0) {
       writer.uint32(18).bytes(message.data);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
     }
     return writer;
   },
@@ -575,6 +704,14 @@ export const SetIconRequest: MessageFns<SetIconRequest> = {
           message.data = reader.bytes();
           continue;
         }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -592,6 +729,11 @@ export const SetIconRequest: MessageFns<SetIconRequest> = {
         ? globalThis.String(object.chat_guid)
         : "",
       data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
     };
   },
 
@@ -603,6 +745,9 @@ export const SetIconRequest: MessageFns<SetIconRequest> = {
     if (message.data.length !== 0) {
       obj.data = base64FromBytes(message.data);
     }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
     return obj;
   },
 
@@ -613,26 +758,49 @@ export const SetIconRequest: MessageFns<SetIconRequest> = {
     const message = createBaseSetIconRequest();
     message.chatGuid = object.chatGuid ?? "";
     message.data = object.data ?? new Uint8Array(0);
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
 
-function createBaseSetIconResponse(): SetIconResponse {
-  return {};
+function createBaseRemoveIconRequest(): RemoveIconRequest {
+  return { chatGuid: "", clientMessageId: undefined };
 }
 
-export const SetIconResponse: MessageFns<SetIconResponse> = {
-  encode(_: SetIconResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const RemoveIconRequest: MessageFns<RemoveIconRequest> = {
+  encode(message: RemoveIconRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): SetIconResponse {
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoveIconRequest {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSetIconResponse();
+    const message = createBaseRemoveIconRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -642,20 +810,39 @@ export const SetIconResponse: MessageFns<SetIconResponse> = {
     return message;
   },
 
-  fromJSON(_: any): SetIconResponse {
-    return {};
+  fromJSON(object: any): RemoveIconRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
   },
 
-  toJSON(_: SetIconResponse): unknown {
+  toJSON(message: RemoveIconRequest): unknown {
     const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
     return obj;
   },
 
-  create(base?: DeepPartial<SetIconResponse>): SetIconResponse {
-    return SetIconResponse.fromPartial(base ?? {});
+  create(base?: DeepPartial<RemoveIconRequest>): RemoveIconRequest {
+    return RemoveIconRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<SetIconResponse>): SetIconResponse {
-    const message = createBaseSetIconResponse();
+  fromPartial(object: DeepPartial<RemoveIconRequest>): RemoveIconRequest {
+    const message = createBaseRemoveIconRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
@@ -725,13 +912,16 @@ export const GetIconRequest: MessageFns<GetIconRequest> = {
 };
 
 function createBaseGetIconResponse(): GetIconResponse {
-  return { data: undefined };
+  return { data: new Uint8Array(0), mimeType: "" };
 }
 
 export const GetIconResponse: MessageFns<GetIconResponse> = {
   encode(message: GetIconResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.data !== undefined) {
+    if (message.data.length !== 0) {
       writer.uint32(10).bytes(message.data);
+    }
+    if (message.mimeType !== "") {
+      writer.uint32(18).string(message.mimeType);
     }
     return writer;
   },
@@ -751,6 +941,14 @@ export const GetIconResponse: MessageFns<GetIconResponse> = {
           message.data = reader.bytes();
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.mimeType = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -761,13 +959,23 @@ export const GetIconResponse: MessageFns<GetIconResponse> = {
   },
 
   fromJSON(object: any): GetIconResponse {
-    return { data: isSet(object.data) ? bytesFromBase64(object.data) : undefined };
+    return {
+      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
+      mimeType: isSet(object.mimeType)
+        ? globalThis.String(object.mimeType)
+        : isSet(object.mime_type)
+        ? globalThis.String(object.mime_type)
+        : "",
+    };
   },
 
   toJSON(message: GetIconResponse): unknown {
     const obj: any = {};
-    if (message.data !== undefined) {
+    if (message.data.length !== 0) {
       obj.data = base64FromBytes(message.data);
+    }
+    if (message.mimeType !== "") {
+      obj.mimeType = message.mimeType;
     }
     return obj;
   },
@@ -777,583 +985,21 @@ export const GetIconResponse: MessageFns<GetIconResponse> = {
   },
   fromPartial(object: DeepPartial<GetIconResponse>): GetIconResponse {
     const message = createBaseGetIconResponse();
-    message.data = object.data ?? undefined;
-    return message;
-  },
-};
-
-function createBaseRemoveIconRequest(): RemoveIconRequest {
-  return { chatGuid: "" };
-}
-
-export const RemoveIconRequest: MessageFns<RemoveIconRequest> = {
-  encode(message: RemoveIconRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveIconRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveIconRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): RemoveIconRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: RemoveIconRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<RemoveIconRequest>): RemoveIconRequest {
-    return RemoveIconRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<RemoveIconRequest>): RemoveIconRequest {
-    const message = createBaseRemoveIconRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseRemoveIconResponse(): RemoveIconResponse {
-  return {};
-}
-
-export const RemoveIconResponse: MessageFns<RemoveIconResponse> = {
-  encode(_: RemoveIconResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveIconResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveIconResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): RemoveIconResponse {
-    return {};
-  },
-
-  toJSON(_: RemoveIconResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<RemoveIconResponse>): RemoveIconResponse {
-    return RemoveIconResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<RemoveIconResponse>): RemoveIconResponse {
-    const message = createBaseRemoveIconResponse();
-    return message;
-  },
-};
-
-function createBaseSetBackgroundRequest(): SetBackgroundRequest {
-  return { chatGuid: "", data: new Uint8Array(0) };
-}
-
-export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
-  encode(message: SetBackgroundRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    if (message.data.length !== 0) {
-      writer.uint32(18).bytes(message.data);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SetBackgroundRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSetBackgroundRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.data = reader.bytes();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): SetBackgroundRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-    };
-  },
-
-  toJSON(message: SetBackgroundRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    if (message.data.length !== 0) {
-      obj.data = base64FromBytes(message.data);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<SetBackgroundRequest>): SetBackgroundRequest {
-    return SetBackgroundRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<SetBackgroundRequest>): SetBackgroundRequest {
-    const message = createBaseSetBackgroundRequest();
-    message.chatGuid = object.chatGuid ?? "";
     message.data = object.data ?? new Uint8Array(0);
-    return message;
-  },
-};
-
-function createBaseSetBackgroundResponse(): SetBackgroundResponse {
-  return { channelGuid: undefined, imageUrl: undefined, backgroundId: undefined };
-}
-
-export const SetBackgroundResponse: MessageFns<SetBackgroundResponse> = {
-  encode(message: SetBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.channelGuid !== undefined) {
-      writer.uint32(10).string(message.channelGuid);
-    }
-    if (message.imageUrl !== undefined) {
-      writer.uint32(18).string(message.imageUrl);
-    }
-    if (message.backgroundId !== undefined) {
-      writer.uint32(26).string(message.backgroundId);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): SetBackgroundResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseSetBackgroundResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.channelGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.imageUrl = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.backgroundId = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): SetBackgroundResponse {
-    return {
-      channelGuid: isSet(object.channelGuid)
-        ? globalThis.String(object.channelGuid)
-        : isSet(object.channel_guid)
-        ? globalThis.String(object.channel_guid)
-        : undefined,
-      imageUrl: isSet(object.imageUrl)
-        ? globalThis.String(object.imageUrl)
-        : isSet(object.image_url)
-        ? globalThis.String(object.image_url)
-        : undefined,
-      backgroundId: isSet(object.backgroundId)
-        ? globalThis.String(object.backgroundId)
-        : isSet(object.background_id)
-        ? globalThis.String(object.background_id)
-        : undefined,
-    };
-  },
-
-  toJSON(message: SetBackgroundResponse): unknown {
-    const obj: any = {};
-    if (message.channelGuid !== undefined) {
-      obj.channelGuid = message.channelGuid;
-    }
-    if (message.imageUrl !== undefined) {
-      obj.imageUrl = message.imageUrl;
-    }
-    if (message.backgroundId !== undefined) {
-      obj.backgroundId = message.backgroundId;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<SetBackgroundResponse>): SetBackgroundResponse {
-    return SetBackgroundResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<SetBackgroundResponse>): SetBackgroundResponse {
-    const message = createBaseSetBackgroundResponse();
-    message.channelGuid = object.channelGuid ?? undefined;
-    message.imageUrl = object.imageUrl ?? undefined;
-    message.backgroundId = object.backgroundId ?? undefined;
-    return message;
-  },
-};
-
-function createBaseGetBackgroundRequest(): GetBackgroundRequest {
-  return { chatGuid: "" };
-}
-
-export const GetBackgroundRequest: MessageFns<GetBackgroundRequest> = {
-  encode(message: GetBackgroundRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetBackgroundRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetBackgroundRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetBackgroundRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: GetBackgroundRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetBackgroundRequest>): GetBackgroundRequest {
-    return GetBackgroundRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetBackgroundRequest>): GetBackgroundRequest {
-    const message = createBaseGetBackgroundRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseGetBackgroundResponse(): GetBackgroundResponse {
-  return { channelGuid: undefined, imageUrl: undefined, backgroundId: undefined };
-}
-
-export const GetBackgroundResponse: MessageFns<GetBackgroundResponse> = {
-  encode(message: GetBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.channelGuid !== undefined) {
-      writer.uint32(10).string(message.channelGuid);
-    }
-    if (message.imageUrl !== undefined) {
-      writer.uint32(18).string(message.imageUrl);
-    }
-    if (message.backgroundId !== undefined) {
-      writer.uint32(26).string(message.backgroundId);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GetBackgroundResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGetBackgroundResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.channelGuid = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.imageUrl = reader.string();
-          continue;
-        }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.backgroundId = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GetBackgroundResponse {
-    return {
-      channelGuid: isSet(object.channelGuid)
-        ? globalThis.String(object.channelGuid)
-        : isSet(object.channel_guid)
-        ? globalThis.String(object.channel_guid)
-        : undefined,
-      imageUrl: isSet(object.imageUrl)
-        ? globalThis.String(object.imageUrl)
-        : isSet(object.image_url)
-        ? globalThis.String(object.image_url)
-        : undefined,
-      backgroundId: isSet(object.backgroundId)
-        ? globalThis.String(object.backgroundId)
-        : isSet(object.background_id)
-        ? globalThis.String(object.background_id)
-        : undefined,
-    };
-  },
-
-  toJSON(message: GetBackgroundResponse): unknown {
-    const obj: any = {};
-    if (message.channelGuid !== undefined) {
-      obj.channelGuid = message.channelGuid;
-    }
-    if (message.imageUrl !== undefined) {
-      obj.imageUrl = message.imageUrl;
-    }
-    if (message.backgroundId !== undefined) {
-      obj.backgroundId = message.backgroundId;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GetBackgroundResponse>): GetBackgroundResponse {
-    return GetBackgroundResponse.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GetBackgroundResponse>): GetBackgroundResponse {
-    const message = createBaseGetBackgroundResponse();
-    message.channelGuid = object.channelGuid ?? undefined;
-    message.imageUrl = object.imageUrl ?? undefined;
-    message.backgroundId = object.backgroundId ?? undefined;
-    return message;
-  },
-};
-
-function createBaseRemoveBackgroundRequest(): RemoveBackgroundRequest {
-  return { chatGuid: "" };
-}
-
-export const RemoveBackgroundRequest: MessageFns<RemoveBackgroundRequest> = {
-  encode(message: RemoveBackgroundRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveBackgroundRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveBackgroundRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): RemoveBackgroundRequest {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-    };
-  },
-
-  toJSON(message: RemoveBackgroundRequest): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<RemoveBackgroundRequest>): RemoveBackgroundRequest {
-    return RemoveBackgroundRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<RemoveBackgroundRequest>): RemoveBackgroundRequest {
-    const message = createBaseRemoveBackgroundRequest();
-    message.chatGuid = object.chatGuid ?? "";
-    return message;
-  },
-};
-
-function createBaseRemoveBackgroundResponse(): RemoveBackgroundResponse {
-  return {};
-}
-
-export const RemoveBackgroundResponse: MessageFns<RemoveBackgroundResponse> = {
-  encode(_: RemoveBackgroundResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): RemoveBackgroundResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseRemoveBackgroundResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): RemoveBackgroundResponse {
-    return {};
-  },
-
-  toJSON(_: RemoveBackgroundResponse): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<RemoveBackgroundResponse>): RemoveBackgroundResponse {
-    return RemoveBackgroundResponse.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<RemoveBackgroundResponse>): RemoveBackgroundResponse {
-    const message = createBaseRemoveBackgroundResponse();
+    message.mimeType = object.mimeType ?? "";
     return message;
   },
 };
 
 function createBaseSubscribeGroupEventsRequest(): SubscribeGroupEventsRequest {
-  return {};
+  return { chatGuid: undefined };
 }
 
 export const SubscribeGroupEventsRequest: MessageFns<SubscribeGroupEventsRequest> = {
-  encode(_: SubscribeGroupEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: SubscribeGroupEventsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== undefined) {
+      writer.uint32(10).string(message.chatGuid);
+    }
     return writer;
   },
 
@@ -1364,6 +1010,14 @@ export const SubscribeGroupEventsRequest: MessageFns<SubscribeGroupEventsRequest
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1373,32 +1027,42 @@ export const SubscribeGroupEventsRequest: MessageFns<SubscribeGroupEventsRequest
     return message;
   },
 
-  fromJSON(_: any): SubscribeGroupEventsRequest {
-    return {};
+  fromJSON(object: any): SubscribeGroupEventsRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : undefined,
+    };
   },
 
-  toJSON(_: SubscribeGroupEventsRequest): unknown {
+  toJSON(message: SubscribeGroupEventsRequest): unknown {
     const obj: any = {};
+    if (message.chatGuid !== undefined) {
+      obj.chatGuid = message.chatGuid;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<SubscribeGroupEventsRequest>): SubscribeGroupEventsRequest {
     return SubscribeGroupEventsRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<SubscribeGroupEventsRequest>): SubscribeGroupEventsRequest {
+  fromPartial(object: DeepPartial<SubscribeGroupEventsRequest>): SubscribeGroupEventsRequest {
     const message = createBaseSubscribeGroupEventsRequest();
+    message.chatGuid = object.chatGuid ?? undefined;
     return message;
   },
 };
 
 function createBaseSubscribeGroupEventsResponse(): SubscribeGroupEventsResponse {
-  return { timestamp: undefined, groupChanged: undefined, heartbeat: undefined };
+  return { sequence: undefined, groupChanged: undefined, heartbeat: undefined };
 }
 
 export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsResponse> = {
   encode(message: SubscribeGroupEventsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.timestamp !== undefined) {
-      Timestamp.encode(toTimestamp(message.timestamp), writer.uint32(10).fork()).join();
+    if (message.sequence !== undefined) {
+      writer.uint32(8).uint64(message.sequence);
     }
     if (message.groupChanged !== undefined) {
       GroupChangeEvent.encode(message.groupChanged, writer.uint32(82).fork()).join();
@@ -1417,11 +1081,11 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.timestamp = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.sequence = longToNumber(reader.uint64());
           continue;
         }
         case 10: {
@@ -1451,7 +1115,7 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
 
   fromJSON(object: any): SubscribeGroupEventsResponse {
     return {
-      timestamp: isSet(object.timestamp) ? fromJsonTimestamp(object.timestamp) : undefined,
+      sequence: isSet(object.sequence) ? globalThis.Number(object.sequence) : undefined,
       groupChanged: isSet(object.groupChanged)
         ? GroupChangeEvent.fromJSON(object.groupChanged)
         : isSet(object.group_changed)
@@ -1463,8 +1127,8 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
 
   toJSON(message: SubscribeGroupEventsResponse): unknown {
     const obj: any = {};
-    if (message.timestamp !== undefined) {
-      obj.timestamp = message.timestamp.toISOString();
+    if (message.sequence !== undefined) {
+      obj.sequence = Math.round(message.sequence);
     }
     if (message.groupChanged !== undefined) {
       obj.groupChanged = GroupChangeEvent.toJSON(message.groupChanged);
@@ -1480,7 +1144,7 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
   },
   fromPartial(object: DeepPartial<SubscribeGroupEventsResponse>): SubscribeGroupEventsResponse {
     const message = createBaseSubscribeGroupEventsResponse();
-    message.timestamp = object.timestamp ?? undefined;
+    message.sequence = object.sequence ?? undefined;
     message.groupChanged = (object.groupChanged !== undefined && object.groupChanged !== null)
       ? GroupChangeEvent.fromPartial(object.groupChanged)
       : undefined;
@@ -1491,404 +1155,13 @@ export const SubscribeGroupEventsResponse: MessageFns<SubscribeGroupEventsRespon
   },
 };
 
-function createBaseIconChanged(): IconChanged {
-  return {};
-}
-
-export const IconChanged: MessageFns<IconChanged> = {
-  encode(_: IconChanged, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): IconChanged {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseIconChanged();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): IconChanged {
-    return {};
-  },
-
-  toJSON(_: IconChanged): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<IconChanged>): IconChanged {
-    return IconChanged.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<IconChanged>): IconChanged {
-    const message = createBaseIconChanged();
-    return message;
-  },
-};
-
-function createBaseIconRemoved(): IconRemoved {
-  return {};
-}
-
-export const IconRemoved: MessageFns<IconRemoved> = {
-  encode(_: IconRemoved, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): IconRemoved {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseIconRemoved();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): IconRemoved {
-    return {};
-  },
-
-  toJSON(_: IconRemoved): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<IconRemoved>): IconRemoved {
-    return IconRemoved.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<IconRemoved>): IconRemoved {
-    const message = createBaseIconRemoved();
-    return message;
-  },
-};
-
-function createBaseBackgroundChanged(): BackgroundChanged {
-  return {};
-}
-
-export const BackgroundChanged: MessageFns<BackgroundChanged> = {
-  encode(_: BackgroundChanged, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): BackgroundChanged {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseBackgroundChanged();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): BackgroundChanged {
-    return {};
-  },
-
-  toJSON(_: BackgroundChanged): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<BackgroundChanged>): BackgroundChanged {
-    return BackgroundChanged.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<BackgroundChanged>): BackgroundChanged {
-    const message = createBaseBackgroundChanged();
-    return message;
-  },
-};
-
-function createBaseBackgroundRemoved(): BackgroundRemoved {
-  return {};
-}
-
-export const BackgroundRemoved: MessageFns<BackgroundRemoved> = {
-  encode(_: BackgroundRemoved, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): BackgroundRemoved {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseBackgroundRemoved();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(_: any): BackgroundRemoved {
-    return {};
-  },
-
-  toJSON(_: BackgroundRemoved): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create(base?: DeepPartial<BackgroundRemoved>): BackgroundRemoved {
-    return BackgroundRemoved.fromPartial(base ?? {});
-  },
-  fromPartial(_: DeepPartial<BackgroundRemoved>): BackgroundRemoved {
-    const message = createBaseBackgroundRemoved();
-    return message;
-  },
-};
-
-function createBaseGroupChangeEvent(): GroupChangeEvent {
-  return {
-    chatGuid: "",
-    renamedTo: undefined,
-    participantAdded: undefined,
-    participantRemoved: undefined,
-    iconChanged: undefined,
-    iconRemoved: undefined,
-    backgroundChanged: undefined,
-    backgroundRemoved: undefined,
-  };
-}
-
-export const GroupChangeEvent: MessageFns<GroupChangeEvent> = {
-  encode(message: GroupChangeEvent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
-    if (message.renamedTo !== undefined) {
-      writer.uint32(82).string(message.renamedTo);
-    }
-    if (message.participantAdded !== undefined) {
-      writer.uint32(90).string(message.participantAdded);
-    }
-    if (message.participantRemoved !== undefined) {
-      writer.uint32(98).string(message.participantRemoved);
-    }
-    if (message.iconChanged !== undefined) {
-      IconChanged.encode(message.iconChanged, writer.uint32(106).fork()).join();
-    }
-    if (message.iconRemoved !== undefined) {
-      IconRemoved.encode(message.iconRemoved, writer.uint32(114).fork()).join();
-    }
-    if (message.backgroundChanged !== undefined) {
-      BackgroundChanged.encode(message.backgroundChanged, writer.uint32(122).fork()).join();
-    }
-    if (message.backgroundRemoved !== undefined) {
-      BackgroundRemoved.encode(message.backgroundRemoved, writer.uint32(130).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): GroupChangeEvent {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseGroupChangeEvent();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
-        case 10: {
-          if (tag !== 82) {
-            break;
-          }
-
-          message.renamedTo = reader.string();
-          continue;
-        }
-        case 11: {
-          if (tag !== 90) {
-            break;
-          }
-
-          message.participantAdded = reader.string();
-          continue;
-        }
-        case 12: {
-          if (tag !== 98) {
-            break;
-          }
-
-          message.participantRemoved = reader.string();
-          continue;
-        }
-        case 13: {
-          if (tag !== 106) {
-            break;
-          }
-
-          message.iconChanged = IconChanged.decode(reader, reader.uint32());
-          continue;
-        }
-        case 14: {
-          if (tag !== 114) {
-            break;
-          }
-
-          message.iconRemoved = IconRemoved.decode(reader, reader.uint32());
-          continue;
-        }
-        case 15: {
-          if (tag !== 122) {
-            break;
-          }
-
-          message.backgroundChanged = BackgroundChanged.decode(reader, reader.uint32());
-          continue;
-        }
-        case 16: {
-          if (tag !== 130) {
-            break;
-          }
-
-          message.backgroundRemoved = BackgroundRemoved.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): GroupChangeEvent {
-    return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
-      renamedTo: isSet(object.renamedTo)
-        ? globalThis.String(object.renamedTo)
-        : isSet(object.renamed_to)
-        ? globalThis.String(object.renamed_to)
-        : undefined,
-      participantAdded: isSet(object.participantAdded)
-        ? globalThis.String(object.participantAdded)
-        : isSet(object.participant_added)
-        ? globalThis.String(object.participant_added)
-        : undefined,
-      participantRemoved: isSet(object.participantRemoved)
-        ? globalThis.String(object.participantRemoved)
-        : isSet(object.participant_removed)
-        ? globalThis.String(object.participant_removed)
-        : undefined,
-      iconChanged: isSet(object.iconChanged)
-        ? IconChanged.fromJSON(object.iconChanged)
-        : isSet(object.icon_changed)
-        ? IconChanged.fromJSON(object.icon_changed)
-        : undefined,
-      iconRemoved: isSet(object.iconRemoved)
-        ? IconRemoved.fromJSON(object.iconRemoved)
-        : isSet(object.icon_removed)
-        ? IconRemoved.fromJSON(object.icon_removed)
-        : undefined,
-      backgroundChanged: isSet(object.backgroundChanged)
-        ? BackgroundChanged.fromJSON(object.backgroundChanged)
-        : isSet(object.background_changed)
-        ? BackgroundChanged.fromJSON(object.background_changed)
-        : undefined,
-      backgroundRemoved: isSet(object.backgroundRemoved)
-        ? BackgroundRemoved.fromJSON(object.backgroundRemoved)
-        : isSet(object.background_removed)
-        ? BackgroundRemoved.fromJSON(object.background_removed)
-        : undefined,
-    };
-  },
-
-  toJSON(message: GroupChangeEvent): unknown {
-    const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
-    if (message.renamedTo !== undefined) {
-      obj.renamedTo = message.renamedTo;
-    }
-    if (message.participantAdded !== undefined) {
-      obj.participantAdded = message.participantAdded;
-    }
-    if (message.participantRemoved !== undefined) {
-      obj.participantRemoved = message.participantRemoved;
-    }
-    if (message.iconChanged !== undefined) {
-      obj.iconChanged = IconChanged.toJSON(message.iconChanged);
-    }
-    if (message.iconRemoved !== undefined) {
-      obj.iconRemoved = IconRemoved.toJSON(message.iconRemoved);
-    }
-    if (message.backgroundChanged !== undefined) {
-      obj.backgroundChanged = BackgroundChanged.toJSON(message.backgroundChanged);
-    }
-    if (message.backgroundRemoved !== undefined) {
-      obj.backgroundRemoved = BackgroundRemoved.toJSON(message.backgroundRemoved);
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<GroupChangeEvent>): GroupChangeEvent {
-    return GroupChangeEvent.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<GroupChangeEvent>): GroupChangeEvent {
-    const message = createBaseGroupChangeEvent();
-    message.chatGuid = object.chatGuid ?? "";
-    message.renamedTo = object.renamedTo ?? undefined;
-    message.participantAdded = object.participantAdded ?? undefined;
-    message.participantRemoved = object.participantRemoved ?? undefined;
-    message.iconChanged = (object.iconChanged !== undefined && object.iconChanged !== null)
-      ? IconChanged.fromPartial(object.iconChanged)
-      : undefined;
-    message.iconRemoved = (object.iconRemoved !== undefined && object.iconRemoved !== null)
-      ? IconRemoved.fromPartial(object.iconRemoved)
-      : undefined;
-    message.backgroundChanged = (object.backgroundChanged !== undefined && object.backgroundChanged !== null)
-      ? BackgroundChanged.fromPartial(object.backgroundChanged)
-      : undefined;
-    message.backgroundRemoved = (object.backgroundRemoved !== undefined && object.backgroundRemoved !== null)
-      ? BackgroundRemoved.fromPartial(object.backgroundRemoved)
-      : undefined;
-    return message;
-  },
-};
-
+/** Group-chat administration plus a durable event stream. */
 export type GroupServiceDefinition = typeof GroupServiceDefinition;
 export const GroupServiceDefinition = {
   name: "GroupService",
   fullName: "photon.imessage.v1.GroupService",
   methods: {
+    /** Writes */
     setDisplayName: {
       name: "SetDisplayName",
       requestType: SetDisplayNameRequest as typeof SetDisplayNameRequest,
@@ -1897,19 +1170,31 @@ export const GroupServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    addParticipant: {
-      name: "AddParticipant",
-      requestType: AddParticipantRequest as typeof AddParticipantRequest,
+    addParticipants: {
+      name: "AddParticipants",
+      requestType: AddParticipantsRequest as typeof AddParticipantsRequest,
       requestStream: false,
-      responseType: AddParticipantResponse as typeof AddParticipantResponse,
+      responseType: AddParticipantsResponse as typeof AddParticipantsResponse,
       responseStream: false,
       options: {},
     },
-    removeParticipant: {
-      name: "RemoveParticipant",
-      requestType: RemoveParticipantRequest as typeof RemoveParticipantRequest,
+    removeParticipants: {
+      name: "RemoveParticipants",
+      requestType: RemoveParticipantsRequest as typeof RemoveParticipantsRequest,
       requestStream: false,
-      responseType: RemoveParticipantResponse as typeof RemoveParticipantResponse,
+      responseType: RemoveParticipantsResponse as typeof RemoveParticipantsResponse,
+      responseStream: false,
+      options: {},
+    },
+    /**
+     * Local user voluntarily leaves the group. The chat ceases to be
+     * visible from this device, hence no Chat snapshot.
+     */
+    leaveGroup: {
+      name: "LeaveGroup",
+      requestType: LeaveGroupRequest as typeof LeaveGroupRequest,
+      requestStream: false,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
@@ -1917,10 +1202,19 @@ export const GroupServiceDefinition = {
       name: "SetIcon",
       requestType: SetIconRequest as typeof SetIconRequest,
       requestStream: false,
-      responseType: SetIconResponse as typeof SetIconResponse,
+      responseType: Empty as typeof Empty,
       responseStream: false,
       options: {},
     },
+    removeIcon: {
+      name: "RemoveIcon",
+      requestType: RemoveIconRequest as typeof RemoveIconRequest,
+      requestStream: false,
+      responseType: Empty as typeof Empty,
+      responseStream: false,
+      options: {},
+    },
+    /** Reads */
     getIcon: {
       name: "GetIcon",
       requestType: GetIconRequest as typeof GetIconRequest,
@@ -1929,38 +1223,7 @@ export const GroupServiceDefinition = {
       responseStream: false,
       options: {},
     },
-    removeIcon: {
-      name: "RemoveIcon",
-      requestType: RemoveIconRequest as typeof RemoveIconRequest,
-      requestStream: false,
-      responseType: RemoveIconResponse as typeof RemoveIconResponse,
-      responseStream: false,
-      options: {},
-    },
-    setBackground: {
-      name: "SetBackground",
-      requestType: SetBackgroundRequest as typeof SetBackgroundRequest,
-      requestStream: false,
-      responseType: SetBackgroundResponse as typeof SetBackgroundResponse,
-      responseStream: false,
-      options: {},
-    },
-    getBackground: {
-      name: "GetBackground",
-      requestType: GetBackgroundRequest as typeof GetBackgroundRequest,
-      requestStream: false,
-      responseType: GetBackgroundResponse as typeof GetBackgroundResponse,
-      responseStream: false,
-      options: {},
-    },
-    removeBackground: {
-      name: "RemoveBackground",
-      requestType: RemoveBackgroundRequest as typeof RemoveBackgroundRequest,
-      requestStream: false,
-      responseType: RemoveBackgroundResponse as typeof RemoveBackgroundResponse,
-      responseStream: false,
-      options: {},
-    },
+    /** Streams */
     subscribeGroupEvents: {
       name: "SubscribeGroupEvents",
       requestType: SubscribeGroupEventsRequest as typeof SubscribeGroupEventsRequest,
@@ -1973,36 +1236,29 @@ export const GroupServiceDefinition = {
 } as const;
 
 export interface GroupServiceImplementation<CallContextExt = {}> {
+  /** Writes */
   setDisplayName(
     request: SetDisplayNameRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<SetDisplayNameResponse>>;
-  addParticipant(
-    request: AddParticipantRequest,
+  addParticipants(
+    request: AddParticipantsRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<AddParticipantResponse>>;
-  removeParticipant(
-    request: RemoveParticipantRequest,
+  ): Promise<DeepPartial<AddParticipantsResponse>>;
+  removeParticipants(
+    request: RemoveParticipantsRequest,
     context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<RemoveParticipantResponse>>;
-  setIcon(request: SetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<SetIconResponse>>;
+  ): Promise<DeepPartial<RemoveParticipantsResponse>>;
+  /**
+   * Local user voluntarily leaves the group. The chat ceases to be
+   * visible from this device, hence no Chat snapshot.
+   */
+  leaveGroup(request: LeaveGroupRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  setIcon(request: SetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  removeIcon(request: RemoveIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  /** Reads */
   getIcon(request: GetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<GetIconResponse>>;
-  removeIcon(
-    request: RemoveIconRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<RemoveIconResponse>>;
-  setBackground(
-    request: SetBackgroundRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<SetBackgroundResponse>>;
-  getBackground(
-    request: GetBackgroundRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<GetBackgroundResponse>>;
-  removeBackground(
-    request: RemoveBackgroundRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<RemoveBackgroundResponse>>;
+  /** Streams */
   subscribeGroupEvents(
     request: SubscribeGroupEventsRequest,
     context: CallContext & CallContextExt,
@@ -2010,36 +1266,29 @@ export interface GroupServiceImplementation<CallContextExt = {}> {
 }
 
 export interface GroupServiceClient<CallOptionsExt = {}> {
+  /** Writes */
   setDisplayName(
     request: DeepPartial<SetDisplayNameRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<SetDisplayNameResponse>;
-  addParticipant(
-    request: DeepPartial<AddParticipantRequest>,
+  addParticipants(
+    request: DeepPartial<AddParticipantsRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<AddParticipantResponse>;
-  removeParticipant(
-    request: DeepPartial<RemoveParticipantRequest>,
+  ): Promise<AddParticipantsResponse>;
+  removeParticipants(
+    request: DeepPartial<RemoveParticipantsRequest>,
     options?: CallOptions & CallOptionsExt,
-  ): Promise<RemoveParticipantResponse>;
-  setIcon(request: DeepPartial<SetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<SetIconResponse>;
+  ): Promise<RemoveParticipantsResponse>;
+  /**
+   * Local user voluntarily leaves the group. The chat ceases to be
+   * visible from this device, hence no Chat snapshot.
+   */
+  leaveGroup(request: DeepPartial<LeaveGroupRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  setIcon(request: DeepPartial<SetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  removeIcon(request: DeepPartial<RemoveIconRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  /** Reads */
   getIcon(request: DeepPartial<GetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<GetIconResponse>;
-  removeIcon(
-    request: DeepPartial<RemoveIconRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<RemoveIconResponse>;
-  setBackground(
-    request: DeepPartial<SetBackgroundRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<SetBackgroundResponse>;
-  getBackground(
-    request: DeepPartial<GetBackgroundRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<GetBackgroundResponse>;
-  removeBackground(
-    request: DeepPartial<RemoveBackgroundRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<RemoveBackgroundResponse>;
+  /** Streams */
   subscribeGroupEvents(
     request: DeepPartial<SubscribeGroupEventsRequest>,
     options?: CallOptions & CallOptionsExt,
@@ -2079,26 +1328,15 @@ export type DeepPartial<T> = T extends Builtin ? T
   : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
-function toTimestamp(date: Date): Timestamp {
-  const seconds = Math.trunc(date.getTime() / 1_000);
-  const nanos = (date.getTime() % 1_000) * 1_000_000;
-  return { seconds, nanos };
-}
-
-function fromTimestamp(t: Timestamp): Date {
-  let millis = (t.seconds || 0) * 1_000;
-  millis += (t.nanos || 0) / 1_000_000;
-  return new globalThis.Date(millis);
-}
-
-function fromJsonTimestamp(o: any): Date {
-  if (o instanceof globalThis.Date) {
-    return o;
-  } else if (typeof o === "string") {
-    return new globalThis.Date(o);
-  } else {
-    return fromTimestamp(Timestamp.fromJSON(o));
+function longToNumber(int64: { toString(): string }): number {
+  const num = globalThis.Number(int64.toString());
+  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
   }
+  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+  }
+  return num;
 }
 
 function isSet(value: any): boolean {

@@ -1,440 +1,118 @@
-/**
- * MessagesResource -- the largest resource class, covering sending, reacting,
- * editing, unsending, listing, stats, embedded media, and real-time event
- * subscription for iMessages.
- */
-
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { SortDirection as ProtoSortDirection } from "../generated/photon/imessage/v1/common.ts";
-import type {
-  MessageReceivedEvent,
-  MessageSentEvent,
-  MessageUpdatedEvent,
-  MessagePart as ProtoMessagePart,
-  StickerPlacement as ProtoStickerPlacement,
-  TextFormat as ProtoTextFormat,
-  SendRequest,
-} from "../generated/photon/imessage/v1/message_service.ts";
+import { MessageReactionKind } from "../generated/photon/imessage/v1/message_types.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
-import { createPaginated } from "../streaming/paginated.ts";
 import type { MessageServiceClient } from "../transport/grpc-client.ts";
-import { mapMessage, mapSortDirection } from "../transport/mapper.ts";
-import type { ChatGuid, MessageGuid } from "../types/branded.ts";
-import { chatGuid, messageGuid } from "../types/branded.ts";
-import type {
-  CommandReceipt,
-  Paginated,
-  SendReceipt,
-} from "../types/common.ts";
+import {
+  mapEmbeddedMedia,
+  mapMessage,
+  mapMessageEvent,
+  mapOutgoingMessagePart,
+  mapReplyTarget,
+  mapTextFormatInput,
+} from "../transport/mapper.ts";
+import { normalizeChatGuid } from "../types/chat-guid.ts";
+import type { MessageEffect } from "../types/effects.ts";
 import type { MessageEvent } from "../types/events.ts";
 import type {
-  ComposedMessage,
-  EmbeddedMediaItem,
-  FetchMissedOptions,
+  EmbeddedMedia,
   Message,
-  MessageListOptions,
+  MessageListFilter,
+  MessageListPage,
   MessagePart,
-  MessageStats,
   SendOptions,
-  TextFormatInput,
+  SettableMessageReaction,
+  StickerPlacement,
 } from "../types/messages.ts";
-import type { Reaction } from "../types/reactions.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// biome-ignore lint/suspicious/noEmptyBlockStatements: intentional noop for promise chain suppression
-function noop(): void {}
-
-/**
- * Convert SDK TextFormatInput[] to proto TextFormat[].
- */
-function toProtoFormatting(
-  formatting: readonly TextFormatInput[] | undefined
-): ProtoTextFormat[] {
-  if (!formatting) {
-    return [];
+// Wire enum is the single source of truth for ordinal values; routing through
+// the named constant keeps reorderings in proto from silently misaligning.
+function toReactionKind(
+  reaction: SettableMessageReaction["kind"]
+): MessageReactionKind {
+  switch (reaction) {
+    case "love":
+      return MessageReactionKind.MESSAGE_REACTION_KIND_LOVE;
+    case "like":
+      return MessageReactionKind.MESSAGE_REACTION_KIND_LIKE;
+    case "dislike":
+      return MessageReactionKind.MESSAGE_REACTION_KIND_DISLIKE;
+    case "laugh":
+      return MessageReactionKind.MESSAGE_REACTION_KIND_LAUGH;
+    case "emphasize":
+      return MessageReactionKind.MESSAGE_REACTION_KIND_EMPHASIZE;
+    case "question":
+      return MessageReactionKind.MESSAGE_REACTION_KIND_QUESTION;
+    case "emoji":
+      return MessageReactionKind.MESSAGE_REACTION_KIND_EMOJI;
+    default:
+      throw new TypeError(`Unsupported reaction kind: ${String(reaction)}`);
   }
-  return formatting.map((f) => ({
-    type: f.type,
-    start: f.start,
-    length: f.length,
-    effectName: f.type === "effect" ? f.effect : undefined,
-  }));
 }
 
 /**
- * Convert SDK MessagePart[] to proto MessagePart[].
+ * Message APIs.
+ *
+ * - `sendText(chat, text, options)` sends a text message; supports replies,
+ *   subjects, effects, rich links, data-detector scanning, text formatting,
+ *   and `clientMessageId`.
+ * - `sendAttachment(chat, attachment, options)` sends an uploaded attachment
+ *   by attachment GUID; supports replies, effects, audio-message mode, and
+ *   `clientMessageId`.
+ * - `sendMultipart(chat, parts, options)` sends multiple bubbles atomically;
+ *   parts can contain text, uploaded attachment GUIDs, mentions, formatting,
+ *   and bubble indexes.
+ * - `edit(chat, message, newText, options)` edits an existing message and can
+ *   target a specific multipart bubble with `partIndex`.
+ * - `unsend(chat, message, options)` retracts an existing message and can
+ *   target a specific multipart bubble with `partIndex`.
+ * - `setReaction(chat, message, reaction, isSet, options)` adds or removes a
+ *   tapback / emoji reaction.
+ * - `placeSticker(chat, message, sticker, placement, options)` places an
+ *   uploaded sticker attachment on a message.
+ * - `notifySilenced(chat, message, options)` triggers Apple's Notify Anyway
+ *   action for a Focus-silenced conversation.
+ * - `get(chat, message)` fetches one message inside a known chat.
+ * - `listRecent(filter)` pages through recent messages across chats.
+ * - `listInChat(chat, filter)` pages through messages in one chat.
+ * - `getEmbeddedMedia(chat, message)` downloads Digital Touch / handwritten
+ *   embedded media bytes.
+ * - `subscribeEvents(filter)` streams live message events; use
+ *   `events.catchUp(since)` for disconnect recovery.
  */
-function toProtoMessageParts(
-  parts: readonly MessagePart[]
-): ProtoMessagePart[] {
-  return parts.map((p) => ({
-    text: p.text,
-    attachmentGuid: p.attachmentGuid,
-    attachmentName: p.attachmentName,
-    mention: p.mention,
-    partIndex: p.partIndex,
-    formatting: toProtoFormatting(p.formatting),
-  }));
-}
-
-/**
- * Resolve the replyTo option into proto fields (selectedMessageGuid + partIndex).
- */
-function resolveReplyTo(
-  replyTo: SendOptions["replyTo"]
-): { selectedMessageGuid: string; partIndex: number } | undefined {
-  if (!replyTo) {
-    return undefined;
-  }
-
-  if (typeof replyTo === "string") {
-    return { selectedMessageGuid: replyTo, partIndex: 0 };
-  }
-
-  return {
-    selectedMessageGuid: replyTo.guid,
-    partIndex: replyTo.partIndex ?? 0,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// MessagesResource
-// ---------------------------------------------------------------------------
-
 export class MessagesResource {
   private readonly _client: MessageServiceClient;
-  private readonly _chains = new Map<string, Promise<void>>();
 
   constructor(client: MessageServiceClient) {
     this._client = client;
   }
 
-  // -------------------------------------------------------------------------
-  // Ordering internals
-  // -------------------------------------------------------------------------
-
   /**
-   * Chain a send onto the per-chat promise queue. Sends to the same chat
-   * execute sequentially; different chats proceed concurrently.
+   * Send a plain-text message.
+   *
+   * The returned `Message` is the server's immediate snapshot.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param text - The message body.
    */
-  private _enqueue<T>(chat: ChatGuid, fn: () => Promise<T>): Promise<T> {
-    const prev = this._chains.get(chat) ?? Promise.resolve();
-
-    const task = prev.then(
-      () => fn(),
-      () => fn()
-    );
-
-    const chain = task.then(noop, noop);
-    this._chains.set(chat, chain);
-
-    chain.then(() => {
-      if (this._chains.get(chat) === chain) {
-        this._chains.delete(chat);
-      }
-    });
-
-    return task;
-  }
-
-  // -------------------------------------------------------------------------
-  // Send
-  // -------------------------------------------------------------------------
-
-  /**
-   * Send a plain-text message to a chat (Tier 1 / Tier 2 API).
-   */
-  send(
-    chat: ChatGuid,
+  async sendText(
+    chat: string,
     text: string,
     options?: SendOptions
-  ): Promise<SendReceipt> {
-    return this._enqueue(chat, () => this._doSend(chat, text, options));
-  }
-
-  private async _doSend(
-    chat: ChatGuid,
-    text: string,
-    options?: SendOptions
-  ): Promise<SendReceipt> {
-    const reply = resolveReplyTo(options?.replyTo);
-
-    const request: SendRequest = {
-      chatGuid: chat,
-      message: text,
-      clientMessageId: options?.clientMessageId,
-      subject: options?.subject,
-      effectId: options?.effect,
-      ddScan: options?.ddScan ?? false,
-      richLink: options?.richLink ?? false,
-      attachmentGuid: options?.attachment as string | undefined,
-      isAudioMessage: options?.audioMessage ?? false,
-      isSticker: Boolean(options?.sticker),
-      stickerPlacement: options?.sticker?.placement
-        ? ({
-            x: options.sticker.placement.x,
-            y: options.sticker.placement.y,
-            scale: options.sticker.placement.scale,
-            rotation: options.sticker.placement.rotation,
-            width: options.sticker.placement.width,
-          } satisfies ProtoStickerPlacement)
-        : undefined,
-      selectedMessageGuid:
-        reply?.selectedMessageGuid ??
-        (options?.sticker?.target as string | undefined),
-      partIndex: reply?.partIndex ?? 0,
-      parts: [],
-      formatting: toProtoFormatting(options?.formatting),
-    };
-
+  ): Promise<Message> {
     try {
-      const response = await this._client.send(request);
-      const receipt = unwrap(response.receipt, "receipt");
-      return {
-        guid: messageGuid(receipt.guid),
-        clientMessageId: receipt.clientMessageId,
-      };
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Send a multi-part message (Tier 2.5 API).
-   *
-   * Like `send()` but accepts an array of `MessagePart` objects instead of
-   * a single text string. Formatting is specified per-part rather than at
-   * the top level.
-   */
-  sendMultipart(
-    chat: ChatGuid,
-    parts: MessagePart[],
-    options?: Omit<SendOptions, "formatting">
-  ): Promise<SendReceipt> {
-    return this._enqueue(chat, () =>
-      this._doSendMultipart(chat, parts, options)
-    );
-  }
-
-  private async _doSendMultipart(
-    chat: ChatGuid,
-    parts: MessagePart[],
-    options?: Omit<SendOptions, "formatting">
-  ): Promise<SendReceipt> {
-    const reply = resolveReplyTo(options?.replyTo);
-
-    const request: SendRequest = {
-      chatGuid: chat,
-      clientMessageId: options?.clientMessageId,
-      subject: options?.subject,
-      effectId: options?.effect,
-      ddScan: options?.ddScan ?? false,
-      richLink: options?.richLink ?? false,
-      attachmentGuid: options?.attachment as string | undefined,
-      isAudioMessage: options?.audioMessage ?? false,
-      isSticker: Boolean(options?.sticker),
-      stickerPlacement: options?.sticker?.placement
-        ? ({
-            x: options.sticker.placement.x,
-            y: options.sticker.placement.y,
-            scale: options.sticker.placement.scale,
-            rotation: options.sticker.placement.rotation,
-            width: options.sticker.placement.width,
-          } satisfies ProtoStickerPlacement)
-        : undefined,
-      selectedMessageGuid:
-        reply?.selectedMessageGuid ??
-        (options?.sticker?.target as string | undefined),
-      partIndex: reply?.partIndex ?? 0,
-      parts: toProtoMessageParts(parts),
-      formatting: [],
-    };
-
-    try {
-      const response = await this._client.send(request);
-      const receipt = unwrap(response.receipt, "receipt");
-      return {
-        guid: messageGuid(receipt.guid),
-        clientMessageId: receipt.clientMessageId,
-      };
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Send a fully composed message (Tier 3 API).
-   *
-   * Accepts a `ComposedMessage` typically produced by `MessageBuilder`.
-   */
-  sendComposed(chat: ChatGuid, message: ComposedMessage): Promise<SendReceipt> {
-    return this._enqueue(chat, () => this._doSendComposed(chat, message));
-  }
-
-  private async _doSendComposed(
-    chat: ChatGuid,
-    message: ComposedMessage
-  ): Promise<SendReceipt> {
-    const reply = resolveReplyTo(message.replyTo);
-
-    const request: SendRequest = {
-      chatGuid: chat,
-      subject: message.subject,
-      effectId: message.effect,
-      ddScan: false,
-      richLink: false,
-      isAudioMessage: false,
-      isSticker: false,
-      selectedMessageGuid: reply?.selectedMessageGuid,
-      partIndex: reply?.partIndex ?? 0,
-      parts: toProtoMessageParts(message.parts),
-      formatting: [],
-    };
-
-    try {
-      const response = await this._client.send(request);
-      const receipt = unwrap(response.receipt, "receipt");
-      return {
-        guid: messageGuid(receipt.guid),
-        clientMessageId: receipt.clientMessageId,
-      };
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Reactions
-  // -------------------------------------------------------------------------
-
-  /**
-   * Send a tapback reaction to a message.
-   */
-  async react(
-    chat: ChatGuid,
-    message: MessageGuid,
-    reaction: Reaction,
-    options?: { partIndex?: number }
-  ): Promise<CommandReceipt> {
-    try {
-      const response = await this._client.sendReaction({
-        chatGuid: chat,
-        messageGuid: message,
-        reaction,
-        partIndex: options?.partIndex ?? 0,
+      const response = await this._client.sendTextMessage({
+        chatGuid: normalizeChatGuid(chat),
+        text,
+        replyTo: mapReplyTarget(options?.replyTo),
+        subject: options?.subject,
+        effectId: options?.effect,
+        enableDataDetection: options?.enableDataDetection,
+        enableLinkPreview: options?.enableLinkPreview,
+        formatting: (options?.formatting ?? []).map(mapTextFormatInput),
+        clientMessageId: options?.clientMessageId,
       });
-      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Send an emoji reaction to a message (iOS 17+).
-   */
-  async reactEmoji(
-    chat: ChatGuid,
-    message: MessageGuid,
-    emoji: string,
-    options?: { partIndex?: number }
-  ): Promise<CommandReceipt> {
-    try {
-      const response = await this._client.sendReaction({
-        chatGuid: chat,
-        messageGuid: message,
-        reaction: "emoji",
-        partIndex: options?.partIndex ?? 0,
-        emoji,
-      });
-      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Remove a previously sent tapback reaction.
-   *
-   * The server uses a `-` prefix convention to indicate removal.
-   */
-  async unreact(
-    chat: ChatGuid,
-    message: MessageGuid,
-    reaction: Reaction,
-    options?: { partIndex?: number }
-  ): Promise<CommandReceipt> {
-    try {
-      const response = await this._client.sendReaction({
-        chatGuid: chat,
-        messageGuid: message,
-        reaction: `-${reaction}`,
-        partIndex: options?.partIndex ?? 0,
-      });
-      return { guid: messageGuid(unwrap(response.receipt, "receipt").guid) };
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Edit / Unsend
-  // -------------------------------------------------------------------------
-
-  /**
-   * Edit the text of a previously sent message.
-   */
-  async edit(
-    chat: ChatGuid,
-    message: MessageGuid,
-    newText: string,
-    options?: { backwardCompatText?: string; partIndex?: number }
-  ): Promise<void> {
-    try {
-      await this._client.editMessage({
-        chatGuid: chat,
-        messageGuid: message,
-        newText,
-        backwardCompatText: options?.backwardCompatText,
-        partIndex: options?.partIndex ?? 0,
-      });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Unsend (retract) a previously sent message.
-   */
-  async unsend(
-    chat: ChatGuid,
-    message: MessageGuid,
-    options?: { partIndex?: number }
-  ): Promise<void> {
-    try {
-      await this._client.unsendMessage({
-        chatGuid: chat,
-        messageGuid: message,
-        partIndex: options?.partIndex ?? 0,
-      });
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Query
-  // -------------------------------------------------------------------------
-
-  /**
-   * Retrieve a single message by GUID.
-   */
-  async get(guid: MessageGuid): Promise<Message> {
-    try {
-      const response = await this._client.getMessage({ guid });
       return mapMessage(unwrap(response.message, "message"));
     } catch (err) {
       throw fromGrpcError(err);
@@ -442,218 +120,355 @@ export class MessagesResource {
   }
 
   /**
-   * List messages with Stripe-style auto-pagination.
+   * Send a previously uploaded attachment as a message.
    *
-   * Returns a `Paginated<Message>` that is both `await`able (first page) and
-   * `for await`able (all items across pages).
+   * The returned `Message` is the server's immediate snapshot.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param attachment - Attachment guid returned by `attachments.upload(...)`.
    */
-  list(options?: MessageListOptions): Paginated<Message> {
-    return createPaginated(
-      async (offset, limit) => {
-        try {
-          const response = await this._client.listMessages({
-            chatGuid: options?.chatGuid as string | undefined,
-            before: options?.before,
-            after: options?.after,
-            sort: options?.sort
-              ? mapSortDirection(options.sort)
-              : ProtoSortDirection.SORT_DIRECTION_UNSPECIFIED,
-            limit,
-            offset,
-            withChats: options?.withChats ?? false,
-            withAttachments: options?.withAttachments ?? false,
-            afterCursor: options?.afterCursor
-              ? { value: options.afterCursor }
-              : undefined,
-          });
-
-          const meta = response.meta ?? { total: 0, offset: 0, limit };
-
-          return {
-            data: response.messages.map(mapMessage),
-            meta: {
-              total: meta.total,
-              offset: meta.offset,
-              limit: meta.limit,
-            },
-          };
-        } catch (err) {
-          throw fromGrpcError(err);
-        }
-      },
-      { limit: options?.limit, offset: options?.offset }
-    );
-  }
-
-  /**
-   * Fetch messages missed during a disconnect, using a cursor obtained from
-   * a previous `subscribe()` event.
-   *
-   * This is the recommended way to catch up after a stream disconnection.
-   * Results are ordered chronologically (ascending by ROWID) so they can
-   * be replayed in order.
-   *
-   * @example
-   * ```ts
-   * let cursor = loadPersistedCursor();
-   *
-   * // Catch up on missed messages
-   * if (cursor) {
-   *   for await (const msg of client.messages.fetchMissed(cursor)) {
-   *     processMissedMessage(msg);
-   *   }
-   * }
-   *
-   * // Resume live stream
-   * for await (const event of client.messages.subscribe()) {
-   *   if (event.cursor) cursor = event.cursor;
-   *   processEvent(event);
-   * }
-   * ```
-   */
-  fetchMissed(
-    cursor: string,
-    options?: FetchMissedOptions
-  ): Paginated<Message> {
-    return this.list({
-      afterCursor: cursor,
-      chatGuid: options?.chatGuid,
-      limit: options?.limit,
-      withChats: true,
-      withAttachments: true,
-    });
-  }
-
-  /**
-   * Get aggregate message statistics (total, sent, received).
-   */
-  async stats(): Promise<MessageStats> {
+  async sendAttachment(
+    chat: string,
+    attachment: string,
+    options?: {
+      readonly clientMessageId?: string;
+      readonly effect?: MessageEffect;
+      readonly isAudioMessage?: boolean;
+      readonly replyTo?: SendOptions["replyTo"];
+    }
+  ): Promise<Message> {
     try {
-      const response = await this._client.getMessageStats({});
+      const response = await this._client.sendAttachmentMessage({
+        chatGuid: normalizeChatGuid(chat),
+        attachment: { attachmentGuid: attachment },
+        replyTo: mapReplyTarget(options?.replyTo),
+        effectId: options?.effect,
+        isAudioMessage: options?.isAudioMessage,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMessage(unwrap(response.message, "message"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Send a multi-part message (interleaved text, attachments, mentions).
+   *
+   * The returned `Message` is the server's immediate snapshot.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   */
+  async sendMultipart(
+    chat: string,
+    parts: readonly MessagePart[],
+    options?: {
+      readonly clientMessageId?: string;
+      readonly enableDataDetection?: boolean;
+      readonly effect?: MessageEffect;
+      readonly replyTo?: SendOptions["replyTo"];
+      readonly subject?: string;
+    }
+  ): Promise<Message> {
+    try {
+      const response = await this._client.sendMultipartMessage({
+        chatGuid: normalizeChatGuid(chat),
+        parts: parts.map(mapOutgoingMessagePart),
+        replyTo: mapReplyTarget(options?.replyTo),
+        subject: options?.subject,
+        effectId: options?.effect,
+        enableDataDetection: options?.enableDataDetection,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMessage(unwrap(response.message, "message"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Edit an already-sent message (within Apple's 15-minute edit window).
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param message - Guid of the message to edit (`message.guid`).
+   * @param options.backwardCompatText - Server-defined plain-text edit body
+   *   used when rich edit rendering is unavailable.
+   */
+  async edit(
+    chat: string,
+    message: string,
+    newText: string,
+    options?: {
+      readonly backwardCompatText?: string;
+      readonly clientMessageId?: string;
+      readonly partIndex?: number;
+    }
+  ): Promise<Message> {
+    try {
+      const response = await this._client.editMessage({
+        target: {
+          chatGuid: normalizeChatGuid(chat),
+          messageGuid: message,
+          targetPartIndex: options?.partIndex,
+        },
+        newText,
+        backwardCompatText: options?.backwardCompatText,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMessage(unwrap(response.message, "message"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Retract (un-send) a message, within Apple's 2-minute window.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param message - Guid of the message to retract (`message.guid`).
+   */
+  async unsend(
+    chat: string,
+    message: string,
+    options?: { readonly clientMessageId?: string; readonly partIndex?: number }
+  ): Promise<void> {
+    try {
+      await this._client.unsendMessage({
+        target: {
+          chatGuid: normalizeChatGuid(chat),
+          messageGuid: message,
+          targetPartIndex: options?.partIndex,
+        },
+        clientMessageId: options?.clientMessageId,
+      });
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Add or remove a tapback reaction on a message.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param message - Guid of the target message (`message.guid`).
+   */
+  async setReaction(
+    chat: string,
+    message: string,
+    reaction: SettableMessageReaction,
+    isSet: boolean,
+    options?: { readonly clientMessageId?: string; readonly partIndex?: number }
+  ): Promise<Message> {
+    try {
+      const response = await this._client.setReaction({
+        target: {
+          chatGuid: normalizeChatGuid(chat),
+          messageGuid: message,
+          targetPartIndex: options?.partIndex,
+        },
+        reaction: {
+          kind: toReactionKind(reaction.kind),
+          emoji: reaction.emoji,
+        },
+        isSet,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMessage(unwrap(response.message, "message"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Place a sticker on a message.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param message - Guid of the target message.
+   * @param sticker - Attachment guid of an uploaded sticker image.
+   */
+  async placeSticker(
+    chat: string,
+    message: string,
+    sticker: string,
+    placement: StickerPlacement,
+    options?: { readonly clientMessageId?: string; readonly partIndex?: number }
+  ): Promise<Message> {
+    try {
+      const response = await this._client.placeSticker({
+        target: {
+          chatGuid: normalizeChatGuid(chat),
+          messageGuid: message,
+          targetPartIndex: options?.partIndex,
+        },
+        sticker: { attachmentGuid: sticker },
+        placement,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMessage(unwrap(response.message, "message"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Tell the recipient that a notify-silenced (Focus / Do Not Disturb) bypass
+   * was attempted for `message`.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param message - Guid of the message that triggered the silence.
+   */
+  async notifySilenced(
+    chat: string,
+    message: string,
+    options?: { readonly clientMessageId?: string }
+  ): Promise<void> {
+    try {
+      await this._client.notifySilencedMessage({
+        chatGuid: normalizeChatGuid(chat),
+        messageGuid: message,
+        clientMessageId: options?.clientMessageId,
+      });
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Fetch a single message by its guid within a known chat.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param message - Guid of the message to fetch (`message.guid`).
+   */
+  async get(chat: string, message: string): Promise<Message> {
+    try {
+      const response = await this._client.getMessage({
+        chatGuid: normalizeChatGuid(chat),
+        messageGuid: message,
+      });
+      return mapMessage(unwrap(response.message, "message"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * List recent messages across all chats.
+   *
+   * `options.pageSize`, when provided, must be between `1` and `100`
+   * inclusive.
+   */
+  async listRecent(options?: MessageListFilter): Promise<MessageListPage> {
+    try {
+      const response = await this._client.listRecentMessages({
+        pageSize: options?.pageSize,
+        pageToken: options?.pageToken,
+        isFromMe: options?.isFromMe,
+        isRead: options?.isRead,
+        before: options?.before,
+        after: options?.after,
+      });
       return {
-        total: response.total,
-        sent: response.sent,
-        received: response.received,
+        messages: response.messages.map(mapMessage),
+        nextPageToken: response.nextPageToken,
       };
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Miscellaneous
-  // -------------------------------------------------------------------------
-
   /**
-   * Notify the sender that their silenced message has been seen.
+   * List recent messages within a single chat.
+   *
+   * `options.pageSize`, when provided, must be between `1` and `100`
+   * inclusive.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
    */
-  async notifySilenced(chat: ChatGuid, message: MessageGuid): Promise<void> {
+  async listInChat(
+    chat: string,
+    options?: MessageListFilter
+  ): Promise<MessageListPage> {
     try {
-      await this._client.notifySilenced({
-        chatGuid: chat,
-        messageGuid: message,
+      const response = await this._client.listChatMessages({
+        chatGuid: normalizeChatGuid(chat),
+        pageSize: options?.pageSize,
+        pageToken: options?.pageToken,
+        isFromMe: options?.isFromMe,
+        isRead: options?.isRead,
+        before: options?.before,
+        after: options?.after,
       });
+      return {
+        messages: response.messages.map(mapMessage),
+        nextPageToken: response.nextPageToken,
+      };
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
   /**
-   * Extract embedded media items from a rich message (e.g. link preview
-   * images).
+   * Fetch embedded media bytes for a supported Digital Touch or handwritten
+   * message.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param message - Guid of the bubble whose media you want.
    */
   async getEmbeddedMedia(
-    chat: ChatGuid,
-    message: MessageGuid
-  ): Promise<EmbeddedMediaItem[]> {
+    chat: string,
+    message: string
+  ): Promise<EmbeddedMedia> {
     try {
       const response = await this._client.getEmbeddedMedia({
-        chatGuid: chat,
+        chatGuid: normalizeChatGuid(chat),
         messageGuid: message,
       });
-      return response.items.map((item) => ({
-        data: item.data,
-        mimeType: item.mimeType,
-      }));
+      return mapEmbeddedMedia(unwrap(response.media, "media"));
     } catch (err) {
       throw fromGrpcError(err);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Event subscription
-  // -------------------------------------------------------------------------
-
   /**
-   * Subscribe to all message events.
+   * Subscribe to message-level events (received / edited / read / unsent /
+   * reaction / sticker).
+   *
+   * Use the write response as the authoritative result for the mutation you
+   * just issued.
+   *
+   * Pass `filter.chat` to scope the stream to a single chat.
    */
-  subscribe(): TypedEventStream<MessageEvent>;
-  /**
-   * Subscribe to a specific type of message event. The returned stream is
-   * narrowed to only that event type.
-   */
-  subscribe<T extends MessageEvent["type"]>(
-    type: T
-  ): TypedEventStream<Extract<MessageEvent, { type: T }>>;
-  subscribe(type?: MessageEvent["type"]): TypedEventStream<MessageEvent> {
-    const rpcStream = this._client.subscribeMessageEvents({});
+  subscribeEvents(filter?: { chat?: string }): TypedEventStream<MessageEvent> {
+    const rpcStream = this._client.subscribeMessageEvents({
+      chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
+    });
 
     async function* mapEvents(): AsyncGenerator<MessageEvent> {
       try {
-        for await (const proto of rpcStream) {
-          const timestamp = proto.timestamp ?? new Date();
-          const cursor = proto.cursor?.value || undefined;
-
-          if (proto.messageSent !== undefined) {
-            const evt: MessageSentEvent = proto.messageSent;
-            yield {
-              type: "message.sent" as const,
-              timestamp,
-              message: mapMessage(unwrap(evt.message, "message")),
-              clientMessageId: evt.clientMessageId,
-              chatGuid: chatGuid(evt.chatGuid),
-              cursor,
-            };
-          } else if (proto.messageReceived !== undefined) {
-            const evt: MessageReceivedEvent = proto.messageReceived;
-            yield {
-              type: "message.received" as const,
-              timestamp,
-              message: mapMessage(unwrap(evt.message, "message")),
-              chatGuid: chatGuid(evt.chatGuid),
-              cursor,
-            };
-          } else if (proto.messageUpdated !== undefined) {
-            const evt: MessageUpdatedEvent = proto.messageUpdated;
-            yield {
-              type: "message.updated" as const,
-              timestamp,
-              message: mapMessage(unwrap(evt.message, "message")),
-              updateType: evt.updateType as
-                | "edited"
-                | "unsent"
-                | "notified"
-                | "reaction",
-              chatGuid: chatGuid(evt.chatGuid),
-              cursor,
-            };
+        for await (const frame of rpcStream) {
+          if (frame.sequence === undefined || !frame.messageChanged) {
+            continue;
           }
-          // Unknown payload kinds (including heartbeat) are silently skipped.
+          const event = mapMessageEvent(frame.sequence, frame.messageChanged);
+          if (event) {
+            yield event;
+          }
         }
       } catch (err) {
         throw fromGrpcError(err);
       }
     }
 
-    const stream = new TypedEventStream<MessageEvent>(mapEvents());
-
-    if (type) {
-      return stream.filter(
-        (e): e is Extract<MessageEvent, { type: typeof type }> =>
-          e.type === type
-      );
-    }
-
-    return stream;
+    return new TypedEventStream(mapEvents());
   }
 }

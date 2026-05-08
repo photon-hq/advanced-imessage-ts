@@ -1,136 +1,185 @@
 syntax = "proto3";
+
 package photon.imessage.v1;
+
+import "photon/imessage/v1/chat_types.proto";
+import "google/protobuf/empty.proto";
+import "photon/imessage/v1/group_types.proto";
+import "photon/imessage/v1/streaming.proto";
 
 option swift_prefix = "PIMsg_";
 
-import "google/protobuf/timestamp.proto";
-import "photon/imessage/v1/common.proto";
-import "photon/imessage/v1/chat_service.proto";
 
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
 
+// Group-chat administration plus a durable event stream.
 service GroupService {
+
+  // Writes
   rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
-  rpc AddParticipant(AddParticipantRequest) returns (AddParticipantResponse);
-  rpc RemoveParticipant(RemoveParticipantRequest) returns (RemoveParticipantResponse);
-  rpc SetIcon(SetIconRequest) returns (SetIconResponse);
+
+  rpc AddParticipants(AddParticipantsRequest) returns (AddParticipantsResponse);
+
+  rpc RemoveParticipants(RemoveParticipantsRequest) returns (RemoveParticipantsResponse);
+
+  // Local user voluntarily leaves the group. The chat ceases to be
+  // visible from this device, hence no Chat snapshot.
+  rpc LeaveGroup(LeaveGroupRequest) returns (google.protobuf.Empty);
+
+  rpc SetIcon(SetIconRequest) returns (google.protobuf.Empty);
+
+  rpc RemoveIcon(RemoveIconRequest) returns (google.protobuf.Empty);
+
+  // Reads
   rpc GetIcon(GetIconRequest) returns (GetIconResponse);
-  rpc RemoveIcon(RemoveIconRequest) returns (RemoveIconResponse);
-  rpc SetBackground(SetBackgroundRequest) returns (SetBackgroundResponse);
-  rpc GetBackground(GetBackgroundRequest) returns (GetBackgroundResponse);
-  rpc RemoveBackground(RemoveBackgroundRequest) returns (RemoveBackgroundResponse);
-  rpc SubscribeGroupEvents(SubscribeGroupEventsRequest) returns (stream SubscribeGroupEventsResponse);
+
+  // Streams
+  rpc SubscribeGroupEvents(SubscribeGroupEventsRequest)
+      returns (stream SubscribeGroupEventsResponse);
+
 }
 
+
 // ---------------------------------------------------------------------------
-// Request / Response messages
+// Writes
 // ---------------------------------------------------------------------------
 
 message SetDisplayNameRequest {
+
   string chat_guid = 1;
-  string name = 2;
+
+  string display_name = 2;
+
+  optional string client_message_id = 100;
+
 }
+
 
 message SetDisplayNameResponse {
+
   Chat chat = 1;
+
 }
 
-message AddParticipantRequest {
+
+// Adds one or more participants. An empty `addresses` list
+// is rejected with `INVALID_ARGUMENT`.
+message AddParticipantsRequest {
+
   string chat_guid = 1;
-  string address = 2;
+
+  repeated string addresses = 2;
+
+  optional string client_message_id = 100;
+
 }
 
-message AddParticipantResponse {
+
+message AddParticipantsResponse {
+
   Chat chat = 1;
+
 }
 
-message RemoveParticipantRequest {
+
+// Removes one or more participants. An empty `addresses`
+// list is rejected with `INVALID_ARGUMENT`.
+message RemoveParticipantsRequest {
+
   string chat_guid = 1;
-  string address = 2;
+
+  repeated string addresses = 2;
+
+  optional string client_message_id = 100;
+
 }
 
-message RemoveParticipantResponse {
+
+message RemoveParticipantsResponse {
+
   Chat chat = 1;
+
 }
+
+
+message LeaveGroupRequest {
+
+  string chat_guid = 1;
+
+  optional string client_message_id = 100;
+
+}
+
 
 message SetIconRequest {
+
   string chat_guid = 1;
+
+  // Server infers MIME type and file extension from `data`.
   bytes data = 2;
+
+  optional string client_message_id = 100;
+
 }
 
-message SetIconResponse {}
-
-message GetIconRequest {
-  string chat_guid = 1;
-}
-
-message GetIconResponse {
-  optional bytes data = 1;
-}
 
 message RemoveIconRequest {
+
   string chat_guid = 1;
+
+  optional string client_message_id = 100;
+
 }
 
-message RemoveIconResponse {}
-
-message SetBackgroundRequest {
-  string chat_guid = 1;
-  bytes data = 2;
-}
-
-message SetBackgroundResponse {
-  optional string channel_guid = 1;
-  optional string image_url = 2;
-  optional string background_id = 3;
-}
-
-message GetBackgroundRequest {
-  string chat_guid = 1;
-}
-
-message GetBackgroundResponse {
-  optional string channel_guid = 1;
-  optional string image_url = 2;
-  optional string background_id = 3;
-}
-
-message RemoveBackgroundRequest {
-  string chat_guid = 1;
-}
-
-message RemoveBackgroundResponse {}
 
 // ---------------------------------------------------------------------------
-// Event streaming
+// Reads
 // ---------------------------------------------------------------------------
 
-message SubscribeGroupEventsRequest {}
+message GetIconRequest {
+
+  string chat_guid = 1;
+
+}
+
+
+message GetIconResponse {
+
+  bytes data = 1;
+
+  // MIME type of `data`. Always set on success; a missing icon returns
+  // `NOT_FOUND` instead of an empty payload.
+  string mime_type = 2;
+
+}
+
+
+// ---------------------------------------------------------------------------
+// Streams
+// ---------------------------------------------------------------------------
+
+message SubscribeGroupEventsRequest {
+
+  // Absent = subscribe to every group chat the caller can observe.
+  optional string chat_guid = 1;
+
+}
+
 
 message SubscribeGroupEventsResponse {
-  google.protobuf.Timestamp timestamp = 1;
+
+  // Monotonic global sequence shared with `EventService.CatchUpEvents`
+  // and every other `Subscribe*` stream. Absent on heartbeat frames.
+  optional uint64 sequence = 1;
+
   oneof payload {
+
     GroupChangeEvent group_changed = 10;
+
     Heartbeat heartbeat = 99;
-  }
-}
 
-message IconChanged {}
-message IconRemoved {}
-message BackgroundChanged {}
-message BackgroundRemoved {}
-
-message GroupChangeEvent {
-  string chat_guid = 1;
-  oneof change {
-    string renamed_to = 10;
-    string participant_added = 11;
-    string participant_removed = 12;
-    IconChanged icon_changed = 13;
-    IconRemoved icon_removed = 14;
-    BackgroundChanged background_changed = 15;
-    BackgroundRemoved background_removed = 16;
   }
+
 }

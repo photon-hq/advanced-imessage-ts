@@ -2,11 +2,13 @@
  * Factory that converts a gRPC error into the appropriate {@link IMessageError}
  * subclass.
  *
- * The mapping relies on two pieces of information carried in gRPC trailing
+ * The mapping relies on three pieces of information carried in gRPC trailing
  * metadata:
  *
- * - `error-code`  -- the canonical {@link ErrorCode} string set by the server.
+ * - `error-code` -- the canonical {@link ErrorCode} string set by the server.
  * - `x-retryable` -- `"true"` if the caller should retry, absent otherwise.
+ * - `error-context-*` -- structured context values surfaced on
+ *   {@link IMessageError.context}.
  *
  * The gRPC status code determines which subclass is instantiated:
  *
@@ -22,7 +24,10 @@
 
 import { ClientError, Status } from "nice-grpc-common";
 import type { ErrorCode } from "../types/errors.ts";
-import { readMetadataValue } from "../utils/grpc-metadata.ts";
+import {
+  readMetadataPrefixedEntries,
+  readMetadataValue,
+} from "../utils/grpc-metadata.ts";
 import {
   AuthenticationError,
   ConnectionError,
@@ -44,7 +49,10 @@ import {
  * `IMessageError` with a generic `internalError` code.
  */
 export function fromGrpcError(error: unknown): IMessageError {
-  // ----- Extract fields from a nice-grpc ClientError -----------------------
+  if (error instanceof IMessageError) {
+    return error;
+  }
+
   const isClientError = error instanceof ClientError;
 
   let grpcCode: number;
@@ -70,19 +78,18 @@ export function fromGrpcError(error: unknown): IMessageError {
   const errorCode =
     (readMetadataValue(error, "error-code") as ErrorCode | undefined) ??
     ("internalError" as ErrorCode);
-
   const retryable = readMetadataValue(error, "x-retryable") === "true";
-
+  const context = readMetadataPrefixedEntries(error, "error-context-");
   const cause = error instanceof Error ? error : undefined;
 
   const options: IMessageErrorOptions = {
     code: errorCode,
+    context,
     retryable,
     grpcCode,
     cause,
   };
 
-  // ----- Map gRPC status to the right subclass -----------------------------
   switch (grpcCode) {
     case Status.UNAUTHENTICATED:
     case Status.PERMISSION_DENIED:

@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package photon.imessage.v1;
+
+option swift_prefix = "PIMsg_";
+
+
+// Mirrors chat.db `attachment.transfer_state` (Apple `IMTransferState`); wire
+// values equal DB values, gaps included. Zero is `PENDING`, not
+// `UNSPECIFIED`; the server always populates this field.
+enum TransferState {
+
+  TRANSFER_STATE_PENDING = 0;
+  TRANSFER_STATE_UNAVAILABLE = -1;
+  TRANSFER_STATE_TRANSFERRING = 1;
+  TRANSFER_STATE_FAILED = 2;
+  TRANSFER_STATE_FINISHED = 5;
+  TRANSFER_STATE_UNKNOWN = 6;
+
+}
+
+
+// Sidecar attachment kind. Today only Live Photo's `.mov` companion is
+// modelled.
+enum CompanionKind {
+
+  COMPANION_KIND_UNSPECIFIED = 0;
+  COMPANION_KIND_LIVE_PHOTO_VIDEO = 1;
+
+}
+
+
+message AttachmentInfo {
+
+  string guid = 1;
+
+  // Set on attachments superseded by an edit. Points to the original
+  // attachment GUID this row replaced.
+  optional string original_guid = 2;
+
+  string file_name = 3;
+
+  string mime_type = 4;
+
+  // Apple Uniform Type Identifier (e.g. `public.jpeg`, `com.apple.live-photo`).
+  string uti = 5;
+
+  int64 total_bytes = 6;
+
+  bool is_outgoing = 7;
+
+  TransferState transfer_state = 8;
+
+  // Mirrors chat.db `attachment.hide_attachment`. `true` when the
+  // attachment is hidden from the conversation surface (e.g. tapback
+  // sticker artifacts).
+  bool is_hidden = 9;
+
+  bool is_sticker = 10;
+
+  // Set iff this attachment ships with a sidecar; the server never emits
+  // `COMPANION_KIND_UNSPECIFIED`.
+  optional CompanionKind companion_kind = 11;
+
+}
+
+
+message CompanionInfo {
+
+  string file_name = 1;
+
+  string mime_type = 2;
+
+  int64 total_bytes = 3;
+
+  CompanionKind kind = 4;
+
+}
+
+
+// Inline-bytes companion sent on upload. The on-disk file name is derived
+// from the primary's stem plus an extension determined by `kind`.
+message Companion {
+
+  bytes data = 1;
+
+  CompanionKind kind = 2;
+
+}

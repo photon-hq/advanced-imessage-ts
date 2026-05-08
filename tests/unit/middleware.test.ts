@@ -16,11 +16,16 @@ import {
   Status,
 } from "nice-grpc-common";
 import {
+  idempotencyMiddleware,
   retryMiddleware,
   timeoutMiddleware,
   trailingMetadataCaptureMiddleware,
 } from "../../src/transport/metadata.ts";
 import type { RetryOptions } from "../../src/types/common.ts";
+import {
+  readMetadataPrefixedEntries,
+  readMetadataValue,
+} from "../../src/utils/grpc-metadata.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers — mock the nice-grpc middleware call/next interface
@@ -96,11 +101,7 @@ function errorWithMetadata(
 ): ClientError {
   const err = new ClientError("/test.Service/Unary", code, details);
   Object.defineProperty(err, "metadata", {
-    value: {
-      get(key: string): unknown[] {
-        return key in meta ? [meta[key]] : [];
-      },
-    },
+    value: Metadata(meta),
     writable: true,
     configurable: true,
   });
@@ -137,11 +138,41 @@ describe("trailingMetadataCaptureMiddleware", () => {
       throw new Error("should have thrown");
     } catch (err: any) {
       expect(err).toBeInstanceOf(ClientError);
-      // Metadata adapter should be attached
+      // Original metadata should be attached.
       expect(err.metadata).toBeDefined();
-      expect(err.metadata.get("error-code")).toEqual(["chatNotFound"]);
-      expect(err.metadata.get("x-retryable")).toEqual(["true"]);
-      expect(err.metadata.get("nonexistent")).toEqual([]);
+      expect(readMetadataValue(err, "error-code")).toBe("chatNotFound");
+      expect(readMetadataValue(err, "x-retryable")).toBe("true");
+      expect(readMetadataValue(err, "nonexistent")).toBeUndefined();
+    }
+  });
+
+  it("preserves metadata iteration for error-context parsing", async () => {
+    const mw = trailingMetadataCaptureMiddleware();
+
+    const handler = async (_req: unknown, opts: CallOptions) => {
+      const trailer = Metadata();
+      trailer.set("error-code", "invalidArgument");
+      trailer.set("error-context-field", "address");
+      trailer.set("error-context-value", "foo@bar");
+      opts.onTrailer?.(trailer);
+      throw new ClientError(
+        "/test.Service/Unary",
+        Status.INVALID_ARGUMENT,
+        "address must be valid"
+      );
+    };
+
+    const call = buildCall(UNARY_METHOD, {}, handler);
+    const gen = mw(call as any, {});
+
+    try {
+      await drain(gen);
+      throw new Error("should have thrown");
+    } catch (err: any) {
+      expect(readMetadataPrefixedEntries(err, "error-context-")).toEqual({
+        field: "address",
+        value: "foo@bar",
+      });
     }
   });
 
@@ -186,6 +217,84 @@ describe("trailingMetadataCaptureMiddleware", () => {
     const result = await drain(gen);
 
     expect(result).toBe("ok");
+  });
+});
+
+// =========================================================================
+// idempotencyMiddleware
+// =========================================================================
+
+describe("idempotencyMiddleware", () => {
+  it("adds x-idempotency-key only to mutating RPCs from the server contract", async () => {
+    const mw = idempotencyMiddleware();
+    let receivedMetadata: Metadata | undefined;
+
+    const handler = async (_req: unknown, opts: CallOptions) => {
+      receivedMetadata = opts.metadata as Metadata | undefined;
+      return "ok";
+    };
+
+    const call = buildCall(
+      {
+        ...UNARY_METHOD,
+        path: "/photon.imessage.v1.MessageService/SendTextMessage",
+      },
+      {},
+      handler
+    );
+    const gen = mw(call as any, {});
+    const result = await drain(gen);
+
+    expect(result).toBe("ok");
+    expect(receivedMetadata?.get("x-idempotency-key")).toHaveLength(36);
+  });
+
+  it("does not add x-idempotency-key to catch-up streams", async () => {
+    const mw = idempotencyMiddleware();
+    let receivedMetadata: Metadata | undefined;
+
+    const handler = async (_req: unknown, opts: CallOptions) => {
+      receivedMetadata = opts.metadata as Metadata | undefined;
+      return "ok";
+    };
+
+    const call = buildCall(
+      {
+        ...SERVER_STREAM_METHOD,
+        path: "/photon.imessage.v1.EventService/CatchUpEvents",
+      },
+      {},
+      handler
+    );
+    const gen = mw(call as any, {});
+    const result = await drain(gen);
+
+    expect(result).toBe("ok");
+    expect(receivedMetadata?.get("x-idempotency-key") ?? []).toHaveLength(0);
+  });
+
+  it("does not add x-idempotency-key to location watch streams", async () => {
+    const mw = idempotencyMiddleware();
+    let receivedMetadata: Metadata | undefined;
+
+    const handler = async (_req: unknown, opts: CallOptions) => {
+      receivedMetadata = opts.metadata as Metadata | undefined;
+      return "ok";
+    };
+
+    const call = buildCall(
+      {
+        ...SERVER_STREAM_METHOD,
+        path: "/photon.imessage.v1.LocationService/WatchSharedFriendLocations",
+      },
+      {},
+      handler
+    );
+    const gen = mw(call as any, {});
+    const result = await drain(gen);
+
+    expect(result).toBe("ok");
+    expect(receivedMetadata?.get("x-idempotency-key") ?? []).toHaveLength(0);
   });
 });
 
