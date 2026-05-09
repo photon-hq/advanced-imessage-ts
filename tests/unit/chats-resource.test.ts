@@ -70,6 +70,34 @@ describe("ChatsResource", () => {
     });
   });
 
+  it("validates createChat message type before calling transport", async () => {
+    let called = false;
+    const resource = new ChatsResource({
+      async createChat() {
+        called = true;
+        throw new Error("transport should not be called");
+      },
+    } as any);
+
+    await expect(
+      resource.create(["alice@example.com"], { message: null as any })
+    ).rejects.toMatchObject({
+      code: "invalidArgument",
+      context: { field: "message", value: "null" },
+      name: "ValidationError",
+    });
+
+    await expect(
+      resource.create(["alice@example.com"], { message: 123 as any })
+    ).rejects.toMatchObject({
+      code: "invalidArgument",
+      context: { field: "message", value: "123" },
+      name: "ValidationError",
+    });
+
+    expect(called).toBe(false);
+  });
+
   it("validates get chat input before calling transport", async () => {
     let called = false;
     const resource = new ChatsResource({

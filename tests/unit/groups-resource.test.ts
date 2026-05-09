@@ -125,6 +125,26 @@ describe("GroupsResource", () => {
     expect(called).toBe(false);
   });
 
+  it("validates sparse participant address arrays before calling transport", async () => {
+    let called = false;
+    const resource = new GroupsResource({
+      async addParticipants() {
+        called = true;
+        throw new Error("transport should not be called");
+      },
+    } as any);
+
+    await expect(
+      resource.addParticipants("any;+;team", new Array(1) as string[])
+    ).rejects.toMatchObject({
+      code: "invalidArgument",
+      context: { field: "addresses[0]", value: "undefined" },
+      name: "ValidationError",
+    });
+
+    expect(called).toBe(false);
+  });
+
   it("validates removeParticipants addresses shape before calling transport", async () => {
     let called = false;
     const resource = new GroupsResource({

@@ -1,4 +1,5 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
+import { ValidationError } from "../errors/imessage-error.ts";
 import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ChatServiceClient } from "../transport/grpc-client.ts";
@@ -11,6 +12,25 @@ import type {
 } from "../types/chats.ts";
 import type { ChatEvent } from "../types/events.ts";
 import { unwrap } from "../utils/unwrap.ts";
+
+function normalizeInitialMessageText(
+  message: string | undefined
+): string | undefined {
+  if (message === undefined) {
+    return undefined;
+  }
+
+  if (typeof message !== "string") {
+    throw new ValidationError("message must be a string.", {
+      code: "invalidArgument",
+      context: { field: "message", value: String(message) },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  return message;
+}
 
 /**
  * Chat APIs.
@@ -51,18 +71,20 @@ export class ChatsResource {
     options?: CreateChatOptions
   ): Promise<CreateChatResult> {
     try {
+      const message = normalizeInitialMessageText(options?.message);
+
       const response = await this._client.createChat({
         addresses,
         clientMessageId: options?.clientMessageId,
         service: ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE,
         initialMessage:
-          options?.message === undefined
+          message === undefined
             ? undefined
             : {
-                attributedBody: options.attributedBody,
-                text: options.message,
-                effectId: options.effect,
-                subject: options.subject,
+                attributedBody: options?.attributedBody,
+                text: message,
+                effectId: options?.effect,
+                subject: options?.subject,
               },
       });
 

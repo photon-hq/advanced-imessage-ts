@@ -57,7 +57,7 @@ function normalizeParticipantAddresses(addresses: string[]): string[] {
     });
   }
 
-  return addresses.map((address, index) => {
+  return Array.from(addresses, (address, index) => {
     if (typeof address !== "string") {
       throw new ValidationError(`addresses[${index}] must be a string.`, {
         code: "invalidArgument",
