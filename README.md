@@ -101,6 +101,100 @@ const uploaded = await im.attachments.upload({
 await im.messages.sendAttachment(chatGuid, uploaded.attachment.guid);
 ```
 
+The SDK uploads raw bytes and returns a server-hosted attachment GUID. Use that
+GUID with `messages.sendAttachment(...)`, `attachments.get(...)`, or
+`attachments.downloadStream(...)`. The SDK does not expose server-local file
+paths; this matters when the SDK and server run on different machines.
+
+Upload, metadata lookup, and download have been live-tested with these
+attachment formats:
+
+- Images: `jpg`, `png`, `gif`, `tiff`, `bmp`, `webp`, `avif`, `svg`
+- Video: `mov`, `mp4`, `webm`
+- Audio: `aiff`, `caf`, `flac`, `m4a`, `mp3`, `ogg`, `wav`
+- Text and structured text: `txt`, `md`, `csv`, `json`, `html`, `xml`, `rtf`
+- Documents: `pdf`, `docx`, `xlsx`, `pptx`
+- Contact and calendar: `vcf`, `ics`
+- Archives and compressed payloads: `zip`, `tar`, `tar.gz`, `tgz`,
+  `tar.bz2`, `tar.xz`, `gz`, `bz2`, `xz`
+
+Downloads are streamed by GUID and preserve byte-for-byte content. The first
+frame is metadata, followed by primary payload chunks and, for Live Photos,
+companion payload chunks:
+
+```ts
+for await (const frame of im.attachments.downloadStream(uploaded.attachment.guid)) {
+  if (frame.type === "header") {
+    console.log(frame.info.mimeType, frame.info.uti);
+  }
+  if (frame.type === "primaryChunk") {
+    // append frame.data
+  }
+  if (frame.type === "companionChunk") {
+    // append Live Photo companion bytes
+  }
+}
+```
+
+Live Photo upload uses the same `attachments.upload(...)` method with a
+companion. The supported and tested Live Photo shape is a HEIC/HEIF primary
+image plus a QuickTime MOV companion video:
+
+```ts
+const livePhoto = await im.attachments.upload({
+  fileName: "live_photo.HEIC",
+  data: await readFile("live_photo.HEIC"),
+  companion: {
+    data: await readFile("live_photo.MOV"),
+  },
+});
+
+await im.messages.sendAttachment(chatGuid, livePhoto.attachment.guid);
+```
+
+For Live Photos:
+
+- The primary should be a HEIC/HEIF image, normally `.HEIC`, `.heic`, `.HEIF`,
+  or `.heif`.
+- The companion must be a QuickTime `.MOV` / `.mov` video.
+- Do not use a `.mov` primary filename; the server stores the companion as a
+  sidecar with the same stem and a `.mov` extension, so that collides.
+- The SDK fixes the companion kind to `"live-photo-video"`; callers only pass
+  companion bytes.
+
+`7z` and `rar` are not currently listed as tested formats because the current
+server test workspace does not include real encoders for those archive types.
+Fake files are not treated as supported fixtures.
+
+## Chat Backgrounds
+
+Chat backgrounds are not general attachments. They use chat GUIDs and raw image
+bytes:
+
+```ts
+await im.chats.setBackground(
+  "any;-;alice@example.com",
+  await readFile("photo.jpg")
+);
+
+const present = await im.chats.hasBackground("any;-;alice@example.com");
+
+await im.chats.removeBackground("any;-;alice@example.com");
+```
+
+Supported and live-tested background image MIME types:
+
+- `image/jpeg`
+- `image/png`
+- `image/heic`
+- `image/heif`
+
+Callers do not pass a MIME type. The server infers the format from the bytes and
+rejects `image/gif`, `image/webp`, `image/avif`, `image/tiff`, `image/bmp`, and
+`image/svg+xml` for chat backgrounds. Those formats may still be uploaded and
+sent as normal attachments; the background pipeline is stricter because the
+server converts the input image into Apple's background package format.
+
 Multipart sends are atomic and can mix text, mentions, and uploaded
 attachments:
 

@@ -41,11 +41,6 @@ export interface MarkChatReadRequest {
 export interface SetBackgroundRequest {
   chatGuid: string;
   data: Uint8Array;
-  /**
-   * MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers must
-   * reject unsupported types with `INVALID_ARGUMENT`.
-   */
-  mimeType: string;
 }
 
 export interface RemoveBackgroundRequest {
@@ -483,7 +478,7 @@ export const MarkChatReadRequest: MessageFns<MarkChatReadRequest> = {
 };
 
 function createBaseSetBackgroundRequest(): SetBackgroundRequest {
-  return { chatGuid: "", data: new Uint8Array(0), mimeType: "" };
+  return { chatGuid: "", data: new Uint8Array(0) };
 }
 
 export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
@@ -493,9 +488,6 @@ export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
     }
     if (message.data.length !== 0) {
       writer.uint32(18).bytes(message.data);
-    }
-    if (message.mimeType !== "") {
-      writer.uint32(26).string(message.mimeType);
     }
     return writer;
   },
@@ -523,14 +515,6 @@ export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
           message.data = reader.bytes();
           continue;
         }
-        case 3: {
-          if (tag !== 26) {
-            break;
-          }
-
-          message.mimeType = reader.string();
-          continue;
-        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -548,11 +532,6 @@ export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
         ? globalThis.String(object.chat_guid)
         : "",
       data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0),
-      mimeType: isSet(object.mimeType)
-        ? globalThis.String(object.mimeType)
-        : isSet(object.mime_type)
-        ? globalThis.String(object.mime_type)
-        : "",
     };
   },
 
@@ -564,9 +543,6 @@ export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
     if (message.data.length !== 0) {
       obj.data = base64FromBytes(message.data);
     }
-    if (message.mimeType !== "") {
-      obj.mimeType = message.mimeType;
-    }
     return obj;
   },
 
@@ -577,7 +553,6 @@ export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
     const message = createBaseSetBackgroundRequest();
     message.chatGuid = object.chatGuid ?? "";
     message.data = object.data ?? new Uint8Array(0);
-    message.mimeType = object.mimeType ?? "";
     return message;
   },
 };

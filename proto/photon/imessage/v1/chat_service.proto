@@ -100,10 +100,6 @@ message SetBackgroundRequest {
 
   bytes data = 2;
 
-  // MIME type of `data` (e.g. `image/png`, `image/jpeg`). Servers must
-  // reject unsupported types with `INVALID_ARGUMENT`.
-  string mime_type = 3;
-
 }
 
 

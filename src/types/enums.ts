@@ -36,8 +36,5 @@ export type MessageItemType =
 /** The underlying transport service for a chat or address. */
 export type ChatServiceType = "iMessage" | "SMS" | "RCS" | "unknown";
 
-/** Services callers are allowed to send back to the server. */
-export type SendableChatServiceType = Exclude<ChatServiceType, "unknown">;
-
 /** Sidecar attachment kind. */
 export type CompanionKind = "live-photo-video" | "unknown";

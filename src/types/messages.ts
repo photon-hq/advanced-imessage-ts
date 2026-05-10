@@ -169,18 +169,18 @@ export interface Message {
 export interface SendOptions {
   /** Stable idempotency key for this logical send. */
   readonly clientMessageId?: string;
-  /** Enable Apple's data-detector pass for links, dates, addresses, and similar text. */
-  readonly enableDataDetection?: boolean;
   /** Full-screen or bubble effect to apply to the outgoing message. */
   readonly effect?: MessageEffect;
+  /** Enable Apple's data-detector pass for links, dates, addresses, and similar text. */
+  readonly enableDataDetection?: boolean;
+  /** Ask Messages to generate rich URL previews when possible. */
+  readonly enableLinkPreview?: boolean;
   /** UTF-16 ranges for bold, italic, underline, strikethrough, or text effects. */
   readonly formatting?: readonly TextFormatInput[];
   /** Message guid, or message guid plus multipart bubble index, to reply to. */
   readonly replyTo?:
     | string
     | { readonly guid: string; readonly partIndex?: number };
-  /** Ask Messages to generate rich URL previews when possible. */
-  readonly enableLinkPreview?: boolean;
   /** Optional subject line for the outgoing message. */
   readonly subject?: string;
 }

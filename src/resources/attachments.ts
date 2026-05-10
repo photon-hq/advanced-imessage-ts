@@ -111,9 +111,13 @@ export class AttachmentsResource {
   downloadStream(
     attachment: string
   ): TypedEventStream<DownloadAttachmentChunk> {
-    const rpcStream = this._client.downloadAttachment({
-      attachmentGuid: attachment,
-    });
+    const abort = new AbortController();
+    const rpcStream = this._client.downloadAttachment(
+      {
+        attachmentGuid: attachment,
+      },
+      { signal: abort.signal }
+    );
 
     async function* mapFrames(): AsyncGenerator<DownloadAttachmentChunk> {
       try {
@@ -128,6 +132,6 @@ export class AttachmentsResource {
       }
     }
 
-    return new TypedEventStream(mapFrames());
+    return new TypedEventStream(mapFrames(), async () => abort.abort());
   }
 }

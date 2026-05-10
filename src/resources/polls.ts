@@ -146,9 +146,13 @@ export class PollsResource {
   subscribeEvents(filter?: {
     pollMessage?: string;
   }): TypedEventStream<PollEvent> {
-    const rpcStream = this._client.subscribePollEvents({
-      pollMessageGuid: filter?.pollMessage,
-    });
+    const abort = new AbortController();
+    const rpcStream = this._client.subscribePollEvents(
+      {
+        pollMessageGuid: filter?.pollMessage,
+      },
+      { signal: abort.signal }
+    );
 
     async function* mapEvents(): AsyncGenerator<PollEvent> {
       try {
@@ -166,6 +170,6 @@ export class PollsResource {
       }
     }
 
-    return new TypedEventStream(mapEvents());
+    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }

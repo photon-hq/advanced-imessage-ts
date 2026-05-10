@@ -102,7 +102,7 @@ export interface AttachmentsResource {
  * - `count(options)` counts visible chats, optionally including archived
  *   chats.
  * - `hasBackground(chat)` checks whether a chat has a custom background.
- * - `setBackground(chat, data, mimeType)` replaces a chat background image.
+ * - `setBackground(chat, data)` replaces a chat background image.
  * - `removeBackground(chat)` clears a chat background image.
  * - `markRead(chat)` marks every unread message in the chat as read.
  * - `shareContactInfo(chat)` sends the local account's contact card.
@@ -120,11 +120,7 @@ export interface ChatsResource {
   hasBackground(chat: string): Promise<boolean>;
   markRead(chat: string): Promise<void>;
   removeBackground(chat: string): Promise<void>;
-  setBackground(
-    chat: string,
-    data: Uint8Array,
-    mimeType: string
-  ): Promise<void>;
+  setBackground(chat: string, data: Uint8Array): Promise<void>;
   setTyping(chat: string, isTyping: boolean): Promise<void>;
   shareContactInfo(chat: string): Promise<void>;
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent>;
@@ -353,7 +349,7 @@ export interface AdvancedIMessage extends AsyncDisposable {
    * - `count(options)` counts visible chats, optionally including archived
    *   chats.
    * - `hasBackground(chat)` checks whether a chat has a custom background.
-   * - `setBackground(chat, data, mimeType)` replaces a chat background image.
+   * - `setBackground(chat, data)` replaces a chat background image.
    * - `removeBackground(chat)` clears a chat background image.
    * - `markRead(chat)` marks every unread message in the chat as read.
    * - `shareContactInfo(chat)` sends the local account's contact card.

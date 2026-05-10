@@ -1,4 +1,5 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
+import { ValidationError } from "../errors/imessage-error.ts";
 import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ChatServiceClient } from "../transport/grpc-client.ts";
@@ -12,22 +13,23 @@ import type {
 import type { ChatEvent } from "../types/events.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
-// Wire enum is the single source of truth for ordinal values; routing through
-// the named constant keeps reorderings in proto from silently misaligning.
-function toProtoService(
-  service?: CreateChatOptions["service"]
-): ProtoChatServiceType {
-  switch (service) {
-    case undefined:
-    case "iMessage":
-      return ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE;
-    case "SMS":
-      return ProtoChatServiceType.CHAT_SERVICE_TYPE_SMS;
-    case "RCS":
-      return ProtoChatServiceType.CHAT_SERVICE_TYPE_RCS;
-    default:
-      throw new TypeError(`Unsupported chat service: ${String(service)}`);
+function normalizeInitialMessageText(
+  message: string | undefined
+): string | undefined {
+  if (message === undefined) {
+    return undefined;
   }
+
+  if (typeof message !== "string") {
+    throw new ValidationError("message must be a string.", {
+      code: "invalidArgument",
+      context: { field: "message", value: String(message) },
+      grpcCode: 3,
+      retryable: false,
+    });
+  }
+
+  return message;
 }
 
 /**
@@ -39,7 +41,7 @@ function toProtoService(
  * - `count(options)` returns the number of visible chats, optionally including
  *   archived chats.
  * - `hasBackground(chat)` checks whether a chat has a custom background.
- * - `setBackground(chat, data, mimeType)` replaces the chat background image.
+ * - `setBackground(chat, data)` replaces the chat background image.
  * - `removeBackground(chat)` clears the chat background image.
  * - `markRead(chat)` marks every unread message in the chat as read.
  * - `shareContactInfo(chat)` sends the local user's contact card to the chat.
@@ -69,18 +71,21 @@ export class ChatsResource {
     options?: CreateChatOptions
   ): Promise<CreateChatResult> {
     try {
+      const message = normalizeInitialMessageText(options?.message);
+
       const response = await this._client.createChat({
         addresses,
         clientMessageId: options?.clientMessageId,
-        service: toProtoService(options?.service),
-        initialMessage: options?.message
-          ? {
-              attributedBody: options.attributedBody,
-              text: options.message,
-              effectId: options.effect,
-              subject: options.subject,
-            }
-          : undefined,
+        service: ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE,
+        initialMessage:
+          message === undefined
+            ? undefined
+            : {
+                attributedBody: options?.attributedBody,
+                text: message,
+                effectId: options?.effect,
+                subject: options?.subject,
+              },
       });
 
       return {
@@ -146,16 +151,11 @@ export class ChatsResource {
    * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
    *               `chat.guid`.
    */
-  async setBackground(
-    chat: string,
-    data: Uint8Array,
-    mimeType: string
-  ): Promise<void> {
+  async setBackground(chat: string, data: Uint8Array): Promise<void> {
     try {
       await this._client.setBackground({
         chatGuid: normalizeChatGuid(chat),
         data,
-        mimeType,
       });
     } catch (err) {
       throw fromGrpcError(err);
@@ -234,9 +234,13 @@ export class ChatsResource {
    * Pass `filter.chat` to scope the stream to a single chat.
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent> {
-    const rpcStream = this._client.subscribeChatEvents({
-      chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
-    });
+    const abort = new AbortController();
+    const rpcStream = this._client.subscribeChatEvents(
+      {
+        chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
+      },
+      { signal: abort.signal }
+    );
 
     async function* mapEvents(): AsyncGenerator<ChatEvent> {
       try {
@@ -254,6 +258,6 @@ export class ChatsResource {
       }
     }
 
-    return new TypedEventStream(mapEvents());
+    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }

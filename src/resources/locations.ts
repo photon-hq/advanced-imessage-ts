@@ -58,7 +58,11 @@ export class LocationsResource {
 
   /** Watch updates for every shared friend, or one friend when `address` is set. */
   watch(address?: string): TypedEventStream<SharedFriendLocationUpdated> {
-    const rpcStream = this._client.watchSharedFriendLocations({ address });
+    const abort = new AbortController();
+    const rpcStream = this._client.watchSharedFriendLocations(
+      { address },
+      { signal: abort.signal }
+    );
 
     async function* mapUpdates(): AsyncGenerator<SharedFriendLocationUpdated> {
       try {
@@ -73,6 +77,6 @@ export class LocationsResource {
       }
     }
 
-    return new TypedEventStream(mapUpdates());
+    return new TypedEventStream(mapUpdates(), async () => abort.abort());
   }
 }
