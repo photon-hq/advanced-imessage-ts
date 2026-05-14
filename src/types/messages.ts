@@ -3,7 +3,7 @@
  */
 
 import type { SingleServiceAddressInfo } from "./addresses.js";
-import type { AttachmentInfo } from "./attachments.js";
+import type { AttachmentInfo, AttachmentInput } from "./attachments.js";
 import type { MessageEffect, TextEffect } from "./effects.js";
 import type { MessageItemType } from "./enums.js";
 
@@ -185,7 +185,19 @@ export interface SendOptions {
   readonly subject?: string;
 }
 
+export interface MultipartAttachmentInput extends AttachmentInput {
+  /**
+   * Optional MIME hint for call-site clarity.
+   *
+   * Note: current upload transport infers type from bytes and filename; this
+   * field is not sent separately.
+   */
+  readonly mimeType?: string;
+}
+
 export interface MessagePart {
+  /** Byte-backed attachment input. `sendMultipart(...)` uploads this first. */
+  readonly attachment?: MultipartAttachmentInput;
   /** Uploaded attachment guid for an attachment bubble. */
   readonly attachmentGuid?: string;
   /** Optional display name for the attachment bubble. */

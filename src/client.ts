@@ -200,7 +200,8 @@ export interface LocationsResource {
  * - `sendAttachment(chat, attachment, options)` sends an uploaded attachment
  *   by GUID with replies, effects, and audio-message mode.
  * - `sendMultipart(chat, parts, options)` sends multiple text / attachment /
- *   mention bubbles atomically.
+ *   mention bubbles atomically, with support for uploaded GUIDs or byte-backed
+ *   attachment inputs.
  * - `edit(chat, message, newText, options)` edits an existing message.
  * - `unsend(chat, message, options)` retracts an existing message.
  * - `setReaction(chat, message, reaction, isSet, options)` adds or removes
@@ -399,7 +400,8 @@ export interface AdvancedIMessage extends AsyncDisposable {
    * - `sendAttachment(chat, attachment, options)` sends an uploaded attachment
    *   by GUID with replies, effects, and audio-message mode.
    * - `sendMultipart(chat, parts, options)` sends multiple text / attachment /
-   *   mention bubbles atomically.
+   *   mention bubbles atomically, with support for uploaded GUIDs or byte-backed
+   *   attachment inputs.
    * - `edit(chat, message, newText, options)` edits an existing message.
    * - `unsend(chat, message, options)` retracts an existing message.
    * - `setReaction(chat, message, reaction, isSet, options)` adds or removes
@@ -455,11 +457,13 @@ export function createClient(options: ClientOptions): AdvancedIMessage {
     token: options.token,
   });
 
-  const messages = new MessagesImpl(clients.messages);
+  const attachments = new AttachmentsImpl(clients.attachments);
+  const messages = new MessagesImpl(clients.messages, {
+    uploadAttachment: async (input) => attachments.upload(input),
+  });
   const chats = new ChatsImpl(clients.chats);
   const events = new EventsImpl(clients.events);
   const groups = new GroupsImpl(clients.groups);
-  const attachments = new AttachmentsImpl(clients.attachments);
   const addresses = new AddressesImpl(clients.addresses);
   const polls = new PollsImpl(clients.polls);
   const locations = new LocationsImpl(clients.locations);

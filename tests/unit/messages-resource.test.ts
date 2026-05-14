@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { ValidationError } from "../../src/errors/imessage-error.ts";
 import { MessageReactionKind } from "../../src/generated/photon/imessage/v1/message_types.ts";
 import { MessagesResource } from "../../src/resources/messages.ts";
+import type { UploadAttachmentResult } from "../../src/types/attachments.ts";
 import { MessageEffect, TextEffect } from "../../src/types/effects.ts";
 
 const chatGuidValue = "any;-;alice.com";
@@ -40,6 +41,25 @@ function makeMessage(guid: string) {
     itemType: 0,
     placedStickers: [],
     sendErrorCode: 0,
+  };
+}
+
+function makeUploadResult(
+  guid: string,
+  fileName: string
+): UploadAttachmentResult {
+  return {
+    attachment: {
+      fileName,
+      guid,
+      isHidden: false,
+      isOutgoing: true,
+      isSticker: false,
+      mimeType: "image/png",
+      totalBytes: 3,
+      transferState: "finished",
+      uti: "public.png",
+    },
   };
 }
 
@@ -576,6 +596,114 @@ describe("MessagesResource", () => {
           length: 5,
         },
       ]);
+    });
+  });
+
+  describe("byte-backed multipart attachments", () => {
+    it("uploads byte-backed parts and sends the uploaded attachment guid", async () => {
+      let captured: Record<string, unknown> | undefined;
+      const uploadedInputs: Array<{ fileName: string; data: Uint8Array }> = [];
+      const resource = new MessagesResource(
+        {
+          async sendMultipartMessage(request: Record<string, unknown>) {
+            captured = request;
+            return { message: makeMessage("p-buffer") };
+          },
+        } as any,
+        {
+          uploadAttachment: async (input) => {
+            uploadedInputs.push({ fileName: input.fileName, data: input.data });
+            return makeUploadResult("uploaded-att-1", input.fileName);
+          },
+        }
+      );
+
+      const bytes = new Uint8Array([1, 2, 3]);
+      await resource.sendMultipart(chatGuidValue, [
+        { text: "before" },
+        {
+          attachment: {
+            data: bytes,
+            fileName: "photo.png",
+          },
+        },
+        { text: "after" },
+      ]);
+
+      expect(uploadedInputs).toEqual([{ fileName: "photo.png", data: bytes }]);
+
+      const parts = captured?.parts as Record<string, unknown>[];
+      expect(parts).toHaveLength(3);
+      expect(parts[0]?.text).toBe("before");
+      expect(parts[1]?.attachment).toEqual({
+        attachmentGuid: "uploaded-att-1",
+        attachmentName: "photo.png",
+      });
+      expect(parts[1]?.attachment).not.toHaveProperty("data");
+      expect(parts[2]?.text).toBe("after");
+    });
+
+    it("preserves bubbleIndex on uploaded multipart attachment parts", async () => {
+      let captured: Record<string, unknown> | undefined;
+      const resource = new MessagesResource(
+        {
+          async sendMultipartMessage(request: Record<string, unknown>) {
+            captured = request;
+            return { message: makeMessage("p-buffer-bubble") };
+          },
+        } as any,
+        {
+          uploadAttachment: async (input) =>
+            makeUploadResult("uploaded-att-bubble", input.fileName),
+        }
+      );
+
+      await resource.sendMultipart(chatGuidValue, [
+        {
+          attachment: {
+            data: new Uint8Array([5, 6, 7]),
+            fileName: "bubble.png",
+          },
+          bubbleIndex: 4,
+        },
+      ]);
+
+      expect((captured?.parts as Record<string, unknown>[])[0]).toMatchObject({
+        bubbleIndex: 4,
+        attachment: {
+          attachmentGuid: "uploaded-att-bubble",
+          attachmentName: "bubble.png",
+        },
+      });
+    });
+
+    it("does not send multipart request when byte-backed attachment upload fails", async () => {
+      let sendCalls = 0;
+      const resource = new MessagesResource(
+        {
+          async sendMultipartMessage() {
+            sendCalls += 1;
+            return { message: makeMessage("p-should-not-send") };
+          },
+        } as any,
+        {
+          uploadAttachment: async () => {
+            throw new Error("upload failed");
+          },
+        }
+      );
+
+      await expect(
+        resource.sendMultipart(chatGuidValue, [
+          {
+            attachment: {
+              data: new Uint8Array([9, 9, 9]),
+              fileName: "failed.png",
+            },
+          },
+        ])
+      ).rejects.toThrow("upload failed");
+      expect(sendCalls).toBe(0);
     });
   });
 
