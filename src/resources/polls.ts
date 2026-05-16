@@ -139,7 +139,7 @@ export class PollsResource {
 
   /**
    * Subscribe to poll lifecycle events (created / option added / voted /
-   * unvoted).
+   * unvoted). Vote and unvote events include the affected option identifier.
    *
    * Pass `filter.pollMessage` to scope the stream to a single poll.
    */

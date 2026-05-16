@@ -26,7 +26,7 @@ message PollOption {
 }
 
 
-// One participant's current vote. Exactly one option per participant.
+// One selected option in a participant's current vote snapshot.
 message PollParticipantVote {
 
   SingleServiceAddressInfo participant = 1;
@@ -88,9 +88,13 @@ message PollVoted {
 }
 
 
-// A participant cleared their current vote. The participant is carried by the
+// A participant deselected one option. The participant is carried by the
 // enclosing event actor.
-message PollUnvoted {}
+message PollUnvoted {
+
+  string option_identifier = 1;
+
+}
 
 
 // ---------------------------------------------------------------------------
