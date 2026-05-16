@@ -40,4 +40,5 @@ export type PollChangeDelta =
     }
   | {
       readonly type: "unvoted";
+      readonly optionIdentifier: string;
     };

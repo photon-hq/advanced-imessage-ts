@@ -22,7 +22,7 @@ export interface PollOption {
   creatorHandle?: string | undefined;
 }
 
-/** One participant's current vote. Exactly one option per participant. */
+/** One selected option in a participant's current vote snapshot. */
 export interface PollParticipantVote {
   participant: SingleServiceAddressInfo | undefined;
   optionIdentifier: string;
@@ -65,10 +65,11 @@ export interface PollVoted {
 }
 
 /**
- * A participant cleared their current vote. The participant is carried by the
+ * A participant deselected one option. The participant is carried by the
  * enclosing event actor.
  */
 export interface PollUnvoted {
+  optionIdentifier: string;
 }
 
 /** A discrete state transition observed for a poll. */
@@ -617,11 +618,14 @@ export const PollVoted: MessageFns<PollVoted> = {
 };
 
 function createBasePollUnvoted(): PollUnvoted {
-  return {};
+  return { optionIdentifier: "" };
 }
 
 export const PollUnvoted: MessageFns<PollUnvoted> = {
-  encode(_: PollUnvoted, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: PollUnvoted, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.optionIdentifier !== "") {
+      writer.uint32(10).string(message.optionIdentifier);
+    }
     return writer;
   },
 
@@ -632,6 +636,14 @@ export const PollUnvoted: MessageFns<PollUnvoted> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.optionIdentifier = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -641,20 +653,30 @@ export const PollUnvoted: MessageFns<PollUnvoted> = {
     return message;
   },
 
-  fromJSON(_: any): PollUnvoted {
-    return {};
+  fromJSON(object: any): PollUnvoted {
+    return {
+      optionIdentifier: isSet(object.optionIdentifier)
+        ? globalThis.String(object.optionIdentifier)
+        : isSet(object.option_identifier)
+        ? globalThis.String(object.option_identifier)
+        : "",
+    };
   },
 
-  toJSON(_: PollUnvoted): unknown {
+  toJSON(message: PollUnvoted): unknown {
     const obj: any = {};
+    if (message.optionIdentifier !== "") {
+      obj.optionIdentifier = message.optionIdentifier;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<PollUnvoted>): PollUnvoted {
     return PollUnvoted.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<PollUnvoted>): PollUnvoted {
+  fromPartial(object: DeepPartial<PollUnvoted>): PollUnvoted {
     const message = createBasePollUnvoted();
+    message.optionIdentifier = object.optionIdentifier ?? "";
     return message;
   },
 };

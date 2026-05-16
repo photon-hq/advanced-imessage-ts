@@ -442,6 +442,7 @@ export function mapPollDelta(
   if (proto.unvoted) {
     return {
       type: "unvoted",
+      optionIdentifier: proto.unvoted.optionIdentifier,
     };
   }
   return undefined;
