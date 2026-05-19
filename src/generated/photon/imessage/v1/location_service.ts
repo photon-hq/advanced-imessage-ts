@@ -35,6 +35,27 @@ export interface GetSharedFriendLocationResponse {
 }
 
 /**
+ * Sends a visible Find My location-sharing request card in `chat_guid`.
+ *
+ * Errors:
+ *   INVALID_ARGUMENT  malformed address or chat_guid
+ *   NOT_FOUND         chat is not visible to the current account
+ */
+export interface RequestLocationSharingRequest {
+  chatGuid: string;
+  address: string;
+  clientMessageId?: string | undefined;
+}
+
+export interface RequestLocationSharingResponse {
+  address: string;
+  requested: boolean;
+  requestStatus: string;
+  reason?: string | undefined;
+  messageGuid?: string | undefined;
+}
+
+/**
  * Absent `address` = watch every shared location update. Present
  * `address` = watch updates for one address only.
  */
@@ -270,6 +291,238 @@ export const GetSharedFriendLocationResponse: MessageFns<GetSharedFriendLocation
   },
 };
 
+function createBaseRequestLocationSharingRequest(): RequestLocationSharingRequest {
+  return { chatGuid: "", address: "", clientMessageId: undefined };
+}
+
+export const RequestLocationSharingRequest: MessageFns<RequestLocationSharingRequest> = {
+  encode(message: RequestLocationSharingRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.address !== "") {
+      writer.uint32(18).string(message.address);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RequestLocationSharingRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRequestLocationSharingRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.address = reader.string();
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RequestLocationSharingRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: RequestLocationSharingRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RequestLocationSharingRequest>): RequestLocationSharingRequest {
+    return RequestLocationSharingRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RequestLocationSharingRequest>): RequestLocationSharingRequest {
+    const message = createBaseRequestLocationSharingRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.address = object.address ?? "";
+    message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRequestLocationSharingResponse(): RequestLocationSharingResponse {
+  return { address: "", requested: false, requestStatus: "", reason: undefined, messageGuid: undefined };
+}
+
+export const RequestLocationSharingResponse: MessageFns<RequestLocationSharingResponse> = {
+  encode(message: RequestLocationSharingResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== "") {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.requested !== false) {
+      writer.uint32(16).bool(message.requested);
+    }
+    if (message.requestStatus !== "") {
+      writer.uint32(26).string(message.requestStatus);
+    }
+    if (message.reason !== undefined) {
+      writer.uint32(34).string(message.reason);
+    }
+    if (message.messageGuid !== undefined) {
+      writer.uint32(42).string(message.messageGuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RequestLocationSharingResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRequestLocationSharingResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.address = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.requested = reader.bool();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.requestStatus = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.reason = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.messageGuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RequestLocationSharingResponse {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      requested: isSet(object.requested) ? globalThis.Boolean(object.requested) : false,
+      requestStatus: isSet(object.requestStatus)
+        ? globalThis.String(object.requestStatus)
+        : isSet(object.request_status)
+        ? globalThis.String(object.request_status)
+        : "",
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : undefined,
+      messageGuid: isSet(object.messageGuid)
+        ? globalThis.String(object.messageGuid)
+        : isSet(object.message_guid)
+        ? globalThis.String(object.message_guid)
+        : undefined,
+    };
+  },
+
+  toJSON(message: RequestLocationSharingResponse): unknown {
+    const obj: any = {};
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.requested !== false) {
+      obj.requested = message.requested;
+    }
+    if (message.requestStatus !== "") {
+      obj.requestStatus = message.requestStatus;
+    }
+    if (message.reason !== undefined) {
+      obj.reason = message.reason;
+    }
+    if (message.messageGuid !== undefined) {
+      obj.messageGuid = message.messageGuid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RequestLocationSharingResponse>): RequestLocationSharingResponse {
+    return RequestLocationSharingResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RequestLocationSharingResponse>): RequestLocationSharingResponse {
+    const message = createBaseRequestLocationSharingResponse();
+    message.address = object.address ?? "";
+    message.requested = object.requested ?? false;
+    message.requestStatus = object.requestStatus ?? "";
+    message.reason = object.reason ?? undefined;
+    message.messageGuid = object.messageGuid ?? undefined;
+    return message;
+  },
+};
+
 function createBaseWatchSharedFriendLocationsRequest(): WatchSharedFriendLocationsRequest {
   return { address: undefined };
 }
@@ -438,6 +691,14 @@ export const LocationServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    requestLocationSharing: {
+      name: "RequestLocationSharing",
+      requestType: RequestLocationSharingRequest as typeof RequestLocationSharingRequest,
+      requestStream: false,
+      responseType: RequestLocationSharingResponse as typeof RequestLocationSharingResponse,
+      responseStream: false,
+      options: {},
+    },
     watchSharedFriendLocations: {
       name: "WatchSharedFriendLocations",
       requestType: WatchSharedFriendLocationsRequest as typeof WatchSharedFriendLocationsRequest,
@@ -458,6 +719,10 @@ export interface LocationServiceImplementation<CallContextExt = {}> {
     request: GetSharedFriendLocationRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetSharedFriendLocationResponse>>;
+  requestLocationSharing(
+    request: RequestLocationSharingRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<RequestLocationSharingResponse>>;
   watchSharedFriendLocations(
     request: WatchSharedFriendLocationsRequest,
     context: CallContext & CallContextExt,
@@ -473,6 +738,10 @@ export interface LocationServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<GetSharedFriendLocationRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetSharedFriendLocationResponse>;
+  requestLocationSharing(
+    request: DeepPartial<RequestLocationSharingRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<RequestLocationSharingResponse>;
   watchSharedFriendLocations(
     request: DeepPartial<WatchSharedFriendLocationsRequest>,
     options?: CallOptions & CallOptionsExt,

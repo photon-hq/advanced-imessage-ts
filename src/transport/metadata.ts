@@ -63,6 +63,7 @@ const MUTATING_METHODS: ReadonlySet<string> = new Set([
   "/photon.imessage.v1.GroupService/RemoveParticipants",
   "/photon.imessage.v1.GroupService/SetDisplayName",
   "/photon.imessage.v1.GroupService/SetIcon",
+  "/photon.imessage.v1.LocationService/RequestLocationSharing",
   "/photon.imessage.v1.MessageService/EditMessage",
   "/photon.imessage.v1.MessageService/NotifySilencedMessage",
   "/photon.imessage.v1.MessageService/PlaceSticker",

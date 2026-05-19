@@ -31,6 +31,7 @@ import type {
   PollEvent,
 } from "./types/events.js";
 import type {
+  LocationRequestReceipt,
   SharedFriendLocation,
   SharedFriendLocationUpdated,
 } from "./types/locations.js";
@@ -184,11 +185,17 @@ export interface GroupsResource {
  *
  * - `list()` returns every friend currently sharing a location.
  * - `get(address)` fetches the latest snapshot for one friend.
+ * - `request(chat, address)` sends a visible Find My request card.
  * - `watch(address?)` streams location updates outside the durable event log.
  */
 export interface LocationsResource {
   get(address: string): Promise<SharedFriendLocation>;
   list(): Promise<SharedFriendLocation[]>;
+  request(
+    chat: string,
+    address: string,
+    options?: IdempotencyOptions
+  ): Promise<LocationRequestReceipt>;
   watch(address?: string): TypedEventStream<SharedFriendLocationUpdated>;
 }
 

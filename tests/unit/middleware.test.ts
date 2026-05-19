@@ -249,6 +249,30 @@ describe("idempotencyMiddleware", () => {
     expect(receivedMetadata?.get("x-idempotency-key")).toHaveLength(36);
   });
 
+  it("adds x-idempotency-key to location sharing requests", async () => {
+    const mw = idempotencyMiddleware();
+    let receivedMetadata: Metadata | undefined;
+
+    const handler = async (_req: unknown, opts: CallOptions) => {
+      receivedMetadata = opts.metadata as Metadata | undefined;
+      return "ok";
+    };
+
+    const call = buildCall(
+      {
+        ...UNARY_METHOD,
+        path: "/photon.imessage.v1.LocationService/RequestLocationSharing",
+      },
+      {},
+      handler
+    );
+    const gen = mw(call as any, {});
+    const result = await drain(gen);
+
+    expect(result).toBe("ok");
+    expect(receivedMetadata?.get("x-idempotency-key")).toHaveLength(36);
+  });
+
   it("does not add x-idempotency-key to catch-up streams", async () => {
     const mw = idempotencyMiddleware();
     let receivedMetadata: Metadata | undefined;

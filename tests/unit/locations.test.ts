@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { ValidationError } from "../../src/errors/imessage-error.ts";
 import { FriendLocationType } from "../../src/generated/photon/imessage/v1/location_types.ts";
 import { LocationsResource } from "../../src/resources/locations.ts";
 
@@ -67,5 +68,59 @@ describe("LocationsResource", () => {
     const friend = await resource.get("friend-legacy@example.com");
 
     expect(friend.locationType).toBe("legacy");
+  });
+
+  it("sends a requestLocationSharing request with chat and address", async () => {
+    const requests: Record<string, unknown>[] = [];
+    const resource = new LocationsResource({
+      async requestLocationSharing(request: Record<string, unknown>) {
+        requests.push(request);
+        return {
+          address: "+14155550123",
+          requested: true,
+          requestStatus: "sent",
+          reason: "Find My request card dispatched to Messages",
+          messageGuid: "message-guid",
+        };
+      },
+    } as any);
+
+    const receipt = await resource.request(
+      "any;-;+14155550123",
+      "+14155550123",
+      {
+        clientMessageId: "location-request-1",
+      }
+    );
+
+    expect(requests).toEqual([
+      {
+        address: "+14155550123",
+        chatGuid: "any;-;+14155550123",
+        clientMessageId: "location-request-1",
+      },
+    ]);
+    expect(receipt).toEqual({
+      address: "+14155550123",
+      requested: true,
+      requestStatus: "sent",
+      reason: "Find My request card dispatched to Messages",
+      messageGuid: "message-guid",
+    });
+  });
+
+  it("rejects malformed chat guids before requesting location sharing", async () => {
+    let called = false;
+    const resource = new LocationsResource({
+      async requestLocationSharing() {
+        called = true;
+        return {};
+      },
+    } as any);
+
+    await expect(
+      resource.request("not-a-chat-guid", "+14155550123")
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(called).toBe(false);
   });
 });

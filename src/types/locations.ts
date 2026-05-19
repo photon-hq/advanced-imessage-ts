@@ -20,3 +20,11 @@ export interface SharedFriendLocationUpdated {
   readonly location: SharedFriendLocation;
   readonly sourceSequence: number;
 }
+
+export interface LocationRequestReceipt {
+  readonly address: string;
+  readonly messageGuid?: string;
+  readonly reason?: string;
+  readonly requested: boolean;
+  readonly requestStatus: string;
+}

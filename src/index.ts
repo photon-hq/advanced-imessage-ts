@@ -69,6 +69,7 @@ export type {
   PollEvent,
 } from "./types/events.js";
 export type {
+  LocationRequestReceipt,
   SharedFriendLocation,
   SharedFriendLocationUpdated,
 } from "./types/locations.js";
