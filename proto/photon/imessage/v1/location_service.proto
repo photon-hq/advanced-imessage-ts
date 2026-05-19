@@ -23,6 +23,9 @@ service LocationService {
   rpc GetSharedFriendLocation(GetSharedFriendLocationRequest)
       returns (GetSharedFriendLocationResponse);
 
+  rpc RequestLocationSharing(RequestLocationSharingRequest)
+      returns (RequestLocationSharingResponse);
+
   rpc WatchSharedFriendLocations(WatchSharedFriendLocationsRequest)
       returns (stream WatchSharedFriendLocationsResponse);
 
@@ -58,6 +61,41 @@ message GetSharedFriendLocationRequest {
 message GetSharedFriendLocationResponse {
 
   SharedFriendLocation location = 1;
+
+}
+
+
+// ---------------------------------------------------------------------------
+// Mutations
+// ---------------------------------------------------------------------------
+
+// Sends a visible Find My location-sharing request card in `chat_guid`.
+//
+// Errors:
+//   INVALID_ARGUMENT  malformed address or chat_guid
+//   NOT_FOUND         chat is not visible to the current account
+message RequestLocationSharingRequest {
+
+  string chat_guid = 1;
+
+  string address = 2;
+
+  optional string client_message_id = 100;
+
+}
+
+
+message RequestLocationSharingResponse {
+
+  string address = 1;
+
+  bool requested = 2;
+
+  string request_status = 3;
+
+  optional string reason = 4;
+
+  optional string message_guid = 5;
 
 }
 

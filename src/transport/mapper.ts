@@ -14,6 +14,7 @@ import type {
   ChatChangeEvent as ProtoChatChangeEvent,
 } from "../generated/photon/imessage/v1/chat_types.ts";
 import type { GroupChangeEvent as ProtoGroupChangeEvent } from "../generated/photon/imessage/v1/group_types.ts";
+import type { RequestLocationSharingResponse as ProtoRequestLocationSharingResponse } from "../generated/photon/imessage/v1/location_service.ts";
 import {
   FriendLocationType as ProtoFriendLocationType,
   type SharedFriendLocation as ProtoSharedFriendLocation,
@@ -69,6 +70,7 @@ import type {
   PollEvent,
 } from "../types/events.ts";
 import type {
+  LocationRequestReceipt,
   SharedFriendLocation,
   SharedFriendLocationUpdated,
 } from "../types/locations.ts";
@@ -472,6 +474,18 @@ export function mapSharedFriendLocationUpdated(
   return {
     location: mapSharedFriendLocation(unwrap(proto.location, "location")),
     sourceSequence: proto.sourceSequence,
+  };
+}
+
+export function mapLocationRequestReceipt(
+  proto: ProtoRequestLocationSharingResponse
+): LocationRequestReceipt {
+  return {
+    address: proto.address,
+    messageGuid: proto.messageGuid,
+    reason: proto.reason,
+    requested: proto.requested,
+    requestStatus: proto.requestStatus,
   };
 }
 
