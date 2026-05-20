@@ -10,6 +10,10 @@ import {
   mapReplyTarget,
   mapTextFormatInput,
 } from "../transport/mapper.ts";
+import type {
+  AttachmentInput,
+  UploadAttachmentResult,
+} from "../types/attachments.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
 import type { MessageEffect } from "../types/effects.ts";
 import type { MessageEvent } from "../types/events.ts";
@@ -50,6 +54,18 @@ function toReactionKind(
   }
 }
 
+function hasByteBackedAttachment(part: MessagePart): part is MessagePart & {
+  readonly attachment: NonNullable<MessagePart["attachment"]>;
+} {
+  return part.attachment !== undefined;
+}
+
+interface MessagesResourceDependencies {
+  readonly uploadAttachment?: (
+    input: AttachmentInput
+  ) => Promise<UploadAttachmentResult>;
+}
+
 /**
  * Message APIs.
  *
@@ -60,8 +76,8 @@ function toReactionKind(
  *   by attachment GUID; supports replies, effects, audio-message mode, and
  *   `clientMessageId`.
  * - `sendMultipart(chat, parts, options)` sends multiple bubbles atomically;
- *   parts can contain text, uploaded attachment GUIDs, mentions, formatting,
- *   and bubble indexes.
+ *   parts can contain text, uploaded attachment GUIDs, byte-backed
+ *   attachments, mentions, formatting, and bubble indexes.
  * - `edit(chat, message, newText, options)` edits an existing message and can
  *   target a specific multipart bubble with `partIndex`.
  * - `unsend(chat, message, options)` retracts an existing message and can
@@ -82,9 +98,48 @@ function toReactionKind(
  */
 export class MessagesResource {
   private readonly _client: MessageServiceClient;
+  private readonly _uploadAttachment:
+    | ((input: AttachmentInput) => Promise<UploadAttachmentResult>)
+    | undefined;
 
-  constructor(client: MessageServiceClient) {
+  constructor(
+    client: MessageServiceClient,
+    dependencies?: MessagesResourceDependencies
+  ) {
     this._client = client;
+    this._uploadAttachment = dependencies?.uploadAttachment;
+  }
+
+  private async normalizeMultipartParts(
+    parts: readonly MessagePart[]
+  ): Promise<readonly MessagePart[]> {
+    if (!parts.some(hasByteBackedAttachment)) {
+      return parts;
+    }
+
+    if (!this._uploadAttachment) {
+      throw new Error(
+        "messages.sendMultipart received a byte-backed attachment part without upload support"
+      );
+    }
+
+    const normalizedParts: MessagePart[] = [];
+    for (const part of parts) {
+      if (!hasByteBackedAttachment(part) || part.attachmentGuid) {
+        normalizedParts.push(part);
+        continue;
+      }
+
+      const uploadResult = await this._uploadAttachment(part.attachment);
+      const { attachment, attachmentName, ...rest } = part;
+      normalizedParts.push({
+        ...rest,
+        attachmentGuid: uploadResult.attachment.guid,
+        attachmentName: attachmentName ?? attachment.fileName,
+      });
+    }
+
+    return normalizedParts;
   }
 
   /**
@@ -173,9 +228,10 @@ export class MessagesResource {
     }
   ): Promise<Message> {
     try {
+      const normalizedParts = await this.normalizeMultipartParts(parts);
       const response = await this._client.sendMultipartMessage({
         chatGuid: normalizeChatGuid(chat),
-        parts: parts.map(mapOutgoingMessagePart),
+        parts: normalizedParts.map(mapOutgoingMessagePart),
         replyTo: mapReplyTarget(options?.replyTo),
         subject: options?.subject,
         effectId: options?.effect,

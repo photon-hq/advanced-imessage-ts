@@ -195,8 +195,26 @@ rejects `image/gif`, `image/webp`, `image/avif`, `image/tiff`, `image/bmp`, and
 sent as normal attachments; the background pipeline is stricter because the
 server converts the input image into Apple's background package format.
 
-Multipart sends are atomic and can mix text, mentions, and uploaded
-attachments:
+Multipart sends are atomic and can mix text, mentions, and attachments.
+
+Byte-backed multipart attachments are uploaded first through the existing
+`attachments.upload(...)` flow, then sent as uploaded attachment GUIDs:
+
+```ts
+const bytes = await readFile("photo.png");
+
+await im.messages.sendMultipart(chatGuid, [
+  { text: "look at this" },
+  {
+    attachment: {
+      fileName: "photo.png",
+      data: bytes,
+    },
+  },
+]);
+```
+
+You can still pass previously uploaded attachment GUIDs directly:
 
 ```ts
 await im.messages.sendMultipart(chatGuid, [
