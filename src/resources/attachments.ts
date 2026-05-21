@@ -57,9 +57,11 @@ function mapDownloadFrame(
  */
 export class AttachmentsResource {
   private readonly _client: AttachmentServiceClient;
+  private readonly _streamClient: AttachmentServiceClient;
 
-  constructor(client: AttachmentServiceClient) {
+  constructor(client: AttachmentServiceClient, streamClient = client) {
     this._client = client;
+    this._streamClient = streamClient;
   }
 
   /**
@@ -112,7 +114,7 @@ export class AttachmentsResource {
     attachment: string
   ): TypedEventStream<DownloadAttachmentChunk> {
     const abort = new AbortController();
-    const rpcStream = this._client.downloadAttachment(
+    const rpcStream = this._streamClient.downloadAttachment(
       {
         attachmentGuid: attachment,
       },

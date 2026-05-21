@@ -51,9 +51,11 @@ function normalizeInitialMessageText(
  */
 export class ChatsResource {
   private readonly _client: ChatServiceClient;
+  private readonly _streamClient: ChatServiceClient;
 
-  constructor(client: ChatServiceClient) {
+  constructor(client: ChatServiceClient, streamClient = client) {
     this._client = client;
+    this._streamClient = streamClient;
   }
 
   /**
@@ -235,7 +237,7 @@ export class ChatsResource {
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent> {
     const abort = new AbortController();
-    const rpcStream = this._client.subscribeChatEvents(
+    const rpcStream = this._streamClient.subscribeChatEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
       },

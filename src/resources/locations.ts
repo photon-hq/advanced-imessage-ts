@@ -27,9 +27,11 @@ import { unwrap } from "../utils/unwrap.ts";
  */
 export class LocationsResource {
   private readonly _client: LocationServiceClient;
+  private readonly _streamClient: LocationServiceClient;
 
-  constructor(client: LocationServiceClient) {
+  constructor(client: LocationServiceClient, streamClient = client) {
     this._client = client;
+    this._streamClient = streamClient;
   }
 
   /**
@@ -88,7 +90,7 @@ export class LocationsResource {
   /** Watch updates for every shared friend, or one friend when `address` is set. */
   watch(address?: string): TypedEventStream<SharedFriendLocationUpdated> {
     const abort = new AbortController();
-    const rpcStream = this._client.watchSharedFriendLocations(
+    const rpcStream = this._streamClient.watchSharedFriendLocations(
       { address },
       { signal: abort.signal }
     );

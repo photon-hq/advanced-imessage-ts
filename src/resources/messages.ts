@@ -82,9 +82,11 @@ function toReactionKind(
  */
 export class MessagesResource {
   private readonly _client: MessageServiceClient;
+  private readonly _streamClient: MessageServiceClient;
 
-  constructor(client: MessageServiceClient) {
+  constructor(client: MessageServiceClient, streamClient = client) {
     this._client = client;
+    this._streamClient = streamClient;
   }
 
   /**
@@ -452,7 +454,7 @@ export class MessagesResource {
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<MessageEvent> {
     const abort = new AbortController();
-    const rpcStream = this._client.subscribeMessageEvents(
+    const rpcStream = this._streamClient.subscribeMessageEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
       },

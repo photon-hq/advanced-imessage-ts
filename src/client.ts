@@ -462,17 +462,21 @@ export function createClient(options: ClientOptions): AdvancedIMessage {
     token: options.token,
   });
 
-  const messages = new MessagesImpl(clients.messages);
-  const chats = new ChatsImpl(clients.chats);
+  const messages = new MessagesImpl(clients.messages, clients.messagesStream);
+  const chats = new ChatsImpl(clients.chats, clients.chatsStream);
   const events = new EventsImpl(clients.events);
-  const groups = new GroupsImpl(clients.groups);
-  const attachments = new AttachmentsImpl(clients.attachments);
+  const groups = new GroupsImpl(clients.groups, clients.groupsStream);
+  const attachments = new AttachmentsImpl(
+    clients.attachments,
+    clients.attachmentsStream
+  );
   const addresses = new AddressesImpl(clients.addresses);
-  const polls = new PollsImpl(clients.polls);
-  const locations = new LocationsImpl(clients.locations);
+  const polls = new PollsImpl(clients.polls, clients.pollsStream);
+  const locations = new LocationsImpl(clients.locations, clients.locationsStream);
 
   function close(): Promise<void> {
     clients.channel.close();
+    clients.streamChannel.close();
     return Promise.resolve();
   }
 
