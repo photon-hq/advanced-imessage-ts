@@ -112,9 +112,11 @@ function normalizeIconData(data: Uint8Array): Uint8Array {
  */
 export class GroupsResource {
   private readonly _client: GroupServiceClient;
+  private readonly _streamClient: GroupServiceClient;
 
-  constructor(client: GroupServiceClient) {
+  constructor(client: GroupServiceClient, streamClient = client) {
     this._client = client;
+    this._streamClient = streamClient;
   }
 
   /**
@@ -272,7 +274,7 @@ export class GroupsResource {
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent> {
     const abort = new AbortController();
-    const rpcStream = this._client.subscribeGroupEvents(
+    const rpcStream = this._streamClient.subscribeGroupEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
       },

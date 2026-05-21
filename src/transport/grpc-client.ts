@@ -60,21 +60,29 @@ export type { PollServiceClient } from "../generated/photon/imessage/v1/poll_ser
 // ---------------------------------------------------------------------------
 
 /**
- * Container for all gRPC service clients and the underlying channel.
+ * Container for all gRPC service clients and the underlying channels.
  *
- * The `channel` is exposed so the caller can close it when done (or use
- * the client's `AsyncDisposable` implementation).
+ * The unary `channel` and streaming `streamChannel` are exposed so the caller
+ * can close them when done (or use the client's `AsyncDisposable`
+ * implementation).
  */
 export interface GrpcClients {
   readonly addresses: AddressServiceClient;
   readonly attachments: AttachmentServiceClient;
+  readonly attachmentsStream: AttachmentServiceClient;
   readonly channel: Channel;
   readonly chats: ChatServiceClient;
+  readonly chatsStream: ChatServiceClient;
   readonly events: EventServiceClient;
   readonly groups: GroupServiceClient;
+  readonly groupsStream: GroupServiceClient;
   readonly locations: LocationServiceClient;
+  readonly locationsStream: LocationServiceClient;
   readonly messages: MessageServiceClient;
+  readonly messagesStream: MessageServiceClient;
   readonly polls: PollServiceClient;
+  readonly pollsStream: PollServiceClient;
+  readonly streamChannel: Channel;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +148,7 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
       : ChannelCredentials.createInsecure();
 
   const channel = createChannel(options.address, credentials);
+  const streamChannel = createChannel(options.address, credentials);
 
   // --- Client factory with middleware ---
   //
@@ -173,13 +182,20 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
   // ts-proto definitions are natively compatible with nice-grpc, no casts needed.
   return {
     messages: factory.create(MessageServiceDefinition, channel),
+    messagesStream: factory.create(MessageServiceDefinition, streamChannel),
     chats: factory.create(ChatServiceDefinition, channel),
-    events: factory.create(EventServiceDefinition, channel),
+    chatsStream: factory.create(ChatServiceDefinition, streamChannel),
+    events: factory.create(EventServiceDefinition, streamChannel),
     groups: factory.create(GroupServiceDefinition, channel),
+    groupsStream: factory.create(GroupServiceDefinition, streamChannel),
     attachments: factory.create(AttachmentServiceDefinition, channel),
+    attachmentsStream: factory.create(AttachmentServiceDefinition, streamChannel),
     addresses: factory.create(AddressServiceDefinition, channel),
     polls: factory.create(PollServiceDefinition, channel),
+    pollsStream: factory.create(PollServiceDefinition, streamChannel),
     locations: factory.create(LocationServiceDefinition, channel),
+    locationsStream: factory.create(LocationServiceDefinition, streamChannel),
     channel,
+    streamChannel,
   };
 }

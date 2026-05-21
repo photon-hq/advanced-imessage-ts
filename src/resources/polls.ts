@@ -22,9 +22,11 @@ import { unwrap } from "../utils/unwrap.ts";
  */
 export class PollsResource {
   private readonly _client: PollServiceClient;
+  private readonly _streamClient: PollServiceClient;
 
-  constructor(client: PollServiceClient) {
+  constructor(client: PollServiceClient, streamClient = client) {
     this._client = client;
+    this._streamClient = streamClient;
   }
 
   /**
@@ -147,7 +149,7 @@ export class PollsResource {
     pollMessage?: string;
   }): TypedEventStream<PollEvent> {
     const abort = new AbortController();
-    const rpcStream = this._client.subscribePollEvents(
+    const rpcStream = this._streamClient.subscribePollEvents(
       {
         pollMessageGuid: filter?.pollMessage,
       },
