@@ -214,6 +214,51 @@ describe("MessagesResource", () => {
     expect(captured?.enableDataDetection).toBe(true);
   });
 
+  it("forwards mini app cards using explicit preview fields", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async sendMiniAppMessage(request: Record<string, unknown>) {
+        captured = request;
+        return { message: makeMessage("mini-app") };
+      },
+    } as any);
+    const imageJpeg = new Uint8Array([0xff, 0xd8, 0xff]);
+
+    await resource.sendMiniApp(
+      chatGuidValue,
+      {
+        url: "https://example.com/demo",
+        preview: {
+          title: "Example Website",
+          subtitle: "example.com",
+          body: "Open the demo",
+          imageJpeg,
+          caption: "Demo",
+          footer: "Photon",
+          detail: "Updated now",
+          summary: "Example Website",
+        },
+      },
+      { clientMessageId: "tmp-mini-app-1" }
+    );
+
+    expect(captured).toEqual({
+      chatGuid: chatGuidValue,
+      url: "https://example.com/demo",
+      preview: {
+        title: "Example Website",
+        subtitle: "example.com",
+        body: "Open the demo",
+        imageJpeg,
+        caption: "Demo",
+        footer: "Photon",
+        detail: "Updated now",
+        summary: "Example Website",
+      },
+      clientMessageId: "tmp-mini-app-1",
+    });
+  });
+
   describe("TextFormatInput → wire formatting (exhaustive)", () => {
     for (const type of [
       "bold",

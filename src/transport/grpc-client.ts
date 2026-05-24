@@ -189,7 +189,10 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
     groups: factory.create(GroupServiceDefinition, channel),
     groupsStream: factory.create(GroupServiceDefinition, streamChannel),
     attachments: factory.create(AttachmentServiceDefinition, channel),
-    attachmentsStream: factory.create(AttachmentServiceDefinition, streamChannel),
+    attachmentsStream: factory.create(
+      AttachmentServiceDefinition,
+      streamChannel
+    ),
     addresses: factory.create(AddressServiceDefinition, channel),
     polls: factory.create(PollServiceDefinition, channel),
     pollsStream: factory.create(PollServiceDefinition, streamChannel),

@@ -77,6 +77,52 @@ export interface SendMultipartMessageRequest {
   clientMessageId?: string | undefined;
 }
 
+/**
+ * Sends a mini app card.
+ *
+ * Recipients open `url` when they tap the card. The caller supplies every
+ * visible preview field; the mini app host identity is server-managed.
+ */
+export interface SendMiniAppMessageRequest {
+  /** Target chat GUID. */
+  chatGuid: string;
+  /** Absolute HTTP or HTTPS URL opened from the card. */
+  url: string;
+  preview: MiniAppPreview | undefined;
+  clientMessageId?: string | undefined;
+}
+
+export interface MiniAppPreview {
+  /** Main title shown on the card. */
+  title: string;
+  /** Secondary text for the card template. */
+  subtitle?:
+    | string
+    | undefined;
+  /** Supporting body text for the card template. */
+  body?:
+    | string
+    | undefined;
+  /** JPEG preview image bytes. */
+  imageJpeg?:
+    | Uint8Array
+    | undefined;
+  /** Small label shown by the card template. */
+  caption?:
+    | string
+    | undefined;
+  /** Secondary label shown by the card template. */
+  footer?:
+    | string
+    | undefined;
+  /** Additional detail label shown by the card template. */
+  detail?:
+    | string
+    | undefined;
+  /** Fallback text for surfaces that cannot render the full card. */
+  summary?: string | undefined;
+}
+
 export interface MessageResponse {
   /**
    * Snapshot of the persisted message after Apple has accepted the send
@@ -883,6 +929,309 @@ export const SendMultipartMessageRequest: MessageFns<SendMultipartMessageRequest
     message.effectId = object.effectId ?? undefined;
     message.enableDataDetection = object.enableDataDetection ?? undefined;
     message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSendMiniAppMessageRequest(): SendMiniAppMessageRequest {
+  return { chatGuid: "", url: "", preview: undefined, clientMessageId: undefined };
+}
+
+export const SendMiniAppMessageRequest: MessageFns<SendMiniAppMessageRequest> = {
+  encode(message: SendMiniAppMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.url !== "") {
+      writer.uint32(18).string(message.url);
+    }
+    if (message.preview !== undefined) {
+      MiniAppPreview.encode(message.preview, writer.uint32(26).fork()).join();
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SendMiniAppMessageRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSendMiniAppMessageRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.url = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.preview = MiniAppPreview.decode(reader, reader.uint32());
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SendMiniAppMessageRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      url: isSet(object.url) ? globalThis.String(object.url) : "",
+      preview: isSet(object.preview) ? MiniAppPreview.fromJSON(object.preview) : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SendMiniAppMessageRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.url !== "") {
+      obj.url = message.url;
+    }
+    if (message.preview !== undefined) {
+      obj.preview = MiniAppPreview.toJSON(message.preview);
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SendMiniAppMessageRequest>): SendMiniAppMessageRequest {
+    return SendMiniAppMessageRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SendMiniAppMessageRequest>): SendMiniAppMessageRequest {
+    const message = createBaseSendMiniAppMessageRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.url = object.url ?? "";
+    message.preview = (object.preview !== undefined && object.preview !== null)
+      ? MiniAppPreview.fromPartial(object.preview)
+      : undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMiniAppPreview(): MiniAppPreview {
+  return {
+    title: "",
+    subtitle: undefined,
+    body: undefined,
+    imageJpeg: undefined,
+    caption: undefined,
+    footer: undefined,
+    detail: undefined,
+    summary: undefined,
+  };
+}
+
+export const MiniAppPreview: MessageFns<MiniAppPreview> = {
+  encode(message: MiniAppPreview, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.title !== "") {
+      writer.uint32(10).string(message.title);
+    }
+    if (message.subtitle !== undefined) {
+      writer.uint32(18).string(message.subtitle);
+    }
+    if (message.body !== undefined) {
+      writer.uint32(26).string(message.body);
+    }
+    if (message.imageJpeg !== undefined) {
+      writer.uint32(34).bytes(message.imageJpeg);
+    }
+    if (message.caption !== undefined) {
+      writer.uint32(42).string(message.caption);
+    }
+    if (message.footer !== undefined) {
+      writer.uint32(50).string(message.footer);
+    }
+    if (message.detail !== undefined) {
+      writer.uint32(58).string(message.detail);
+    }
+    if (message.summary !== undefined) {
+      writer.uint32(66).string(message.summary);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MiniAppPreview {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMiniAppPreview();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.title = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.subtitle = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.body = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.imageJpeg = reader.bytes();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.caption = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.footer = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.detail = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.summary = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MiniAppPreview {
+    return {
+      title: isSet(object.title) ? globalThis.String(object.title) : "",
+      subtitle: isSet(object.subtitle) ? globalThis.String(object.subtitle) : undefined,
+      body: isSet(object.body) ? globalThis.String(object.body) : undefined,
+      imageJpeg: isSet(object.imageJpeg)
+        ? bytesFromBase64(object.imageJpeg)
+        : isSet(object.image_jpeg)
+        ? bytesFromBase64(object.image_jpeg)
+        : undefined,
+      caption: isSet(object.caption) ? globalThis.String(object.caption) : undefined,
+      footer: isSet(object.footer) ? globalThis.String(object.footer) : undefined,
+      detail: isSet(object.detail) ? globalThis.String(object.detail) : undefined,
+      summary: isSet(object.summary) ? globalThis.String(object.summary) : undefined,
+    };
+  },
+
+  toJSON(message: MiniAppPreview): unknown {
+    const obj: any = {};
+    if (message.title !== "") {
+      obj.title = message.title;
+    }
+    if (message.subtitle !== undefined) {
+      obj.subtitle = message.subtitle;
+    }
+    if (message.body !== undefined) {
+      obj.body = message.body;
+    }
+    if (message.imageJpeg !== undefined) {
+      obj.imageJpeg = base64FromBytes(message.imageJpeg);
+    }
+    if (message.caption !== undefined) {
+      obj.caption = message.caption;
+    }
+    if (message.footer !== undefined) {
+      obj.footer = message.footer;
+    }
+    if (message.detail !== undefined) {
+      obj.detail = message.detail;
+    }
+    if (message.summary !== undefined) {
+      obj.summary = message.summary;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MiniAppPreview>): MiniAppPreview {
+    return MiniAppPreview.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MiniAppPreview>): MiniAppPreview {
+    const message = createBaseMiniAppPreview();
+    message.title = object.title ?? "";
+    message.subtitle = object.subtitle ?? undefined;
+    message.body = object.body ?? undefined;
+    message.imageJpeg = object.imageJpeg ?? undefined;
+    message.caption = object.caption ?? undefined;
+    message.footer = object.footer ?? undefined;
+    message.detail = object.detail ?? undefined;
+    message.summary = object.summary ?? undefined;
     return message;
   },
 };
@@ -2494,6 +2843,14 @@ export const MessageServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    sendMiniAppMessage: {
+      name: "SendMiniAppMessage",
+      requestType: SendMiniAppMessageRequest as typeof SendMiniAppMessageRequest,
+      requestStream: false,
+      responseType: MessageResponse as typeof MessageResponse,
+      responseStream: false,
+      options: {},
+    },
     editMessage: {
       name: "EditMessage",
       requestType: EditMessageRequest as typeof EditMessageRequest,
@@ -2598,6 +2955,10 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
     request: SendMultipartMessageRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<MessageResponse>>;
+  sendMiniAppMessage(
+    request: SendMiniAppMessageRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<MessageResponse>>;
   editMessage(
     request: EditMessageRequest,
     context: CallContext & CallContextExt,
@@ -2658,6 +3019,10 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<SendMultipartMessageRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<MessageResponse>;
+  sendMiniAppMessage(
+    request: DeepPartial<SendMiniAppMessageRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<MessageResponse>;
   editMessage(
     request: DeepPartial<EditMessageRequest>,
     options?: CallOptions & CallOptionsExt,
@@ -2702,6 +3067,31 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<SubscribeMessageEventsRequest>,
     options?: CallOptions & CallOptionsExt,
   ): AsyncIterable<SubscribeMessageEventsResponse>;
+}
+
+function bytesFromBase64(b64: string): Uint8Array {
+  if ((globalThis as any).Buffer) {
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+  } else {
+    const bin = globalThis.atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
+      arr[i] = bin.charCodeAt(i);
+    }
+    return arr;
+  }
+}
+
+function base64FromBytes(arr: Uint8Array): string {
+  if ((globalThis as any).Buffer) {
+    return (globalThis as any).Buffer.from(arr).toString("base64");
+  } else {
+    const bin: string[] = [];
+    arr.forEach((byte) => {
+      bin.push(globalThis.String.fromCharCode(byte));
+    });
+    return globalThis.btoa(bin.join(""));
+  }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;

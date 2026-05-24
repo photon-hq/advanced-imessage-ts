@@ -33,6 +33,8 @@ service MessageService {
 
   rpc SendMultipartMessage(SendMultipartMessageRequest) returns (MessageResponse);
 
+  rpc SendMiniAppMessage(SendMiniAppMessageRequest) returns (MessageResponse);
+
   rpc EditMessage(EditMessageRequest) returns (MessageResponse);
 
   // Retracts an existing message and returns Empty after helper success.
@@ -145,6 +147,53 @@ message SendMultipartMessageRequest {
   optional bool enable_data_detection = 6;
 
   optional string client_message_id = 100;
+
+}
+
+// Sends a mini app card.
+//
+// Recipients open `url` when they tap the card. The caller supplies every
+// visible preview field; the mini app host identity is server-managed.
+message SendMiniAppMessageRequest {
+
+  // Target chat GUID.
+  string chat_guid = 1;
+
+  // Absolute HTTP or HTTPS URL opened from the card.
+  string url = 2;
+
+  MiniAppPreview preview = 3;
+
+  optional string client_message_id = 100;
+
+}
+
+
+message MiniAppPreview {
+
+  // Main title shown on the card.
+  string title = 1;
+
+  // Secondary text for the card template.
+  optional string subtitle = 2;
+
+  // Supporting body text for the card template.
+  optional string body = 3;
+
+  // JPEG preview image bytes.
+  optional bytes image_jpeg = 4;
+
+  // Small label shown by the card template.
+  optional string caption = 5;
+
+  // Secondary label shown by the card template.
+  optional string footer = 6;
+
+  // Additional detail label shown by the card template.
+  optional string detail = 7;
+
+  // Fallback text for surfaces that cannot render the full card.
+  optional string summary = 8;
 
 }
 
