@@ -4,6 +4,7 @@
 
 import type { SingleServiceAddressInfo } from "./addresses.js";
 import type { AttachmentInfo } from "./attachments.js";
+import type { IdempotencyOptions } from "./common.js";
 import type { MessageEffect, TextEffect } from "./effects.js";
 import type { MessageItemType } from "./enums.js";
 
@@ -211,10 +212,7 @@ export interface MiniAppCard {
   readonly url: string;
 }
 
-export interface MiniAppSendOptions {
-  /** Stable idempotency key for this logical send. */
-  readonly clientMessageId?: string;
-}
+export type MiniAppSendOptions = IdempotencyOptions;
 
 export interface MessagePart {
   /** Uploaded attachment guid for an attachment bubble. */

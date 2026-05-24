@@ -199,7 +199,7 @@ export class MessagesResource {
    *
    * Recipients open `card.url` when they tap the card. The server prepares the
    * card for delivery; callers provide only the website URL and visible content.
-   * `preview.imageJpeg`, when supplied, must contain JPEG bytes.
+   * `card.preview.imageJpeg`, when supplied, must contain JPEG bytes.
    *
    * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
    *               `chat.guid`.
