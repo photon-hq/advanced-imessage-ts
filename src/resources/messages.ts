@@ -19,6 +19,8 @@ import type {
   MessageListFilter,
   MessageListPage,
   MessagePart,
+  MiniAppCard,
+  MiniAppSendOptions,
   SendOptions,
   SettableMessageReaction,
   StickerPlacement,
@@ -62,6 +64,8 @@ function toReactionKind(
  * - `sendMultipart(chat, parts, options)` sends multiple bubbles atomically;
  *   parts can contain text, uploaded attachment GUIDs, mentions, formatting,
  *   and bubble indexes.
+ * - `sendMiniApp(chat, card, options)` sends a mini app card from a URL and
+ *   caller-provided visible preview content.
  * - `edit(chat, message, newText, options)` edits an existing message and can
  *   target a specific multipart bubble with `partIndex`.
  * - `unsend(chat, message, options)` retracts an existing message and can
@@ -182,6 +186,52 @@ export class MessagesResource {
         subject: options?.subject,
         effectId: options?.effect,
         enableDataDetection: options?.enableDataDetection,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMessage(unwrap(response.message, "message"));
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Send a mini app card.
+   *
+   * Recipients open `card.url` when they tap the card. The server prepares the
+   * card for delivery; callers provide only the website URL and visible content.
+   * `preview.imageJpeg`, when supplied, must contain JPEG bytes.
+   *
+   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
+   *               `chat.guid`.
+   * @param card.url - URL opened when the recipient taps the card.
+   * @param card.preview.title - Required title shown on the card.
+   * @param card.preview.subtitle - Optional secondary text shown on the card.
+   * @param card.preview.body - Optional supporting text shown on the card.
+   * @param card.preview.imageJpeg - Optional JPEG preview image bytes.
+   * @param card.preview.caption - Optional small label shown on the card.
+   * @param card.preview.footer - Optional secondary label shown on the card.
+   * @param card.preview.detail - Optional detail label shown on the card.
+   * @param card.preview.summary - Optional fallback text for limited surfaces.
+   */
+  async sendMiniApp(
+    chat: string,
+    card: MiniAppCard,
+    options?: MiniAppSendOptions
+  ): Promise<Message> {
+    try {
+      const response = await this._client.sendMiniAppMessage({
+        chatGuid: normalizeChatGuid(chat),
+        url: card.url,
+        preview: {
+          title: card.preview.title,
+          subtitle: card.preview.subtitle,
+          body: card.preview.body,
+          imageJpeg: card.preview.imageJpeg,
+          caption: card.preview.caption,
+          footer: card.preview.footer,
+          detail: card.preview.detail,
+          summary: card.preview.summary,
+        },
         clientMessageId: options?.clientMessageId,
       });
       return mapMessage(unwrap(response.message, "message"));

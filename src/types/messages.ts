@@ -185,6 +185,37 @@ export interface SendOptions {
   readonly subject?: string;
 }
 
+export interface MiniAppPreview {
+  /** Optional supporting text shown on the card. */
+  readonly body?: string;
+  /** Optional small label shown on the card. */
+  readonly caption?: string;
+  /** Optional detail label shown on the card. */
+  readonly detail?: string;
+  /** Optional secondary label shown on the card. */
+  readonly footer?: string;
+  /** Optional JPEG preview image bytes. */
+  readonly imageJpeg?: Uint8Array;
+  /** Optional secondary text shown on the card. */
+  readonly subtitle?: string;
+  /** Optional fallback text for surfaces that cannot render the full card. */
+  readonly summary?: string;
+  /** Required title shown on the card. */
+  readonly title: string;
+}
+
+export interface MiniAppCard {
+  /** Preview content to show on the card. */
+  readonly preview: MiniAppPreview;
+  /** URL opened when the recipient taps the card. */
+  readonly url: string;
+}
+
+export interface MiniAppSendOptions {
+  /** Stable idempotency key for this logical send. */
+  readonly clientMessageId?: string;
+}
+
 export interface MessagePart {
   /** Uploaded attachment guid for an attachment bubble. */
   readonly attachmentGuid?: string;
