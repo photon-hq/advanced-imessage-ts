@@ -8,6 +8,9 @@
     "type": "git",
     "url": "git+https://github.com/photon-hq/advanced-imessage-ts.git"
   },
+  "bugs": {
+    "url": "https://github.com/photon-hq/advanced-imessage-ts/issues"
+  },
   "keywords": [
     "imessage",
     "agent",
