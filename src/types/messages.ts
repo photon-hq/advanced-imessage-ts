@@ -4,7 +4,6 @@
 
 import type { SingleServiceAddressInfo } from "./addresses.js";
 import type { AttachmentInfo } from "./attachments.js";
-import type { IdempotencyOptions } from "./common.js";
 import type { MessageEffect, TextEffect } from "./effects.js";
 import type { MessageItemType } from "./enums.js";
 
@@ -186,33 +185,51 @@ export interface SendOptions {
   readonly subject?: string;
 }
 
-export interface MiniAppPreview {
-  /** Optional supporting text shown on the card. */
-  readonly body?: string;
-  /** Optional small label shown on the card. */
+/**
+ * Visible layout of an iMessage mini-app card. Mirrors Apple's
+ * `MSMessageTemplateLayout`. At least one of `caption`, `subcaption`,
+ * `trailingCaption`, `trailingSubcaption`, or `image` must be set;
+ * an entirely empty layout renders as a blank bubble and is rejected.
+ *
+ * Slot map: `caption` / `subcaption` render on the left,
+ * `trailingCaption` / `trailingSubcaption` render on the right, and
+ * `imageTitle` / `imageSubtitle` overlay `image`.
+ * `image` and `imageTitle` must be set together; `imageSubtitle`
+ * requires `image`.
+ */
+export interface MiniAppLayout {
+  /** Top-left, bold. The most prominent text slot. */
   readonly caption?: string;
-  /** Optional detail label shown on the card. */
-  readonly detail?: string;
-  /** Optional secondary label shown on the card. */
-  readonly footer?: string;
-  /** Optional JPEG preview image bytes. */
-  readonly imageJpeg?: Uint8Array;
-  /** Optional secondary text shown on the card. */
-  readonly subtitle?: string;
-  /** Optional fallback text for surfaces that cannot render the full card. */
+  /** JPEG preview image bytes. */
+  readonly image?: Uint8Array;
+  /** Overlay text shown below `imageTitle`. Requires `image`. */
+  readonly imageSubtitle?: string;
+  /** Overlay text shown above the image. Must be set together with `image`. */
+  readonly imageTitle?: string;
+  /** Below `caption`, on the left. */
+  readonly subcaption?: string;
+  /** Fallback text for surfaces that cannot render the full card. */
   readonly summary?: string;
-  /** Required title shown on the card. */
-  readonly title: string;
+  /** Top-right. */
+  readonly trailingCaption?: string;
+  /** Below `trailingCaption`, on the right. */
+  readonly trailingSubcaption?: string;
 }
 
-export interface MiniAppCard {
-  /** Preview content to show on the card. */
-  readonly preview: MiniAppPreview;
-  /** URL opened when the recipient taps the card. */
+export interface CustomizedMiniAppMessage {
+  /** Display name of the owning app, shown by Messages fallback UI. */
+  readonly appName: string;
+  /** Apple App Store numeric id of the owning app. Must be a positive integer. */
+  readonly appStoreId: number;
+  /** Bundle identifier of the iMessage extension target. Must not contain `:`. */
+  readonly extensionBundleId: string;
+  /** Visible card layout. */
+  readonly layout: MiniAppLayout;
+  /** 10-character uppercase alphanumeric Apple Team ID. */
+  readonly teamId: string;
+  /** Absolute URL delivered to the installed extension on tap. */
   readonly url: string;
 }
-
-export type MiniAppSendOptions = IdempotencyOptions;
 
 export interface MessagePart {
   /** Uploaded attachment guid for an attachment bubble. */

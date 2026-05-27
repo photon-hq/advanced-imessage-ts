@@ -75,6 +75,7 @@ export type {
 } from "./types/locations.js";
 // Domain types
 export type {
+  CustomizedMiniAppMessage,
   EmbeddedMedia,
   EmbeddedMediaItem,
   Message,
@@ -86,9 +87,7 @@ export type {
   MessagePart,
   MessagePlacedSticker,
   MessageReaction,
-  MiniAppCard,
-  MiniAppPreview,
-  MiniAppSendOptions,
+  MiniAppLayout,
   SendOptions,
   SettableMessageReaction,
   StickerPlacement,

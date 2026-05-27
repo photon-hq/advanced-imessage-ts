@@ -36,13 +36,12 @@ import type {
   SharedFriendLocationUpdated,
 } from "./types/locations.js";
 import type {
+  CustomizedMiniAppMessage,
   EmbeddedMedia,
   Message,
   MessageListFilter,
   MessageListPage,
   MessagePart,
-  MiniAppCard,
-  MiniAppSendOptions,
   SendOptions,
   SettableMessageReaction,
   StickerPlacement,
@@ -210,8 +209,8 @@ export interface LocationsResource {
  *   by GUID with replies, effects, and audio-message mode.
  * - `sendMultipart(chat, parts, options)` sends multiple text / attachment /
  *   mention bubbles atomically.
- * - `sendMiniApp(chat, card, options)` sends a mini app card from a URL and
- *   caller-provided visible preview content.
+ * - `sendCustomizedMiniApp(chat, message, options)` sends a mini app card
+ *   backed by the caller's own iMessage extension.
  * - `edit(chat, message, newText, options)` edits an existing message.
  * - `unsend(chat, message, options)` retracts an existing message.
  * - `setReaction(chat, message, reaction, isSet, options)` adds or removes
@@ -267,10 +266,10 @@ export interface MessagesResource {
       readonly replyTo?: SendOptions["replyTo"];
     }
   ): Promise<Message>;
-  sendMiniApp(
+  sendCustomizedMiniApp(
     chat: string,
-    card: MiniAppCard,
-    options?: MiniAppSendOptions
+    message: CustomizedMiniAppMessage,
+    options?: IdempotencyOptions
   ): Promise<Message>;
   sendMultipart(
     chat: string,
@@ -416,8 +415,8 @@ export interface AdvancedIMessage extends AsyncDisposable {
    *   by GUID with replies, effects, and audio-message mode.
    * - `sendMultipart(chat, parts, options)` sends multiple text / attachment /
    *   mention bubbles atomically.
-   * - `sendMiniApp(chat, card, options)` sends a mini app card from a URL and
-   *   caller-provided visible preview content.
+   * - `sendCustomizedMiniApp(chat, message, options)` sends a mini app card
+   *   backed by the caller's own iMessage extension.
    * - `edit(chat, message, newText, options)` edits an existing message.
    * - `unsend(chat, message, options)` retracts an existing message.
    * - `setReaction(chat, message, reaction, isSet, options)` adds or removes
