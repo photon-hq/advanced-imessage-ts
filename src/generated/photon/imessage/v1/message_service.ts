@@ -123,6 +123,83 @@ export interface MiniAppPreview {
   summary?: string | undefined;
 }
 
+/**
+ * Visible content of a customized mini-app card. Field names match Apple's
+ * `MSMessageTemplateLayout` public API so callers do not need to translate
+ * between our names and Apple's docs.
+ *
+ * Slot map:
+ *   * caption/subcaption render on the left;
+ *   * trailing_caption/trailing_subcaption render on the right;
+ *   * image_title/image_subtitle overlay the image.
+ *
+ * Validation enforced by the server:
+ *   * at least one of {caption, subcaption, trailing_caption,
+ *     trailing_subcaption, image} must be non-empty; otherwise the
+ *     recipient would see an empty bubble;
+ *   * `image` and `image_title` must be set together;
+ *   * `image_subtitle` requires `image`.
+ */
+export interface MiniAppLayout {
+  /** Top-left, bold. The most prominent text slot. */
+  caption?:
+    | string
+    | undefined;
+  /** Below `caption`, on the left. */
+  subcaption?:
+    | string
+    | undefined;
+  /** Top-right. */
+  trailingCaption?:
+    | string
+    | undefined;
+  /** Below `trailing_caption`, on the right. */
+  trailingSubcaption?:
+    | string
+    | undefined;
+  /** JPEG preview image bytes. Server validates the JPEG SOI marker. */
+  image?:
+    | Uint8Array
+    | undefined;
+  /** Overlay text shown above the image. Must be set together with `image`. */
+  imageTitle?:
+    | string
+    | undefined;
+  /**
+   * Overlay text shown below `image_title`, above the image edge.
+   * Requires `image`.
+   */
+  imageSubtitle?:
+    | string
+    | undefined;
+  /** Fallback text shown on surfaces that cannot render the full card. */
+  summary?: string | undefined;
+}
+
+/** Request for `SendCustomizedMiniAppMessage`. */
+export interface SendCustomizedMiniAppMessageRequest {
+  /** Target chat GUID. */
+  chatGuid: string;
+  /** 10-character uppercase alphanumeric Apple Team ID. */
+  teamId: string;
+  /** Bundle identifier of the iMessage extension target. */
+  extensionBundleId: string;
+  /** Human-readable name of the owning app. */
+  appName: string;
+  /** Absolute URL the recipient's installed extension receives on tap. */
+  url: string;
+  /**
+   * The visible layout of the card. Mirrors Apple's
+   * `MSMessageTemplateLayout`; see `MiniAppLayout` for the rendering map.
+   */
+  layout:
+    | MiniAppLayout
+    | undefined;
+  /** Apple App Store numeric id of the owning app. Required and must be > 0. */
+  appStoreId: number;
+  clientMessageId?: string | undefined;
+}
+
 export interface MessageResponse {
   /**
    * Snapshot of the persisted message after Apple has accepted the send
@@ -1232,6 +1309,410 @@ export const MiniAppPreview: MessageFns<MiniAppPreview> = {
     message.footer = object.footer ?? undefined;
     message.detail = object.detail ?? undefined;
     message.summary = object.summary ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMiniAppLayout(): MiniAppLayout {
+  return {
+    caption: undefined,
+    subcaption: undefined,
+    trailingCaption: undefined,
+    trailingSubcaption: undefined,
+    image: undefined,
+    imageTitle: undefined,
+    imageSubtitle: undefined,
+    summary: undefined,
+  };
+}
+
+export const MiniAppLayout: MessageFns<MiniAppLayout> = {
+  encode(message: MiniAppLayout, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.caption !== undefined) {
+      writer.uint32(42).string(message.caption);
+    }
+    if (message.subcaption !== undefined) {
+      writer.uint32(26).string(message.subcaption);
+    }
+    if (message.trailingCaption !== undefined) {
+      writer.uint32(50).string(message.trailingCaption);
+    }
+    if (message.trailingSubcaption !== undefined) {
+      writer.uint32(58).string(message.trailingSubcaption);
+    }
+    if (message.image !== undefined) {
+      writer.uint32(34).bytes(message.image);
+    }
+    if (message.imageTitle !== undefined) {
+      writer.uint32(10).string(message.imageTitle);
+    }
+    if (message.imageSubtitle !== undefined) {
+      writer.uint32(18).string(message.imageSubtitle);
+    }
+    if (message.summary !== undefined) {
+      writer.uint32(66).string(message.summary);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MiniAppLayout {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMiniAppLayout();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.caption = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.subcaption = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.trailingCaption = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.trailingSubcaption = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.image = reader.bytes();
+          continue;
+        }
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.imageTitle = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.imageSubtitle = reader.string();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.summary = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MiniAppLayout {
+    return {
+      caption: isSet(object.caption) ? globalThis.String(object.caption) : undefined,
+      subcaption: isSet(object.subcaption) ? globalThis.String(object.subcaption) : undefined,
+      trailingCaption: isSet(object.trailingCaption)
+        ? globalThis.String(object.trailingCaption)
+        : isSet(object.trailing_caption)
+        ? globalThis.String(object.trailing_caption)
+        : undefined,
+      trailingSubcaption: isSet(object.trailingSubcaption)
+        ? globalThis.String(object.trailingSubcaption)
+        : isSet(object.trailing_subcaption)
+        ? globalThis.String(object.trailing_subcaption)
+        : undefined,
+      image: isSet(object.image) ? bytesFromBase64(object.image) : undefined,
+      imageTitle: isSet(object.imageTitle)
+        ? globalThis.String(object.imageTitle)
+        : isSet(object.image_title)
+        ? globalThis.String(object.image_title)
+        : undefined,
+      imageSubtitle: isSet(object.imageSubtitle)
+        ? globalThis.String(object.imageSubtitle)
+        : isSet(object.image_subtitle)
+        ? globalThis.String(object.image_subtitle)
+        : undefined,
+      summary: isSet(object.summary) ? globalThis.String(object.summary) : undefined,
+    };
+  },
+
+  toJSON(message: MiniAppLayout): unknown {
+    const obj: any = {};
+    if (message.caption !== undefined) {
+      obj.caption = message.caption;
+    }
+    if (message.subcaption !== undefined) {
+      obj.subcaption = message.subcaption;
+    }
+    if (message.trailingCaption !== undefined) {
+      obj.trailingCaption = message.trailingCaption;
+    }
+    if (message.trailingSubcaption !== undefined) {
+      obj.trailingSubcaption = message.trailingSubcaption;
+    }
+    if (message.image !== undefined) {
+      obj.image = base64FromBytes(message.image);
+    }
+    if (message.imageTitle !== undefined) {
+      obj.imageTitle = message.imageTitle;
+    }
+    if (message.imageSubtitle !== undefined) {
+      obj.imageSubtitle = message.imageSubtitle;
+    }
+    if (message.summary !== undefined) {
+      obj.summary = message.summary;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MiniAppLayout>): MiniAppLayout {
+    return MiniAppLayout.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MiniAppLayout>): MiniAppLayout {
+    const message = createBaseMiniAppLayout();
+    message.caption = object.caption ?? undefined;
+    message.subcaption = object.subcaption ?? undefined;
+    message.trailingCaption = object.trailingCaption ?? undefined;
+    message.trailingSubcaption = object.trailingSubcaption ?? undefined;
+    message.image = object.image ?? undefined;
+    message.imageTitle = object.imageTitle ?? undefined;
+    message.imageSubtitle = object.imageSubtitle ?? undefined;
+    message.summary = object.summary ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSendCustomizedMiniAppMessageRequest(): SendCustomizedMiniAppMessageRequest {
+  return {
+    chatGuid: "",
+    teamId: "",
+    extensionBundleId: "",
+    appName: "",
+    url: "",
+    layout: undefined,
+    appStoreId: 0,
+    clientMessageId: undefined,
+  };
+}
+
+export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniAppMessageRequest> = {
+  encode(message: SendCustomizedMiniAppMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.teamId !== "") {
+      writer.uint32(18).string(message.teamId);
+    }
+    if (message.extensionBundleId !== "") {
+      writer.uint32(26).string(message.extensionBundleId);
+    }
+    if (message.appName !== "") {
+      writer.uint32(34).string(message.appName);
+    }
+    if (message.url !== "") {
+      writer.uint32(42).string(message.url);
+    }
+    if (message.layout !== undefined) {
+      MiniAppLayout.encode(message.layout, writer.uint32(50).fork()).join();
+    }
+    if (message.appStoreId !== 0) {
+      writer.uint32(56).int64(message.appStoreId);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SendCustomizedMiniAppMessageRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSendCustomizedMiniAppMessageRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.teamId = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.extensionBundleId = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.appName = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.url = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.layout = MiniAppLayout.decode(reader, reader.uint32());
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.appStoreId = longToNumber(reader.int64());
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SendCustomizedMiniAppMessageRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      teamId: isSet(object.teamId)
+        ? globalThis.String(object.teamId)
+        : isSet(object.team_id)
+        ? globalThis.String(object.team_id)
+        : "",
+      extensionBundleId: isSet(object.extensionBundleId)
+        ? globalThis.String(object.extensionBundleId)
+        : isSet(object.extension_bundle_id)
+        ? globalThis.String(object.extension_bundle_id)
+        : "",
+      appName: isSet(object.appName)
+        ? globalThis.String(object.appName)
+        : isSet(object.app_name)
+        ? globalThis.String(object.app_name)
+        : "",
+      url: isSet(object.url) ? globalThis.String(object.url) : "",
+      layout: isSet(object.layout) ? MiniAppLayout.fromJSON(object.layout) : undefined,
+      appStoreId: isSet(object.appStoreId)
+        ? globalThis.Number(object.appStoreId)
+        : isSet(object.app_store_id)
+        ? globalThis.Number(object.app_store_id)
+        : 0,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SendCustomizedMiniAppMessageRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.teamId !== "") {
+      obj.teamId = message.teamId;
+    }
+    if (message.extensionBundleId !== "") {
+      obj.extensionBundleId = message.extensionBundleId;
+    }
+    if (message.appName !== "") {
+      obj.appName = message.appName;
+    }
+    if (message.url !== "") {
+      obj.url = message.url;
+    }
+    if (message.layout !== undefined) {
+      obj.layout = MiniAppLayout.toJSON(message.layout);
+    }
+    if (message.appStoreId !== 0) {
+      obj.appStoreId = Math.round(message.appStoreId);
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SendCustomizedMiniAppMessageRequest>): SendCustomizedMiniAppMessageRequest {
+    return SendCustomizedMiniAppMessageRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SendCustomizedMiniAppMessageRequest>): SendCustomizedMiniAppMessageRequest {
+    const message = createBaseSendCustomizedMiniAppMessageRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.teamId = object.teamId ?? "";
+    message.extensionBundleId = object.extensionBundleId ?? "";
+    message.appName = object.appName ?? "";
+    message.url = object.url ?? "";
+    message.layout = (object.layout !== undefined && object.layout !== null)
+      ? MiniAppLayout.fromPartial(object.layout)
+      : undefined;
+    message.appStoreId = object.appStoreId ?? 0;
+    message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
 };
@@ -2851,6 +3332,15 @@ export const MessageServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    /** Sends an iMessage mini-app card backed by the caller's own extension. */
+    sendCustomizedMiniAppMessage: {
+      name: "SendCustomizedMiniAppMessage",
+      requestType: SendCustomizedMiniAppMessageRequest as typeof SendCustomizedMiniAppMessageRequest,
+      requestStream: false,
+      responseType: MessageResponse as typeof MessageResponse,
+      responseStream: false,
+      options: {},
+    },
     editMessage: {
       name: "EditMessage",
       requestType: EditMessageRequest as typeof EditMessageRequest,
@@ -2959,6 +3449,11 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
     request: SendMiniAppMessageRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<MessageResponse>>;
+  /** Sends an iMessage mini-app card backed by the caller's own extension. */
+  sendCustomizedMiniAppMessage(
+    request: SendCustomizedMiniAppMessageRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<MessageResponse>>;
   editMessage(
     request: EditMessageRequest,
     context: CallContext & CallContextExt,
@@ -3021,6 +3516,11 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
   ): Promise<MessageResponse>;
   sendMiniAppMessage(
     request: DeepPartial<SendMiniAppMessageRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<MessageResponse>;
+  /** Sends an iMessage mini-app card backed by the caller's own extension. */
+  sendCustomizedMiniAppMessage(
+    request: DeepPartial<SendCustomizedMiniAppMessageRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<MessageResponse>;
   editMessage(

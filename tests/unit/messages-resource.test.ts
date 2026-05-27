@@ -214,48 +214,56 @@ describe("MessagesResource", () => {
     expect(captured?.enableDataDetection).toBe(true);
   });
 
-  it("forwards mini app cards using explicit preview fields", async () => {
+  it("forwards customized mini app cards using explicit fields", async () => {
     let captured: Record<string, unknown> | undefined;
     const resource = new MessagesResource({
-      async sendMiniAppMessage(request: Record<string, unknown>) {
+      async sendCustomizedMiniAppMessage(request: Record<string, unknown>) {
         captured = request;
-        return { message: makeMessage("mini-app") };
+        return { message: makeMessage("customized-mini-app") };
       },
     } as any);
-    const imageJpeg = new Uint8Array([0xff, 0xd8, 0xff]);
+    const image = new Uint8Array([0xff, 0xd8, 0xff]);
 
-    await resource.sendMiniApp(
+    await resource.sendCustomizedMiniApp(
       chatGuidValue,
       {
-        url: "https://example.com/demo",
-        preview: {
-          title: "Example Website",
-          subtitle: "example.com",
-          body: "Open the demo",
-          imageJpeg,
-          caption: "Demo",
-          footer: "Photon",
-          detail: "Updated now",
-          summary: "Example Website",
+        teamId: "TEAMID1234",
+        extensionBundleId: "com.example.app.MessagesExtension",
+        appName: "Example",
+        appStoreId: 1_234_567_890,
+        url: "exampleapp://card/42",
+        layout: {
+          caption: "Card Title",
+          subcaption: "example.com",
+          trailingCaption: "trail",
+          trailingSubcaption: "trail sub",
+          image,
+          imageTitle: "Overlay title",
+          imageSubtitle: "Overlay subtitle",
+          summary: "Card summary",
         },
       },
-      { clientMessageId: "tmp-mini-app-1" }
+      { clientMessageId: "tmp-customized-mini-app-1" }
     );
 
     expect(captured).toEqual({
       chatGuid: chatGuidValue,
-      url: "https://example.com/demo",
-      preview: {
-        title: "Example Website",
-        subtitle: "example.com",
-        body: "Open the demo",
-        imageJpeg,
-        caption: "Demo",
-        footer: "Photon",
-        detail: "Updated now",
-        summary: "Example Website",
+      teamId: "TEAMID1234",
+      extensionBundleId: "com.example.app.MessagesExtension",
+      appName: "Example",
+      appStoreId: 1_234_567_890,
+      url: "exampleapp://card/42",
+      layout: {
+        caption: "Card Title",
+        subcaption: "example.com",
+        trailingCaption: "trail",
+        trailingSubcaption: "trail sub",
+        image,
+        imageTitle: "Overlay title",
+        imageSubtitle: "Overlay subtitle",
+        summary: "Card summary",
       },
-      clientMessageId: "tmp-mini-app-1",
+      clientMessageId: "tmp-customized-mini-app-1",
     });
   });
 

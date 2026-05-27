@@ -2,6 +2,7 @@ import { fromGrpcError } from "../errors/error-handler.ts";
 import { MessageReactionKind } from "../generated/photon/imessage/v1/message_types.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { MessageServiceClient } from "../transport/grpc-client.ts";
+import type { IdempotencyOptions } from "../types/common.ts";
 import {
   mapEmbeddedMedia,
   mapMessage,
@@ -14,13 +15,12 @@ import { normalizeChatGuid } from "../types/chat-guid.ts";
 import type { MessageEffect } from "../types/effects.ts";
 import type { MessageEvent } from "../types/events.ts";
 import type {
+  CustomizedMiniAppMessage,
   EmbeddedMedia,
   Message,
   MessageListFilter,
   MessageListPage,
   MessagePart,
-  MiniAppCard,
-  MiniAppSendOptions,
   SendOptions,
   SettableMessageReaction,
   StickerPlacement,
@@ -64,8 +64,8 @@ function toReactionKind(
  * - `sendMultipart(chat, parts, options)` sends multiple bubbles atomically;
  *   parts can contain text, uploaded attachment GUIDs, mentions, formatting,
  *   and bubble indexes.
- * - `sendMiniApp(chat, card, options)` sends a mini app card from a URL and
- *   caller-provided visible preview content.
+ * - `sendCustomizedMiniApp(chat, message, options)` sends a mini app card
+ *   backed by the caller's own iMessage extension.
  * - `edit(chat, message, newText, options)` edits an existing message and can
  *   target a specific multipart bubble with `partIndex`.
  * - `unsend(chat, message, options)` retracts an existing message and can
@@ -195,43 +195,44 @@ export class MessagesResource {
   }
 
   /**
-   * Send a mini app card.
+   * Send an iMessage mini-app card backed by the caller's own iMessage
+   * extension.
    *
-   * Recipients open `card.url` when they tap the card. The server prepares the
-   * card for delivery; callers provide only the website URL and visible content.
-   * `card.preview.imageJpeg`, when supplied, must contain JPEG bytes.
+   * The server assembles Apple's balloon plugin id from `teamId` and
+   * `extensionBundleId`. Recipients with the extension installed open it on
+   * tap; others see the App Store entry referenced by `appStoreId`.
+   *
+   * The `layout` field mirrors Apple's `MSMessageTemplateLayout`. At least
+   * one of `caption`, `subcaption`, `trailingCaption`, `trailingSubcaption`,
+   * or `image` must be set, otherwise the card renders as an empty bubble
+   * and is rejected with INVALID_ARGUMENT. `imageTitle` and `imageSubtitle`
+   * are overlay slots that render only when `image` is also set.
    *
    * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
    *               `chat.guid`.
-   * @param card.url - URL opened when the recipient taps the card.
-   * @param card.preview.title - Required title shown on the card.
-   * @param card.preview.subtitle - Optional secondary text shown on the card.
-   * @param card.preview.body - Optional supporting text shown on the card.
-   * @param card.preview.imageJpeg - Optional JPEG preview image bytes.
-   * @param card.preview.caption - Optional small label shown on the card.
-   * @param card.preview.footer - Optional secondary label shown on the card.
-   * @param card.preview.detail - Optional detail label shown on the card.
-   * @param card.preview.summary - Optional fallback text for limited surfaces.
+   * @param message.teamId - 10-character uppercase alphanumeric Apple Team ID.
+   * @param message.extensionBundleId - Bundle id of the iMessage extension
+   *   target. Must not contain `:`.
+   * @param message.appName - App display name used by Messages fallback UI.
+   * @param message.appStoreId - Positive Apple App Store id of the owning app.
+   * @param message.url - Absolute URL delivered to the extension on tap.
+   * @param message.layout - Visible card layout. See `MiniAppLayout` for the
+   *   rendering map of each slot.
    */
-  async sendMiniApp(
+  async sendCustomizedMiniApp(
     chat: string,
-    card: MiniAppCard,
-    options?: MiniAppSendOptions
+    message: CustomizedMiniAppMessage,
+    options?: IdempotencyOptions
   ): Promise<Message> {
     try {
-      const response = await this._client.sendMiniAppMessage({
+      const response = await this._client.sendCustomizedMiniAppMessage({
         chatGuid: normalizeChatGuid(chat),
-        url: card.url,
-        preview: {
-          title: card.preview.title,
-          subtitle: card.preview.subtitle,
-          body: card.preview.body,
-          imageJpeg: card.preview.imageJpeg,
-          caption: card.preview.caption,
-          footer: card.preview.footer,
-          detail: card.preview.detail,
-          summary: card.preview.summary,
-        },
+        teamId: message.teamId,
+        extensionBundleId: message.extensionBundleId,
+        appName: message.appName,
+        url: message.url,
+        layout: message.layout,
+        appStoreId: message.appStoreId,
         clientMessageId: options?.clientMessageId,
       });
       return mapMessage(unwrap(response.message, "message"));
