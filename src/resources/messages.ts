@@ -76,7 +76,7 @@ function toReactionKind(
  *   uploaded sticker attachment on a message.
  * - `notifySilenced(chat, message, options)` triggers Apple's Notify Anyway
  *   action for a Focus-silenced conversation.
- * - `get(chat, message)` fetches one message inside a known chat.
+ * - `get(message)` fetches one message by its guid.
  * - `listRecent(filter)` pages through recent messages across chats.
  * - `listInChat(chat, filter)` pages through messages in one chat.
  * - `getEmbeddedMedia(chat, message)` downloads Digital Touch / handwritten
@@ -396,16 +396,13 @@ export class MessagesResource {
   }
 
   /**
-   * Fetch a single message by its guid within a known chat.
+   * Fetch a single message by its guid.
    *
-   * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
-   *               `chat.guid`.
    * @param message - Guid of the message to fetch (`message.guid`).
    */
-  async get(chat: string, message: string): Promise<Message> {
+  async get(message: string): Promise<Message> {
     try {
       const response = await this._client.getMessage({
-        chatGuid: normalizeChatGuid(chat),
         messageGuid: message,
       });
       return mapMessage(unwrap(response.message, "message"));
