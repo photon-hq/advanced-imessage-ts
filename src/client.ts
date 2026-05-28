@@ -219,7 +219,7 @@ export interface LocationsResource {
  *   uploaded sticker attachment on a message.
  * - `notifySilenced(chat, message, options)` triggers Apple's Notify Anyway
  *   action for a Focus-silenced conversation.
- * - `get(chat, message)` fetches one message inside a known chat.
+ * - `get(message)` fetches one message by its guid.
  * - `listRecent(filter)` pages through recent messages across chats.
  * - `listInChat(chat, filter)` pages through messages in one chat.
  * - `getEmbeddedMedia(chat, message)` downloads Digital Touch / handwritten
@@ -237,7 +237,7 @@ export interface MessagesResource {
       readonly partIndex?: number;
     }
   ): Promise<Message>;
-  get(chat: string, message: string): Promise<Message>;
+  get(message: string): Promise<Message>;
   getEmbeddedMedia(chat: string, message: string): Promise<EmbeddedMedia>;
   listInChat(
     chat: string,
@@ -425,7 +425,7 @@ export interface AdvancedIMessage extends AsyncDisposable {
    *   uploaded sticker attachment on a message.
    * - `notifySilenced(chat, message, options)` triggers Apple's Notify Anyway
    *   action for a Focus-silenced conversation.
-   * - `get(chat, message)` fetches one message inside a known chat.
+   * - `get(message)` fetches one message by its guid.
    * - `listRecent(filter)` pages through recent messages across chats.
    * - `listInChat(chat, filter)` pages through messages in one chat.
    * - `getEmbeddedMedia(chat, message)` downloads Digital Touch / handwritten

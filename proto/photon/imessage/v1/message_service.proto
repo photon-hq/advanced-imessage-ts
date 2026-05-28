@@ -358,10 +358,6 @@ message NotifySilencedMessageRequest {
 
 message GetMessageRequest {
 
-  // Visibility scope. The server uses `chat_guid` to authorise the read and
-  // to disambiguate cross-chat duplicates.
-  string chat_guid = 1;
-
   string message_guid = 2;
 
 }

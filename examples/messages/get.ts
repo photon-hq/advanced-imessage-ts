@@ -6,10 +6,9 @@ const im = createClient({
   tls: false,
 });
 
-const chat = "any;-;alice@example.com";
 const messageGuid = "message-guid";
 
-const message = await im.messages.get(chat, messageGuid);
+const message = await im.messages.get(messageGuid);
 
 console.log("guid:", message.guid);
 console.log("text:", message.content.text);

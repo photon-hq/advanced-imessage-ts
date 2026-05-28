@@ -251,11 +251,6 @@ export interface NotifySilencedMessageRequest {
 }
 
 export interface GetMessageRequest {
-  /**
-   * Visibility scope. The server uses `chat_guid` to authorise the read and
-   * to disambiguate cross-chat duplicates.
-   */
-  chatGuid: string;
   messageGuid: string;
 }
 
@@ -2324,14 +2319,11 @@ export const NotifySilencedMessageRequest: MessageFns<NotifySilencedMessageReque
 };
 
 function createBaseGetMessageRequest(): GetMessageRequest {
-  return { chatGuid: "", messageGuid: "" };
+  return { messageGuid: "" };
 }
 
 export const GetMessageRequest: MessageFns<GetMessageRequest> = {
   encode(message: GetMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.chatGuid !== "") {
-      writer.uint32(10).string(message.chatGuid);
-    }
     if (message.messageGuid !== "") {
       writer.uint32(18).string(message.messageGuid);
     }
@@ -2345,14 +2337,6 @@ export const GetMessageRequest: MessageFns<GetMessageRequest> = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.chatGuid = reader.string();
-          continue;
-        }
         case 2: {
           if (tag !== 18) {
             break;
@@ -2372,11 +2356,6 @@ export const GetMessageRequest: MessageFns<GetMessageRequest> = {
 
   fromJSON(object: any): GetMessageRequest {
     return {
-      chatGuid: isSet(object.chatGuid)
-        ? globalThis.String(object.chatGuid)
-        : isSet(object.chat_guid)
-        ? globalThis.String(object.chat_guid)
-        : "",
       messageGuid: isSet(object.messageGuid)
         ? globalThis.String(object.messageGuid)
         : isSet(object.message_guid)
@@ -2387,9 +2366,6 @@ export const GetMessageRequest: MessageFns<GetMessageRequest> = {
 
   toJSON(message: GetMessageRequest): unknown {
     const obj: any = {};
-    if (message.chatGuid !== "") {
-      obj.chatGuid = message.chatGuid;
-    }
     if (message.messageGuid !== "") {
       obj.messageGuid = message.messageGuid;
     }
@@ -2401,7 +2377,6 @@ export const GetMessageRequest: MessageFns<GetMessageRequest> = {
   },
   fromPartial(object: DeepPartial<GetMessageRequest>): GetMessageRequest {
     const message = createBaseGetMessageRequest();
-    message.chatGuid = object.chatGuid ?? "";
     message.messageGuid = object.messageGuid ?? "";
     return message;
   },
