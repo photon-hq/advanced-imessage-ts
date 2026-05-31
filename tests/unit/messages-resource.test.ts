@@ -267,6 +267,38 @@ describe("MessagesResource", () => {
     });
   });
 
+  it("does not default appStoreId for customized mini app cards when unset", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async sendCustomizedMiniAppMessage(request: Record<string, unknown>) {
+        captured = request;
+        return { message: makeMessage("customized-mini-app-no-store") };
+      },
+    } as any);
+
+    await resource.sendCustomizedMiniApp(chatGuidValue, {
+      teamId: "TEAMID1234",
+      extensionBundleId: "com.example.app.MessagesExtension",
+      appName: "Example",
+      url: "exampleapp://card/42",
+      layout: {
+        caption: "Card Title",
+      },
+    });
+
+    expect(captured).toMatchObject({
+      chatGuid: chatGuidValue,
+      teamId: "TEAMID1234",
+      extensionBundleId: "com.example.app.MessagesExtension",
+      appName: "Example",
+      url: "exampleapp://card/42",
+      layout: {
+        caption: "Card Title",
+      },
+    });
+    expect(captured?.appStoreId).toBeUndefined();
+  });
+
   describe("TextFormatInput → wire formatting (exhaustive)", () => {
     for (const type of [
       "bold",

@@ -219,8 +219,8 @@ export interface MiniAppLayout {
 export interface CustomizedMiniAppMessage {
   /** Display name of the owning app, shown by Messages fallback UI. */
   readonly appName: string;
-  /** Apple App Store numeric id of the owning app. Must be a positive integer. */
-  readonly appStoreId: number;
+  /** Apple App Store numeric id of the owning app. When set, must be a positive integer. */
+  readonly appStoreId?: number;
   /** Bundle identifier of the iMessage extension target. Must not contain `:`. */
   readonly extensionBundleId: string;
   /** Visible card layout. */

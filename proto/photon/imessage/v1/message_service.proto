@@ -268,8 +268,8 @@ message SendCustomizedMiniAppMessageRequest {
   // `MSMessageTemplateLayout`; see `MiniAppLayout` for the rendering map.
   MiniAppLayout layout = 6;
 
-  // Apple App Store numeric id of the owning app. Required and must be > 0.
-  int64 app_store_id = 7;
+  // Apple App Store numeric id of the owning app. When set, must be > 0.
+  optional int64 app_store_id = 7;
 
   optional string client_message_id = 100;
 
