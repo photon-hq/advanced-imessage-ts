@@ -195,8 +195,8 @@ export interface SendCustomizedMiniAppMessageRequest {
   layout:
     | MiniAppLayout
     | undefined;
-  /** Apple App Store numeric id of the owning app. Required and must be > 0. */
-  appStoreId: number;
+  /** Apple App Store numeric id of the owning app. When set, must be > 0. */
+  appStoreId?: number | undefined;
   clientMessageId?: string | undefined;
 }
 
@@ -1513,7 +1513,7 @@ function createBaseSendCustomizedMiniAppMessageRequest(): SendCustomizedMiniAppM
     appName: "",
     url: "",
     layout: undefined,
-    appStoreId: 0,
+    appStoreId: undefined,
     clientMessageId: undefined,
   };
 }
@@ -1538,7 +1538,7 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
     if (message.layout !== undefined) {
       MiniAppLayout.encode(message.layout, writer.uint32(50).fork()).join();
     }
-    if (message.appStoreId !== 0) {
+    if (message.appStoreId !== undefined) {
       writer.uint32(56).int64(message.appStoreId);
     }
     if (message.clientMessageId !== undefined) {
@@ -1655,7 +1655,7 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
         ? globalThis.Number(object.appStoreId)
         : isSet(object.app_store_id)
         ? globalThis.Number(object.app_store_id)
-        : 0,
+        : undefined,
       clientMessageId: isSet(object.clientMessageId)
         ? globalThis.String(object.clientMessageId)
         : isSet(object.client_message_id)
@@ -1684,7 +1684,7 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
     if (message.layout !== undefined) {
       obj.layout = MiniAppLayout.toJSON(message.layout);
     }
-    if (message.appStoreId !== 0) {
+    if (message.appStoreId !== undefined) {
       obj.appStoreId = Math.round(message.appStoreId);
     }
     if (message.clientMessageId !== undefined) {
@@ -1706,7 +1706,7 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
     message.layout = (object.layout !== undefined && object.layout !== null)
       ? MiniAppLayout.fromPartial(object.layout)
       : undefined;
-    message.appStoreId = object.appStoreId ?? 0;
+    message.appStoreId = object.appStoreId ?? undefined;
     message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },

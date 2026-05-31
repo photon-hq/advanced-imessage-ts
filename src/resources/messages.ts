@@ -200,7 +200,8 @@ export class MessagesResource {
    *
    * The server assembles Apple's balloon plugin id from `teamId` and
    * `extensionBundleId`. Recipients with the extension installed open it on
-   * tap; others see the App Store entry referenced by `appStoreId`.
+   * tap; others see the App Store entry referenced by `appStoreId` when it is
+   * set.
    *
    * The `layout` field mirrors Apple's `MSMessageTemplateLayout`. At least
    * one of `caption`, `subcaption`, `trailingCaption`, `trailingSubcaption`,
@@ -214,7 +215,8 @@ export class MessagesResource {
    * @param message.extensionBundleId - Bundle id of the iMessage extension
    *   target. Must not contain `:`.
    * @param message.appName - App display name used by Messages fallback UI.
-   * @param message.appStoreId - Positive Apple App Store id of the owning app.
+   * @param message.appStoreId - Optional positive Apple App Store id of the
+   *   owning app.
    * @param message.url - Absolute URL delivered to the extension on tap.
    * @param message.layout - Visible card layout. See `MiniAppLayout` for the
    *   rendering map of each slot.
