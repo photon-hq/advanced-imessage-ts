@@ -9,6 +9,7 @@
 
 import {
   type Channel,
+  type ChannelOptions,
   ChannelCredentials,
   createChannel,
   createClientFactory,
@@ -127,6 +128,14 @@ export interface GrpcClientOptions {
 // ---------------------------------------------------------------------------
 
 /**
+ * Maximum size (in bytes) of a single gRPC message in either direction,
+ * sized to match the 100 MB backend request limit so attachment uploads and
+ * downloads can use the full payload. `@grpc/grpc-js` otherwise defaults to
+ * 4 MB on receive and unlimited on send.
+ */
+const MAX_MESSAGE_BYTES = 100 * 1024 * 1024;
+
+/**
  * Create a gRPC channel and all service clients with the configured
  * middleware.
  *
@@ -147,8 +156,17 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
       ? ChannelCredentials.createSsl()
       : ChannelCredentials.createInsecure();
 
-  const channel = createChannel(options.address, credentials);
-  const streamChannel = createChannel(options.address, credentials);
+  const channelOptions: ChannelOptions = {
+    "grpc.max_receive_message_length": MAX_MESSAGE_BYTES,
+    "grpc.max_send_message_length": MAX_MESSAGE_BYTES,
+  };
+
+  const channel = createChannel(options.address, credentials, channelOptions);
+  const streamChannel = createChannel(
+    options.address,
+    credentials,
+    channelOptions
+  );
 
   // --- Client factory with middleware ---
   //
