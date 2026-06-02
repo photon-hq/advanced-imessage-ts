@@ -25,6 +25,5 @@ export interface LocationRequestReceipt {
   readonly address: string;
   readonly messageGuid?: string;
   readonly reason?: string;
-  readonly requested: boolean;
-  readonly requestStatus: string;
+  readonly status: string;
 }

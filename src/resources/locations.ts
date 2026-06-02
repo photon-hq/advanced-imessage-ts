@@ -76,7 +76,7 @@ export class LocationsResource {
     options: IdempotencyOptions = {}
   ): Promise<LocationRequestReceipt> {
     try {
-      const response = await this._client.requestLocationSharing({
+      const response = await this._client.requestFriendLocationSharing({
         address,
         chatGuid: normalizeChatGuid(chat),
         clientMessageId: options.clientMessageId,
