@@ -261,7 +261,7 @@ describe("idempotencyMiddleware", () => {
     const call = buildCall(
       {
         ...UNARY_METHOD,
-        path: "/photon.imessage.v1.LocationService/RequestLocationSharing",
+        path: "/photon.imessage.v1.LocationService/RequestFriendLocationSharing",
       },
       {},
       handler

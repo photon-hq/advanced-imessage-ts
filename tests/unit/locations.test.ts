@@ -70,15 +70,14 @@ describe("LocationsResource", () => {
     expect(friend.locationType).toBe("legacy");
   });
 
-  it("sends a requestLocationSharing request with chat and address", async () => {
+  it("sends a requestFriendLocationSharing request with chat and address", async () => {
     const requests: Record<string, unknown>[] = [];
     const resource = new LocationsResource({
-      async requestLocationSharing(request: Record<string, unknown>) {
+      async requestFriendLocationSharing(request: Record<string, unknown>) {
         requests.push(request);
         return {
           address: "+14155550123",
-          requested: true,
-          requestStatus: "sent",
+          status: "sent",
           reason: "Find My request card dispatched to Messages",
           messageGuid: "message-guid",
         };
@@ -102,8 +101,7 @@ describe("LocationsResource", () => {
     ]);
     expect(receipt).toEqual({
       address: "+14155550123",
-      requested: true,
-      requestStatus: "sent",
+      status: "sent",
       reason: "Find My request card dispatched to Messages",
       messageGuid: "message-guid",
     });
@@ -112,7 +110,7 @@ describe("LocationsResource", () => {
   it("rejects malformed chat guids before requesting location sharing", async () => {
     let called = false;
     const resource = new LocationsResource({
-      async requestLocationSharing() {
+      async requestFriendLocationSharing() {
         called = true;
         return {};
       },
