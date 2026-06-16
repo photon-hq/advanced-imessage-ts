@@ -1,6 +1,6 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { ValidationError } from "../errors/imessage-error.ts";
-import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types.ts";
+import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types_pb.js";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ChatServiceClient } from "../transport/grpc-client.ts";
 import { mapChat, mapChatEvent, mapMessage } from "../transport/mapper.ts";
@@ -51,11 +51,9 @@ function normalizeInitialMessageText(
  */
 export class ChatsResource {
   private readonly _client: ChatServiceClient;
-  private readonly _streamClient: ChatServiceClient;
 
-  constructor(client: ChatServiceClient, streamClient = client) {
+  constructor(client: ChatServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
   }
 
   /**
@@ -78,7 +76,7 @@ export class ChatsResource {
       const response = await this._client.createChat({
         addresses,
         clientMessageId: options?.clientMessageId,
-        service: ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE,
+        service: ProtoChatServiceType.IMESSAGE,
         initialMessage:
           message === undefined
             ? undefined
@@ -124,7 +122,7 @@ export class ChatsResource {
       const response = await this._client.getChatCount({
         includeArchived: options?.includeArchived ?? false,
       });
-      return response.count;
+      return Number(response.count);
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -237,7 +235,7 @@ export class ChatsResource {
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent> {
     const abort = new AbortController();
-    const rpcStream = this._streamClient.subscribeChatEvents(
+    const rpcStream = this._client.subscribeChatEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
       },
@@ -247,10 +245,16 @@ export class ChatsResource {
     async function* mapEvents(): AsyncGenerator<ChatEvent> {
       try {
         for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.chatChanged) {
+          if (
+            frame.sequence === undefined ||
+            frame.payload.case !== "chatChanged"
+          ) {
             continue;
           }
-          const event = mapChatEvent(frame.sequence, frame.chatChanged);
+          const event = mapChatEvent(
+            Number(frame.sequence),
+            frame.payload.value
+          );
           if (event) {
             yield event;
           }

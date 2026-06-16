@@ -1,26 +1,33 @@
+import type { MessageInitShape } from "@bufbuild/protobuf";
+import {
+  type Timestamp,
+  timestampDate,
+  timestampFromDate,
+} from "@bufbuild/protobuf/wkt";
 import {
   ChatServiceType as ProtoChatServiceType,
   type MultiServiceAddressInfo as ProtoMultiServiceAddressInfo,
   type SingleServiceAddressInfo as ProtoSingleServiceAddressInfo,
-} from "../generated/photon/imessage/v1/address_types.ts";
+} from "../generated/photon/imessage/v1/address_types_pb.js";
 import {
   type AttachmentInfo as ProtoAttachmentInfo,
   type CompanionInfo as ProtoCompanionInfo,
   CompanionKind as ProtoCompanionKind,
   TransferState as ProtoTransferState,
-} from "../generated/photon/imessage/v1/attachment_types.ts";
+} from "../generated/photon/imessage/v1/attachment_types_pb.js";
 import type {
   Chat as ProtoChat,
   ChatChangeEvent as ProtoChatChangeEvent,
-} from "../generated/photon/imessage/v1/chat_types.ts";
-import type { GroupChangeEvent as ProtoGroupChangeEvent } from "../generated/photon/imessage/v1/group_types.ts";
-import type { RequestFriendLocationSharingResponse as ProtoRequestFriendLocationSharingResponse } from "../generated/photon/imessage/v1/location_service.ts";
+} from "../generated/photon/imessage/v1/chat_types_pb.js";
+import type { GroupChangeEvent as ProtoGroupChangeEvent } from "../generated/photon/imessage/v1/group_types_pb.js";
+import type { RequestFriendLocationSharingResponse as ProtoRequestFriendLocationSharingResponse } from "../generated/photon/imessage/v1/location_service_pb.js";
 import {
   FriendLocationType as ProtoFriendLocationType,
   type SharedFriendLocation as ProtoSharedFriendLocation,
   type SharedFriendLocationUpdated as ProtoSharedFriendLocationUpdated,
-} from "../generated/photon/imessage/v1/location_types.ts";
+} from "../generated/photon/imessage/v1/location_types_pb.js";
 import {
+  type MessagePartSchema,
   type EmbeddedMedia as ProtoEmbeddedMedia,
   type Message as ProtoMessage,
   type MessageAppliedReaction as ProtoMessageAppliedReaction,
@@ -29,7 +36,6 @@ import {
   type MessageEdited as ProtoMessageEdited,
   MessageItemType as ProtoMessageItemType,
   type MessageMention as ProtoMessageMention,
-  type MessagePart as ProtoMessagePart,
   type MessagePlacedSticker as ProtoMessagePlacedSticker,
   type MessageReaction as ProtoMessageReaction,
   type MessageReactionAdded as ProtoMessageReactionAdded,
@@ -38,17 +44,18 @@ import {
   type MessageRead as ProtoMessageRead,
   type MessageReceived as ProtoMessageReceived,
   type MessageUnsent as ProtoMessageUnsent,
-  type ReplyTarget as ProtoReplyTarget,
   type StickerPlaced as ProtoStickerPlaced,
   type StickerPlacement as ProtoStickerPlacement,
   type TextFormat as ProtoTextFormat,
-} from "../generated/photon/imessage/v1/message_types.ts";
+  type ReplyTargetSchema,
+  type TextFormatSchema,
+} from "../generated/photon/imessage/v1/message_types_pb.js";
 import type {
   PollChangeEvent as ProtoPollChangeEvent,
   PollInfo as ProtoPollInfo,
   PollOption as ProtoPollOption,
   PollParticipantVote as ProtoPollParticipantVote,
-} from "../generated/photon/imessage/v1/poll_types.ts";
+} from "../generated/photon/imessage/v1/poll_types_pb.js";
 import type {
   MultiServiceAddressInfo,
   SingleServiceAddressInfo,
@@ -95,15 +102,33 @@ import type {
 } from "../types/polls.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
+// ---------------------------------------------------------------------------
+// Well-known type helpers
+// ---------------------------------------------------------------------------
+
+/** Convert a protobuf `Timestamp` message to a JS `Date`. */
+function toDate(ts: Timestamp): Date;
+function toDate(ts: Timestamp | undefined): Date | undefined;
+function toDate(ts: Timestamp | undefined): Date | undefined {
+  return ts ? timestampDate(ts) : undefined;
+}
+
+/** Convert a JS `Date` to a protobuf `Timestamp` for an outgoing request. */
+export function toProtoTimestamp(
+  date: Date | undefined
+): Timestamp | undefined {
+  return date ? timestampFromDate(date) : undefined;
+}
+
 export function mapTransferState(proto: ProtoTransferState): TransferState {
   switch (proto) {
-    case ProtoTransferState.TRANSFER_STATE_PENDING:
+    case ProtoTransferState.PENDING:
       return "pending";
-    case ProtoTransferState.TRANSFER_STATE_TRANSFERRING:
+    case ProtoTransferState.TRANSFERRING:
       return "transferring";
-    case ProtoTransferState.TRANSFER_STATE_FAILED:
+    case ProtoTransferState.FAILED:
       return "failed";
-    case ProtoTransferState.TRANSFER_STATE_FINISHED:
+    case ProtoTransferState.FINISHED:
       return "finished";
     default:
       return "unknown";
@@ -112,7 +137,7 @@ export function mapTransferState(proto: ProtoTransferState): TransferState {
 
 export function mapCompanionKind(proto: ProtoCompanionKind): CompanionKind {
   switch (proto) {
-    case ProtoCompanionKind.COMPANION_KIND_LIVE_PHOTO_VIDEO:
+    case ProtoCompanionKind.LIVE_PHOTO_VIDEO:
       return "live-photo-video";
     default:
       return "unknown";
@@ -123,13 +148,13 @@ export function mapMessageItemType(
   proto: ProtoMessageItemType
 ): MessageItemType {
   switch (proto) {
-    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_NORMAL:
+    case ProtoMessageItemType.NORMAL:
       return "normal";
-    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE:
+    case ProtoMessageItemType.PARTICIPANT_CHANGE:
       return "participantChange";
-    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE:
+    case ProtoMessageItemType.GROUP_NAME_CHANGE:
       return "groupNameChange";
-    case ProtoMessageItemType.MESSAGE_ITEM_TYPE_CHAT_ACTION:
+    case ProtoMessageItemType.CHAT_ACTION:
       return "chatAction";
     default:
       return "unknown";
@@ -140,11 +165,11 @@ export function mapChatServiceType(
   proto: ProtoChatServiceType
 ): ChatServiceType {
   switch (proto) {
-    case ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE:
+    case ProtoChatServiceType.IMESSAGE:
       return "iMessage";
-    case ProtoChatServiceType.CHAT_SERVICE_TYPE_SMS:
+    case ProtoChatServiceType.SMS:
       return "SMS";
-    case ProtoChatServiceType.CHAT_SERVICE_TYPE_RCS:
+    case ProtoChatServiceType.RCS:
       return "RCS";
     default:
       return "unknown";
@@ -155,11 +180,11 @@ function mapFriendLocationType(
   proto: ProtoFriendLocationType
 ): SharedFriendLocation["locationType"] {
   switch (proto) {
-    case ProtoFriendLocationType.FRIEND_LOCATION_TYPE_LEGACY:
+    case ProtoFriendLocationType.LEGACY:
       return "legacy";
-    case ProtoFriendLocationType.FRIEND_LOCATION_TYPE_LIVE:
+    case ProtoFriendLocationType.LIVE:
       return "live";
-    case ProtoFriendLocationType.FRIEND_LOCATION_TYPE_SHALLOW:
+    case ProtoFriendLocationType.SHALLOW:
       return "shallow";
     default:
       return "unknown";
@@ -191,7 +216,7 @@ export function mapCompanionInfo(proto: ProtoCompanionInfo): CompanionInfo {
     fileName: proto.fileName,
     kind: mapCompanionKind(proto.kind),
     mimeType: proto.mimeType,
-    totalBytes: proto.totalBytes,
+    totalBytes: Number(proto.totalBytes),
   };
 }
 
@@ -207,7 +232,7 @@ export function mapAttachmentInfo(proto: ProtoAttachmentInfo): AttachmentInfo {
     isSticker: proto.isSticker,
     mimeType: proto.mimeType,
     originalGuid: proto.originalGuid ? proto.originalGuid : undefined,
-    totalBytes: proto.totalBytes,
+    totalBytes: Number(proto.totalBytes),
     transferState: mapTransferState(proto.transferState),
     uti: proto.uti,
   };
@@ -222,7 +247,9 @@ export function mapTextFormat(proto: ProtoTextFormat): TextFormat {
   };
 }
 
-export function mapTextFormatInput(input: TextFormatInput): ProtoTextFormat {
+export function mapTextFormatInput(
+  input: TextFormatInput
+): MessageInitShape<typeof TextFormatSchema> {
   return {
     effectName: input.type === "effect" ? input.effect : undefined,
     length: input.length,
@@ -243,21 +270,21 @@ export function mapMessageReaction(
   proto: ProtoMessageReaction
 ): MessageReaction {
   switch (proto.kind) {
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_LOVE:
+    case ProtoMessageReactionKind.LOVE:
       return { emoji: proto.emoji, kind: "love" };
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_LIKE:
+    case ProtoMessageReactionKind.LIKE:
       return { emoji: proto.emoji, kind: "like" };
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_DISLIKE:
+    case ProtoMessageReactionKind.DISLIKE:
       return { emoji: proto.emoji, kind: "dislike" };
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_LAUGH:
+    case ProtoMessageReactionKind.LAUGH:
       return { emoji: proto.emoji, kind: "laugh" };
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_EMPHASIZE:
+    case ProtoMessageReactionKind.EMPHASIZE:
       return { emoji: proto.emoji, kind: "emphasize" };
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_QUESTION:
+    case ProtoMessageReactionKind.QUESTION:
       return { emoji: proto.emoji, kind: "question" };
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_EMOJI:
+    case ProtoMessageReactionKind.EMOJI:
       return { emoji: proto.emoji, kind: "emoji" };
-    case ProtoMessageReactionKind.MESSAGE_REACTION_KIND_STICKER:
+    case ProtoMessageReactionKind.STICKER:
       return { emoji: proto.emoji, kind: "sticker" };
     default:
       return { emoji: proto.emoji, kind: "unknown" };
@@ -291,7 +318,7 @@ export function mapAppliedReaction(
   proto: ProtoMessageAppliedReaction
 ): MessageAppliedReaction {
   return {
-    dateCreated: unwrap(proto.dateCreated, "dateCreated"),
+    dateCreated: toDate(unwrap(proto.dateCreated, "dateCreated")),
     isFromMe: proto.isFromMe,
     messageGuid: proto.messageGuid,
     reaction: mapMessageReaction(unwrap(proto.reaction, "reaction")),
@@ -306,7 +333,7 @@ export function mapPlacedSticker(
   proto: ProtoMessagePlacedSticker
 ): MessagePlacedSticker {
   return {
-    dateCreated: unwrap(proto.dateCreated, "dateCreated"),
+    dateCreated: toDate(unwrap(proto.dateCreated, "dateCreated")),
     isFromMe: proto.isFromMe,
     messageGuid: proto.messageGuid,
     placement: proto.placement
@@ -328,13 +355,13 @@ export function mapMessage(proto: ProtoMessage): Message {
     chatGuids: proto.chatGuids,
     content: mapMessageContent(unwrap(proto.content, "content")),
     dataDetectorResultsPresent: proto.dataDetectorResultsPresent,
-    dateCreated: unwrap(proto.dateCreated, "dateCreated"),
-    dateDelivered: proto.dateDelivered,
-    dateEdited: proto.dateEdited,
-    dateExpressiveSendPlayed: proto.dateExpressiveSendPlayed,
-    datePlayed: proto.datePlayed,
-    dateRead: proto.dateRead,
-    dateRetracted: proto.dateRetracted,
+    dateCreated: toDate(unwrap(proto.dateCreated, "dateCreated")),
+    dateDelivered: toDate(proto.dateDelivered),
+    dateEdited: toDate(proto.dateEdited),
+    dateExpressiveSendPlayed: toDate(proto.dateExpressiveSendPlayed),
+    datePlayed: toDate(proto.datePlayed),
+    dateRead: toDate(proto.dateRead),
+    dateRetracted: toDate(proto.dateRetracted),
     destinationCallerId: proto.destinationCallerId,
     didNotifyRecipient: proto.didNotifyRecipient,
     groupTitle: proto.groupTitle,
@@ -421,33 +448,32 @@ export function mapPoll(proto: ProtoPollInfo): Poll {
 export function mapPollDelta(
   proto: ProtoPollChangeEvent
 ): PollChangeDelta | undefined {
-  if (proto.created) {
-    return {
-      type: "created",
-      title: proto.created.title,
-      options: proto.created.options.map(mapPollOption),
-    };
+  switch (proto.change.case) {
+    case "created":
+      return {
+        type: "created",
+        title: proto.change.value.title,
+        options: proto.change.value.options.map(mapPollOption),
+      };
+    case "optionAdded":
+      return {
+        type: "optionAdded",
+        title: proto.change.value.title,
+        options: proto.change.value.options.map(mapPollOption),
+      };
+    case "voted":
+      return {
+        type: "voted",
+        optionIdentifier: proto.change.value.optionIdentifier,
+      };
+    case "unvoted":
+      return {
+        type: "unvoted",
+        optionIdentifier: proto.change.value.optionIdentifier,
+      };
+    default:
+      return undefined;
   }
-  if (proto.optionAdded) {
-    return {
-      type: "optionAdded",
-      title: proto.optionAdded.title,
-      options: proto.optionAdded.options.map(mapPollOption),
-    };
-  }
-  if (proto.voted) {
-    return {
-      type: "voted",
-      optionIdentifier: proto.voted.optionIdentifier,
-    };
-  }
-  if (proto.unvoted) {
-    return {
-      type: "unvoted",
-      optionIdentifier: proto.unvoted.optionIdentifier,
-    };
-  }
-  return undefined;
 }
 
 export function mapSharedFriendLocation(
@@ -456,10 +482,10 @@ export function mapSharedFriendLocation(
   return {
     accuracy: proto.accuracy,
     address: proto.address,
-    expiresAt: proto.expiresAt,
+    expiresAt: toDate(proto.expiresAt),
     isLocatingInProgress: proto.isLocatingInProgress,
     latitude: proto.latitude,
-    locationTimestamp: proto.locationTimestamp,
+    locationTimestamp: toDate(proto.locationTimestamp),
     locationType: mapFriendLocationType(proto.locationType),
     longAddress: proto.longAddress,
     longitude: proto.longitude,
@@ -473,7 +499,7 @@ export function mapSharedFriendLocationUpdated(
 ): SharedFriendLocationUpdated {
   return {
     location: mapSharedFriendLocation(unwrap(proto.location, "location")),
-    sourceSequence: proto.sourceSequence,
+    sourceSequence: Number(proto.sourceSequence),
   };
 }
 
@@ -515,68 +541,63 @@ export function mapChatEvent(
 ): ChatEvent | undefined {
   const context = mapEventContext(
     proto.chatGuid,
-    unwrap(proto.occurredAt, "occurredAt"),
+    toDate(unwrap(proto.occurredAt, "occurredAt")),
     proto.isFromMe,
     proto.actor
   );
-  if (proto.backgroundChanged) {
-    return { type: "chat.backgroundChanged", sequence, ...context };
+  switch (proto.change.case) {
+    case "backgroundChanged":
+      return { type: "chat.backgroundChanged", sequence, ...context };
+    case "backgroundRemoved":
+      return { type: "chat.backgroundRemoved", sequence, ...context };
+    case "markedRead":
+      return { type: "chat.markedRead", sequence, ...context };
+    case "archived":
+      return { type: "chat.archived", sequence, ...context };
+    case "unarchived":
+      return { type: "chat.unarchived", sequence, ...context };
+    default:
+      return undefined;
   }
-  if (proto.backgroundRemoved) {
-    return { type: "chat.backgroundRemoved", sequence, ...context };
-  }
-  if (proto.markedRead) {
-    return { type: "chat.markedRead", sequence, ...context };
-  }
-  if (proto.archived) {
-    return { type: "chat.archived", sequence, ...context };
-  }
-  if (proto.unarchived) {
-    return { type: "chat.unarchived", sequence, ...context };
-  }
-  return undefined;
 }
 
 export function mapGroupChange(
   proto: ProtoGroupChangeEvent
 ): GroupChange | undefined {
-  if (proto.displayNameChanged) {
-    return {
-      type: "displayNameChanged",
-      displayName: proto.displayNameChanged.displayName,
-    };
+  switch (proto.change.case) {
+    case "displayNameChanged":
+      return {
+        type: "displayNameChanged",
+        displayName: proto.change.value.displayName,
+      };
+    case "participantAdded":
+      return {
+        type: "participantAdded",
+        participant: mapSingleServiceAddressInfo(
+          unwrap(proto.change.value.participant, "participant")
+        ),
+      };
+    case "participantRemoved":
+      return {
+        type: "participantRemoved",
+        participant: mapSingleServiceAddressInfo(
+          unwrap(proto.change.value.participant, "participant")
+        ),
+      };
+    case "participantLeft":
+      return {
+        type: "participantLeft",
+        participant: mapSingleServiceAddressInfo(
+          unwrap(proto.change.value.participant, "participant")
+        ),
+      };
+    case "iconChanged":
+      return { type: "iconChanged" };
+    case "iconRemoved":
+      return { type: "iconRemoved" };
+    default:
+      return undefined;
   }
-  if (proto.participantAdded) {
-    return {
-      type: "participantAdded",
-      participant: mapSingleServiceAddressInfo(
-        unwrap(proto.participantAdded.participant, "participant")
-      ),
-    };
-  }
-  if (proto.participantRemoved) {
-    return {
-      type: "participantRemoved",
-      participant: mapSingleServiceAddressInfo(
-        unwrap(proto.participantRemoved.participant, "participant")
-      ),
-    };
-  }
-  if (proto.participantLeft) {
-    return {
-      type: "participantLeft",
-      participant: mapSingleServiceAddressInfo(
-        unwrap(proto.participantLeft.participant, "participant")
-      ),
-    };
-  }
-  if (proto.iconChanged) {
-    return { type: "iconChanged" };
-  }
-  if (proto.iconRemoved) {
-    return { type: "iconRemoved" };
-  }
-  return undefined;
 }
 
 export function mapGroupEvent(
@@ -592,7 +613,7 @@ export function mapGroupEvent(
     sequence,
     ...mapEventContext(
       proto.chatGuid,
-      unwrap(proto.occurredAt, "occurredAt"),
+      toDate(unwrap(proto.occurredAt, "occurredAt")),
       proto.isFromMe,
       proto.actor
     ),
@@ -624,7 +645,7 @@ function mapEditedMessage(
     ...context,
     messageGuid: proto.messageGuid,
     content: mapMessageContent(unwrap(proto.content, "content")),
-    editedAt: unwrap(proto.editedAt, "editedAt"),
+    editedAt: toDate(unwrap(proto.editedAt, "editedAt")),
   };
 }
 
@@ -638,7 +659,7 @@ function mapReadMessage(
     sequence,
     ...context,
     messageGuid: proto.messageGuid,
-    readAt: unwrap(proto.readAt, "readAt"),
+    readAt: toDate(unwrap(proto.readAt, "readAt")),
   };
 }
 
@@ -652,7 +673,7 @@ function mapUnsentMessage(
     sequence,
     ...context,
     messageGuid: proto.messageGuid,
-    retractedAt: unwrap(proto.retractedAt, "retractedAt"),
+    retractedAt: toDate(unwrap(proto.retractedAt, "retractedAt")),
   };
 }
 
@@ -710,32 +731,28 @@ export function mapMessageEvent(
 ): MessageEvent | undefined {
   const context = mapEventContext(
     proto.chatGuid,
-    unwrap(proto.occurredAt, "occurredAt"),
+    toDate(unwrap(proto.occurredAt, "occurredAt")),
     proto.isFromMe,
     proto.actor
   );
-  if (proto.messageReceived) {
-    return mapReceivedMessage(sequence, context, proto.messageReceived);
+  switch (proto.change.case) {
+    case "messageReceived":
+      return mapReceivedMessage(sequence, context, proto.change.value);
+    case "messageEdited":
+      return mapEditedMessage(sequence, context, proto.change.value);
+    case "messageRead":
+      return mapReadMessage(sequence, context, proto.change.value);
+    case "messageUnsent":
+      return mapUnsentMessage(sequence, context, proto.change.value);
+    case "reactionAdded":
+      return mapReactionAdded(sequence, context, proto.change.value);
+    case "reactionRemoved":
+      return mapReactionRemoved(sequence, context, proto.change.value);
+    case "stickerPlaced":
+      return mapStickerPlacedEvent(sequence, context, proto.change.value);
+    default:
+      return undefined;
   }
-  if (proto.messageEdited) {
-    return mapEditedMessage(sequence, context, proto.messageEdited);
-  }
-  if (proto.messageRead) {
-    return mapReadMessage(sequence, context, proto.messageRead);
-  }
-  if (proto.messageUnsent) {
-    return mapUnsentMessage(sequence, context, proto.messageUnsent);
-  }
-  if (proto.reactionAdded) {
-    return mapReactionAdded(sequence, context, proto.reactionAdded);
-  }
-  if (proto.reactionRemoved) {
-    return mapReactionRemoved(sequence, context, proto.reactionRemoved);
-  }
-  if (proto.stickerPlaced) {
-    return mapStickerPlacedEvent(sequence, context, proto.stickerPlaced);
-  }
-  return undefined;
 }
 
 export function mapPollEvent(
@@ -751,7 +768,7 @@ export function mapPollEvent(
     sequence,
     ...mapEventContext(
       proto.chatGuid,
-      unwrap(proto.occurredAt, "occurredAt"),
+      toDate(unwrap(proto.occurredAt, "occurredAt")),
       proto.isFromMe,
       proto.actor
     ),
@@ -765,7 +782,7 @@ export function mapReplyTarget(
     | string
     | { readonly guid: string; readonly partIndex?: number }
     | undefined
-): ProtoReplyTarget | undefined {
+): MessageInitShape<typeof ReplyTargetSchema> | undefined {
   if (!replyTo) {
     return undefined;
   }
@@ -778,11 +795,13 @@ export function mapReplyTarget(
   };
 }
 
-export function mapOutgoingMessagePart(part: MessagePart): ProtoMessagePart {
+export function mapOutgoingMessagePart(
+  part: MessagePart
+): MessageInitShape<typeof MessagePartSchema> {
   return {
     attachment: part.attachmentGuid
       ? {
-          attachmentGuid: part.attachmentGuid,
+          source: { case: "attachmentGuid", value: part.attachmentGuid },
           attachmentName: part.attachmentName,
         }
       : undefined,

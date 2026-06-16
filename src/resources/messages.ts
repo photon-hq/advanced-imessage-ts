@@ -1,8 +1,7 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { MessageReactionKind } from "../generated/photon/imessage/v1/message_types.ts";
+import { MessageReactionKind } from "../generated/photon/imessage/v1/message_types_pb.js";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { MessageServiceClient } from "../transport/grpc-client.ts";
-import type { IdempotencyOptions } from "../types/common.ts";
 import {
   mapEmbeddedMedia,
   mapMessage,
@@ -10,8 +9,10 @@ import {
   mapOutgoingMessagePart,
   mapReplyTarget,
   mapTextFormatInput,
+  toProtoTimestamp,
 } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
+import type { IdempotencyOptions } from "../types/common.ts";
 import type { MessageEffect } from "../types/effects.ts";
 import type { MessageEvent } from "../types/events.ts";
 import type {
@@ -34,19 +35,19 @@ function toReactionKind(
 ): MessageReactionKind {
   switch (reaction) {
     case "love":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_LOVE;
+      return MessageReactionKind.LOVE;
     case "like":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_LIKE;
+      return MessageReactionKind.LIKE;
     case "dislike":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_DISLIKE;
+      return MessageReactionKind.DISLIKE;
     case "laugh":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_LAUGH;
+      return MessageReactionKind.LAUGH;
     case "emphasize":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_EMPHASIZE;
+      return MessageReactionKind.EMPHASIZE;
     case "question":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_QUESTION;
+      return MessageReactionKind.QUESTION;
     case "emoji":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_EMOJI;
+      return MessageReactionKind.EMOJI;
     default:
       throw new TypeError(`Unsupported reaction kind: ${String(reaction)}`);
   }
@@ -86,11 +87,9 @@ function toReactionKind(
  */
 export class MessagesResource {
   private readonly _client: MessageServiceClient;
-  private readonly _streamClient: MessageServiceClient;
 
-  constructor(client: MessageServiceClient, streamClient = client) {
+  constructor(client: MessageServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
   }
 
   /**
@@ -147,7 +146,7 @@ export class MessagesResource {
     try {
       const response = await this._client.sendAttachmentMessage({
         chatGuid: normalizeChatGuid(chat),
-        attachment: { attachmentGuid: attachment },
+        attachment: { source: { case: "attachmentGuid", value: attachment } },
         replyTo: mapReplyTarget(options?.replyTo),
         effectId: options?.effect,
         isAudioMessage: options?.isAudioMessage,
@@ -234,7 +233,10 @@ export class MessagesResource {
         appName: message.appName,
         url: message.url,
         layout: message.layout,
-        appStoreId: message.appStoreId,
+        appStoreId:
+          message.appStoreId === undefined
+            ? undefined
+            : BigInt(message.appStoreId),
         clientMessageId: options?.clientMessageId,
       });
       return mapMessage(unwrap(response.message, "message"));
@@ -363,7 +365,7 @@ export class MessagesResource {
           messageGuid: message,
           targetPartIndex: options?.partIndex,
         },
-        sticker: { attachmentGuid: sticker },
+        sticker: { source: { case: "attachmentGuid", value: sticker } },
         placement,
         clientMessageId: options?.clientMessageId,
       });
@@ -426,8 +428,8 @@ export class MessagesResource {
         pageToken: options?.pageToken,
         isFromMe: options?.isFromMe,
         isRead: options?.isRead,
-        before: options?.before,
-        after: options?.after,
+        before: toProtoTimestamp(options?.before),
+        after: toProtoTimestamp(options?.after),
       });
       return {
         messages: response.messages.map(mapMessage),
@@ -458,8 +460,8 @@ export class MessagesResource {
         pageToken: options?.pageToken,
         isFromMe: options?.isFromMe,
         isRead: options?.isRead,
-        before: options?.before,
-        after: options?.after,
+        before: toProtoTimestamp(options?.before),
+        after: toProtoTimestamp(options?.after),
       });
       return {
         messages: response.messages.map(mapMessage),
@@ -504,7 +506,7 @@ export class MessagesResource {
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<MessageEvent> {
     const abort = new AbortController();
-    const rpcStream = this._streamClient.subscribeMessageEvents(
+    const rpcStream = this._client.subscribeMessageEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
       },
@@ -514,10 +516,16 @@ export class MessagesResource {
     async function* mapEvents(): AsyncGenerator<MessageEvent> {
       try {
         for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.messageChanged) {
+          if (
+            frame.sequence === undefined ||
+            frame.payload.case !== "messageChanged"
+          ) {
             continue;
           }
-          const event = mapMessageEvent(frame.sequence, frame.messageChanged);
+          const event = mapMessageEvent(
+            Number(frame.sequence),
+            frame.payload.value
+          );
           if (event) {
             yield event;
           }

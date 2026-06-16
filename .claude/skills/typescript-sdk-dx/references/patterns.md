@@ -119,28 +119,29 @@ const chat = unwrap(response.chat, "chat");
 const chat = response.chat!;
 ```
 
-## Codegen: ts-proto
+## Codegen: Connect-ES + protoc-gen-es
 
 ```yaml
 # buf.gen.yaml
 plugins:
-  - local: protoc-gen-ts_proto
+  - local: protoc-gen-es
     out: src/generated
     opt:
-      - outputServices=nice-grpc,outputServices=generic-definitions
-      - useExactTypes=false
-      - esModuleInterop=true
-      - importSuffix=.js
+      - target=ts
+      - import_extension=.js
+      - json_types=false
 ```
 
-ts-proto generates:
-- Native nice-grpc `ServiceDefinition` — no adapter
-- `Promise<Response>` for unary, `AsyncIterable<Response>` for streaming — no wrapper types
-- `oneof` as optional properties — `if (proto.field)`, no `oneofKind` ceremony
-- `Date` for Timestamps — no manual conversion
+`protoc-gen-es` generates:
+- A `Service` descriptor per service + a `*Schema` per message — feed `Service` to `createClient(Service, transport)` from `@connectrpc/connect`
+- `Promise<Response>` for unary, `AsyncIterable<Response>` for server streaming
+- `oneof` as a tagged union — `switch (proto.field.case)`, then `proto.field.value`
+- `bigint` for 64-bit fields, `Timestamp` (not `Date`) for timestamps — the mapper converts both
 - Strict-clean output — compiles under full strict mode
 
-Previous codegen (protobuf-ts) required adapter, wrapper destructuring, `oneofKind` unions that broke under strict, and couldn't handle `noUncheckedIndexedAccess`. We switched rather than weakening the tsconfig.
+Transport is `createGrpcWebTransport` from `@connectrpc/connect-web`: gRPC-web over `fetch`, so the SDK runs in browsers and Node 18+, typically behind an Envoy gRPC-web proxy. Auth/idempotency/retry/timeout are Connect `Interceptor`s, and `ConnectError.metadata` (a `Headers`) carries the server's trailing metadata.
+
+Previous codegen (ts-proto + nice-grpc) bound the SDK to Node-only `@grpc/grpc-js`. We moved to Connect-ES for gRPC-web and an isomorphic fetch transport.
 
 ## Build
 

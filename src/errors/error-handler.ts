@@ -1,28 +1,28 @@
 /**
- * Factory that converts a gRPC error into the appropriate {@link IMessageError}
- * subclass.
+ * Factory that converts a Connect error into the appropriate
+ * {@link IMessageError} subclass.
  *
  * The mapping relies on three pieces of information carried in gRPC trailing
- * metadata:
+ * metadata, which Connect exposes as `ConnectError.metadata` (a `Headers`):
  *
  * - `error-code` -- the canonical {@link ErrorCode} string set by the server.
  * - `x-retryable` -- `"true"` if the caller should retry, absent otherwise.
  * - `error-context-*` -- structured context values surfaced on
  *   {@link IMessageError.context}.
  *
- * The gRPC status code determines which subclass is instantiated:
+ * The Connect status code determines which subclass is instantiated:
  *
- * | gRPC status                            | SDK error class          |
+ * | Connect Code                           | SDK error class          |
  * | -------------------------------------- | ------------------------ |
- * | UNAUTHENTICATED, PERMISSION_DENIED     | AuthenticationError      |
- * | NOT_FOUND                              | NotFoundError            |
- * | RESOURCE_EXHAUSTED                     | RateLimitError           |
- * | INVALID_ARGUMENT, FAILED_PRECONDITION  | ValidationError          |
- * | UNAVAILABLE, DEADLINE_EXCEEDED         | ConnectionError          |
+ * | Unauthenticated, PermissionDenied      | AuthenticationError      |
+ * | NotFound                               | NotFoundError            |
+ * | ResourceExhausted                      | RateLimitError           |
+ * | InvalidArgument, FailedPrecondition    | ValidationError          |
+ * | Unavailable, DeadlineExceeded          | ConnectionError          |
  * | Everything else                        | IMessageError (base)     |
  */
 
-import { ClientError, Status } from "nice-grpc-common";
+import { Code, ConnectError } from "@connectrpc/connect";
 import type { ErrorCode } from "../types/errors.ts";
 import {
   readMetadataPrefixedEntries,
@@ -43,70 +43,55 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Convert a caught gRPC error into the appropriate `IMessageError` subclass.
+ * Convert a caught Connect error into the appropriate `IMessageError`
+ * subclass.
  *
- * If the error is not a recognised gRPC error, it is wrapped in the base
- * `IMessageError` with a generic `internalError` code.
+ * Errors that are already `IMessageError`s are returned unchanged. Anything
+ * else is normalised through `ConnectError.from`, so non-Connect failures
+ * (e.g. network errors) map to the base `IMessageError` with an
+ * `internalError` code.
  */
 export function fromGrpcError(error: unknown): IMessageError {
   if (error instanceof IMessageError) {
     return error;
   }
 
-  const isClientError = error instanceof ClientError;
-
-  let grpcCode: number;
-  if (isClientError) {
-    grpcCode = error.code;
-  } else if (typeof (error as { code?: unknown }).code === "number") {
-    grpcCode = (error as { code: number }).code;
-  } else {
-    grpcCode = Status.UNKNOWN;
-  }
-
-  let details: string;
-  if (isClientError) {
-    details = error.details;
-  } else if (typeof (error as { details?: unknown }).details === "string") {
-    details = (error as { details: string }).details;
-  } else if (error instanceof Error) {
-    details = error.message;
-  } else {
-    details = String(error);
-  }
+  const connectError = ConnectError.from(error);
+  const { metadata } = connectError;
+  const grpcCode = connectError.code;
+  const details = connectError.rawMessage;
 
   const errorCode =
-    (readMetadataValue(error, "error-code") as ErrorCode | undefined) ??
+    (readMetadataValue(metadata, "error-code") as ErrorCode | undefined) ??
     ("internalError" as ErrorCode);
-  const retryable = readMetadataValue(error, "x-retryable") === "true";
-  const context = readMetadataPrefixedEntries(error, "error-context-");
-  const cause = error instanceof Error ? error : undefined;
+  const retryable = readMetadataValue(metadata, "x-retryable") === "true";
+  const context = readMetadataPrefixedEntries(metadata, "error-context-");
 
   const options: IMessageErrorOptions = {
     code: errorCode,
     context,
     retryable,
     grpcCode,
-    cause,
+    cause: connectError,
   };
 
   switch (grpcCode) {
-    case Status.UNAUTHENTICATED:
-    case Status.PERMISSION_DENIED:
+    case Code.Unauthenticated:
+    case Code.PermissionDenied:
       return new AuthenticationError(details, options);
 
-    case Status.NOT_FOUND:
+    case Code.NotFound:
       return new NotFoundError(details, options);
 
-    case Status.RESOURCE_EXHAUSTED:
+    case Code.ResourceExhausted:
       return new RateLimitError(details, options);
 
-    case Status.INVALID_ARGUMENT:
-    case Status.FAILED_PRECONDITION:
+    case Code.InvalidArgument:
+    case Code.FailedPrecondition:
       return new ValidationError(details, options);
 
-    case Status.UNAVAILABLE:
-    case Status.DEADLINE_EXCEEDED:
+    case Code.Unavailable:
+    case Code.DeadlineExceeded:
       return new ConnectionError(details, options);
 
     default:

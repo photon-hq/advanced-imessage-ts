@@ -1,35 +1,21 @@
 import { describe, expect, it } from "bun:test";
-import { Metadata } from "@grpc/grpc-js";
-import { ClientError, Status } from "nice-grpc-common";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { NotFoundError } from "../../src/errors/imessage-error.ts";
 import { AddressesResource } from "../../src/resources/addresses.ts";
 
-function makeClientError(
-  code: Status,
+function makeConnectError(
+  code: Code,
   details: string,
   metadataEntries: Record<string, string> = {}
-): ClientError {
-  const metadata = new Metadata();
-  for (const [key, value] of Object.entries(metadataEntries)) {
-    metadata.set(key, value);
-  }
-
-  const error = new ClientError(
-    "/photon.imessage.v1.AddressService/GetAddressInfo",
-    code,
-    details
-  ) as ClientError & {
-    metadata?: Metadata;
-  };
-  error.metadata = metadata;
-  return error;
+): ConnectError {
+  return new ConnectError(details, code, metadataEntries);
 }
 
 describe("AddressesResource", () => {
   it("rethrows addressNotFound", async () => {
     const resource = new AddressesResource({
       async getAddressInfo() {
-        throw makeClientError(Status.NOT_FOUND, "Address does not exist", {
+        throw makeConnectError(Code.NotFound, "Address does not exist", {
           "error-code": "addressNotFound",
         });
       },
@@ -47,7 +33,7 @@ describe("AddressesResource", () => {
   it("rethrows unrelated NOT_FOUND errors", async () => {
     const resource = new AddressesResource({
       async getAddressInfo() {
-        throw makeClientError(Status.NOT_FOUND, "Chat does not exist", {
+        throw makeConnectError(Code.NotFound, "Chat does not exist", {
           "error-code": "chatNotFound",
         });
       },

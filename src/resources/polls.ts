@@ -22,11 +22,9 @@ import { unwrap } from "../utils/unwrap.ts";
  */
 export class PollsResource {
   private readonly _client: PollServiceClient;
-  private readonly _streamClient: PollServiceClient;
 
-  constructor(client: PollServiceClient, streamClient = client) {
+  constructor(client: PollServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
   }
 
   /**
@@ -149,7 +147,7 @@ export class PollsResource {
     pollMessage?: string;
   }): TypedEventStream<PollEvent> {
     const abort = new AbortController();
-    const rpcStream = this._streamClient.subscribePollEvents(
+    const rpcStream = this._client.subscribePollEvents(
       {
         pollMessageGuid: filter?.pollMessage,
       },
@@ -159,10 +157,16 @@ export class PollsResource {
     async function* mapEvents(): AsyncGenerator<PollEvent> {
       try {
         for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.pollChanged) {
+          if (
+            frame.sequence === undefined ||
+            frame.payload.case !== "pollChanged"
+          ) {
             continue;
           }
-          const event = mapPollEvent(frame.sequence, frame.pollChanged);
+          const event = mapPollEvent(
+            Number(frame.sequence),
+            frame.payload.value
+          );
           if (event) {
             yield event;
           }

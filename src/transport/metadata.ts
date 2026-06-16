@@ -1,52 +1,48 @@
 /**
- * nice-grpc client middleware for authentication and idempotency.
+ * Connect client interceptors for authentication, idempotency, timeouts, and
+ * retries.
  *
- * Each middleware is an async generator that wraps the call chain, injecting
- * metadata headers before forwarding to the next handler.
+ * Each interceptor wraps the call chain `(next) => async (req) => …`, mutating
+ * or replacing the request before forwarding it to the next handler. The same
+ * interceptor type covers unary and streaming calls; interceptors that only
+ * apply to unary RPCs short-circuit on `req.stream`.
  */
 
 import {
-  type CallOptions,
-  type ClientMiddleware,
-  Metadata,
-} from "nice-grpc-common";
+  ConnectError,
+  type Interceptor,
+  type StreamResponse,
+  type UnaryRequest,
+  type UnaryResponse,
+} from "@connectrpc/connect";
 import type { RetryOptions } from "../types/common.ts";
-import { readMetadataValue } from "../utils/grpc-metadata.ts";
 import { generateIdempotencyKey } from "../utils/idempotency.ts";
 import { DEFAULT_RETRY_OPTIONS } from "../utils/retry.ts";
 import { sleep } from "../utils/sleep.ts";
 
 // ---------------------------------------------------------------------------
-// Auth middleware
+// Auth interceptor
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a nice-grpc client middleware that injects an `authorization`
- * metadata header with a Bearer token on every call.
+ * Creates an interceptor that injects an `authorization` header with a Bearer
+ * token on every call.
  *
  * The `token` parameter can be a static string or an async function that
  * resolves a fresh token on each call (useful for rotating credentials).
  */
-export function authMiddleware(
+export function authInterceptor(
   token: string | (() => Promise<string>)
-): ClientMiddleware {
-  return async function* authMw(call, options) {
+): Interceptor {
+  return (next) => async (req) => {
     const resolvedToken = typeof token === "function" ? await token() : token;
-
-    const metadata = Metadata(options.metadata);
-    metadata.set("authorization", `Bearer ${resolvedToken}`);
-
-    const nextOptions: CallOptions = {
-      ...options,
-      metadata,
-    };
-
-    return yield* call.next(call.request, nextOptions);
+    req.header.set("authorization", `Bearer ${resolvedToken}`);
+    return await next(req);
   };
 }
 
 // ---------------------------------------------------------------------------
-// Idempotency middleware
+// Idempotency interceptor
 // ---------------------------------------------------------------------------
 
 const MUTATING_METHODS: ReadonlySet<string> = new Set([
@@ -68,183 +64,135 @@ const MUTATING_METHODS: ReadonlySet<string> = new Set([
   "/photon.imessage.v1.MessageService/NotifySilencedMessage",
   "/photon.imessage.v1.MessageService/PlaceSticker",
   "/photon.imessage.v1.MessageService/SendAttachmentMessage",
+  "/photon.imessage.v1.MessageService/SendCustomizedMiniAppMessage",
   "/photon.imessage.v1.MessageService/SendMultipartMessage",
   "/photon.imessage.v1.MessageService/SendTextMessage",
   "/photon.imessage.v1.MessageService/SetReaction",
-  "/photon.imessage.v1.MessageService/UnsendMessage",
   "/photon.imessage.v1.PollService/AddPollOption",
   "/photon.imessage.v1.PollService/CreatePoll",
   "/photon.imessage.v1.PollService/UnvotePoll",
   "/photon.imessage.v1.PollService/VotePoll",
 ] as const);
 
-function isMutatingMethod(path: string): boolean {
-  return MUTATING_METHODS.has(path);
+/** Fully-qualified `/package.Service/Method` path for a Connect request. */
+function methodPath(serviceTypeName: string, methodName: string): string {
+  return `/${serviceTypeName}/${methodName}`;
 }
 
 /**
- * Creates a nice-grpc client middleware that sets an `x-idempotency-key`
- * metadata header on mutating (non-read) RPC calls.
- *
- * The key is a v4 UUID generated per call via `crypto.randomUUID()`.
- * Read-only methods are skipped.
+ * Creates an interceptor that sets an `x-idempotency-key` header on mutating
+ * (non-read) RPC calls. The key is a v4 UUID generated per call via
+ * `crypto.randomUUID()`. Read-only methods are skipped.
  */
-export function idempotencyMiddleware(): ClientMiddleware {
-  return async function* idempotencyMw(call, options) {
-    // Only inject for mutating calls.
-    if (
-      call.method.options.idempotencyLevel === "NO_SIDE_EFFECTS" ||
-      call.method.options.idempotencyLevel === "IDEMPOTENT" ||
-      !isMutatingMethod(call.method.path)
-    ) {
-      return yield* call.next(call.request, options);
+export function idempotencyInterceptor(): Interceptor {
+  return (next) => async (req) => {
+    const path = methodPath(req.service.typeName, req.method.name);
+    if (MUTATING_METHODS.has(path)) {
+      req.header.set("x-idempotency-key", generateIdempotencyKey());
     }
-
-    const metadata = Metadata(options.metadata);
-    metadata.set("x-idempotency-key", generateIdempotencyKey());
-
-    const nextOptions: CallOptions = {
-      ...options,
-      metadata,
-    };
-
-    return yield* call.next(call.request, nextOptions);
+    return await next(req);
   };
 }
 
 // ---------------------------------------------------------------------------
-// Retry middleware
+// Retry interceptor
 // ---------------------------------------------------------------------------
 
-/**
- * Creates a nice-grpc client middleware that automatically retries failed
- * unary calls when the server indicates the error is retryable (via the
- * `x-retryable` trailing metadata header).
- *
- * Uses exponential backoff with full jitter.  Streaming calls are passed
- * through without retry.
- */
-export function retryMiddleware(opts: RetryOptions = {}): ClientMiddleware {
-  const maxAttempts = Math.max(
-    1,
-    opts.maxAttempts ?? DEFAULT_RETRY_OPTIONS.maxAttempts
-  );
-  const initialDelay = opts.initialDelay ?? DEFAULT_RETRY_OPTIONS.initialDelay;
-  const maxDelay = opts.maxDelay ?? DEFAULT_RETRY_OPTIONS.maxDelay;
-
-  return async function* retryMw(call, options) {
-    // Skip streaming calls — retrying mid-stream would duplicate data.
-    if (call.method.responseStream || call.method.requestStream) {
-      return yield* call.next(call.request, options);
-    }
-
-    let lastError: unknown;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        return yield* call.next(call.request, options);
-      } catch (error: unknown) {
-        lastError = error;
-
-        const retryable = readMetadataValue(error, "x-retryable") === "true";
-
-        if (!retryable || attempt >= maxAttempts - 1) {
-          throw error;
-        }
-
-        // Exponential backoff with full jitter.
-        const exponentialDelay = initialDelay * 2 ** attempt;
-        const cappedDelay = Math.min(exponentialDelay, maxDelay);
-        await sleep(Math.random() * cappedDelay, options.signal);
-
-        // Stop retrying if the caller has cancelled.
-        if (options.signal?.aborted) {
-          throw error;
-        }
-      }
-    }
-
-    throw lastError;
-  };
+interface RetryLimits {
+  initialDelay: number;
+  maxAttempts: number;
+  maxDelay: number;
 }
 
-// ---------------------------------------------------------------------------
-// Trailing metadata capture middleware
-// ---------------------------------------------------------------------------
+/** Whether the server flagged the error as retryable via trailing metadata. */
+function isRetryable(error: unknown): boolean {
+  return ConnectError.from(error).metadata.get("x-retryable") === "true";
+}
 
-/**
- * nice-grpc wraps `@grpc/grpc-js` errors into `ClientError`, **dropping
- * trailing metadata** in the process (see `wrapClientError.ts`).  This
- * middleware intercepts the `onTrailer` callback to capture trailing metadata
- * and re-attaches the original metadata object to thrown errors.
- *
- * It should always be the **innermost** middleware so that outer middleware
- * (retry, error handlers) can read server-sent headers like `error-code`
- * and `x-retryable`.
- */
-export function trailingMetadataCaptureMiddleware(): ClientMiddleware {
-  return async function* trailingMetadataCaptureMw(call, options) {
-    let trailer: ReturnType<typeof Metadata> | undefined;
+/** Exponential backoff with full jitter, capped at `maxDelay`. */
+function jitteredBackoff(attempt: number, limits: RetryLimits): number {
+  const capped = Math.min(limits.initialDelay * 2 ** attempt, limits.maxDelay);
+  return Math.random() * capped;
+}
 
+/** Run a unary call with retry/backoff for server-flagged retryable errors. */
+async function retryUnaryCall(
+  next: (req: UnaryRequest) => Promise<UnaryResponse | StreamResponse>,
+  req: UnaryRequest,
+  limits: RetryLimits
+): Promise<UnaryResponse | StreamResponse> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < limits.maxAttempts; attempt++) {
     try {
-      return yield* call.next(call.request, {
-        ...options,
-        onTrailer(t) {
-          trailer = t;
-          options.onTrailer?.(t);
-        },
-      });
-    } catch (error) {
-      // Yield one microtask so that the onTrailer handler has a chance
-      // to fire in case @grpc/grpc-js delivers it via nextTick.
-      await Promise.resolve();
+      return await next(req);
+    } catch (error: unknown) {
+      lastError = error;
 
-      if (trailer && error instanceof Error) {
-        Object.defineProperty(error, "metadata", {
-          value: trailer,
-          writable: true,
-          configurable: true,
-        });
+      const canRetry = isRetryable(error) && attempt < limits.maxAttempts - 1;
+      if (!canRetry) {
+        throw error;
       }
-      throw error;
+
+      await sleep(jitteredBackoff(attempt, limits), req.signal);
+
+      // Stop retrying if the caller has cancelled.
+      if (req.signal.aborted) {
+        throw error;
+      }
     }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Creates an interceptor that automatically retries failed unary calls when
+ * the server indicates the error is retryable (via the `x-retryable` trailing
+ * metadata header, surfaced on `ConnectError.metadata`).
+ *
+ * Uses exponential backoff with full jitter. Streaming calls are passed
+ * through without retry — retrying mid-stream would duplicate data.
+ */
+export function retryInterceptor(opts: RetryOptions = {}): Interceptor {
+  const limits: RetryLimits = {
+    maxAttempts: Math.max(
+      1,
+      opts.maxAttempts ?? DEFAULT_RETRY_OPTIONS.maxAttempts
+    ),
+    initialDelay: opts.initialDelay ?? DEFAULT_RETRY_OPTIONS.initialDelay,
+    maxDelay: opts.maxDelay ?? DEFAULT_RETRY_OPTIONS.maxDelay,
+  };
+
+  return (next) => (req) => {
+    // Skip streaming calls — retrying mid-stream would duplicate data.
+    if (req.stream) {
+      return next(req);
+    }
+    return retryUnaryCall(next, req, limits);
   };
 }
 
 // ---------------------------------------------------------------------------
-// Timeout middleware
+// Timeout interceptor
 // ---------------------------------------------------------------------------
 
 /**
- * Creates a nice-grpc client middleware that sets a default timeout on
- * unary calls via `AbortSignal.timeout()`.  Streaming calls are passed
- * through without a timeout to avoid killing long-lived subscriptions.
- *
- * If the caller already supplied an `AbortSignal`, the timeout signal is
- * combined with it using `AbortSignal.any()` so that either can cancel.
+ * Creates an interceptor that applies a default deadline to unary calls by
+ * combining the caller's `AbortSignal` with `AbortSignal.timeout()`. Streaming
+ * calls are passed through untouched to avoid killing long-lived subscriptions.
  */
-export function timeoutMiddleware(timeoutMs: number): ClientMiddleware {
-  return async function* timeoutMw(call, options) {
-    // Skip streaming calls — a fixed timeout would kill long-lived streams.
-    if (call.method.responseStream || call.method.requestStream) {
-      return yield* call.next(call.request, options);
+export function timeoutInterceptor(timeoutMs: number): Interceptor {
+  return (next) => async (req) => {
+    if (req.stream) {
+      return await next(req);
     }
 
-    if (options.signal) {
-      // Preserve the caller's signal while adding the timeout.
-      const combined = AbortSignal.any([
-        options.signal,
-        AbortSignal.timeout(timeoutMs),
-      ]);
-      return yield* call.next(call.request, {
-        ...options,
-        signal: combined,
-      });
-    }
+    const signal = AbortSignal.any([
+      req.signal,
+      AbortSignal.timeout(timeoutMs),
+    ]);
 
-    return yield* call.next(call.request, {
-      ...options,
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    return await next({ ...req, signal });
   };
 }

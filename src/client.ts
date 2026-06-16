@@ -50,16 +50,19 @@ import type { Poll } from "./types/polls.js";
 
 /** Options for configuring the Advanced iMessage client. */
 export interface ClientOptions {
-  /** The server address to connect to (e.g., `"localhost:50051"`). */
-  readonly address: string;
   /** When `true`, adds an `x-idempotency-key` header to mutating RPCs. */
   readonly autoIdempotency?: boolean;
+  /**
+   * Base URL of the gRPC-web endpoint, e.g.
+   * `"https://staging-spectrum-imessage-web.photon.codes"`. Requests are made
+   * to `<baseUrl>/<package>.<service>/<method>`, typically through an Envoy
+   * gRPC-web proxy.
+   */
+  readonly baseUrl: string;
   /** Retries retryable unary RPC failures; streaming RPCs are never retried automatically. */
   readonly retry?: boolean | RetryOptions;
   /** Default unary RPC timeout in milliseconds; streaming RPCs are left open. */
   readonly timeout?: number;
-  /** Use TLS for the gRPC channel. Defaults to `true`; set `false` for local development. */
-  readonly tls?: boolean;
   /** Bearer token, or async function that returns a fresh bearer token per RPC. */
   readonly token: string | (() => Promise<string>);
 }
@@ -455,7 +458,7 @@ export interface AdvancedIMessage extends AsyncDisposable {
  * @example
  * ```ts
  * const im = createClient({
- *   address: "localhost:50051",
+ *   baseUrl: "https://staging-spectrum-imessage-web.photon.codes",
  *   token: "my-api-token",
  * });
  *
@@ -464,32 +467,25 @@ export interface AdvancedIMessage extends AsyncDisposable {
  */
 export function createClient(options: ClientOptions): AdvancedIMessage {
   const clients = createGrpcClients({
-    address: options.address,
+    baseUrl: options.baseUrl,
     autoIdempotency: options.autoIdempotency,
     retry: options.retry,
     timeout: options.timeout,
-    tls: options.tls,
     token: options.token,
   });
 
-  const messages = new MessagesImpl(clients.messages, clients.messagesStream);
-  const chats = new ChatsImpl(clients.chats, clients.chatsStream);
+  const messages = new MessagesImpl(clients.messages);
+  const chats = new ChatsImpl(clients.chats);
   const events = new EventsImpl(clients.events);
-  const groups = new GroupsImpl(clients.groups, clients.groupsStream);
-  const attachments = new AttachmentsImpl(
-    clients.attachments,
-    clients.attachmentsStream
-  );
+  const groups = new GroupsImpl(clients.groups);
+  const attachments = new AttachmentsImpl(clients.attachments);
   const addresses = new AddressesImpl(clients.addresses);
-  const polls = new PollsImpl(clients.polls, clients.pollsStream);
-  const locations = new LocationsImpl(
-    clients.locations,
-    clients.locationsStream
-  );
+  const polls = new PollsImpl(clients.polls);
+  const locations = new LocationsImpl(clients.locations);
 
   function close(): Promise<void> {
-    clients.channel.close();
-    clients.streamChannel.close();
+    // The grpc-web transport is fetch-based and holds no persistent
+    // connection, so there is nothing to tear down.
     return Promise.resolve();
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { ValidationError } from "../../src/errors/imessage-error.ts";
-import { FriendLocationType } from "../../src/generated/photon/imessage/v1/location_types.ts";
+import { FriendLocationType } from "../../src/generated/photon/imessage/v1/location_types_pb.js";
 import { LocationsResource } from "../../src/resources/locations.ts";
 
 describe("LocationsResource", () => {
@@ -59,7 +59,7 @@ describe("LocationsResource", () => {
           location: {
             address: "friend-legacy@example.com",
             isLocatingInProgress: false,
-            locationType: FriendLocationType.FRIEND_LOCATION_TYPE_LEGACY,
+            locationType: FriendLocationType.LEGACY,
           },
         };
       },

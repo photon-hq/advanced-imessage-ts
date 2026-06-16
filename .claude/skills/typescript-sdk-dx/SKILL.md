@@ -65,9 +65,9 @@ Use `unwrap(value, "fieldName")` — a typed guard that throws a clear error. No
 
 Both `.proto` files and `src/generated/` are in git. Clone-and-build with no codegen step. Proto changes show their TypeScript impact in the diff.
 
-### 12. ts-proto for codegen
+### 12. Connect-ES + protoc-gen-es for codegen
 
-ts-proto with `outputServices=nice-grpc,outputServices=generic-definitions` generates native nice-grpc service definitions, typed clients with `Promise<Response>` returns, `AsyncIterable` for streaming, and `Date` for timestamps. No adapter layers, no wrapper types, no casts.
+`@bufbuild/protoc-gen-es` generates `*_pb.ts` descriptors; `@connectrpc/connect`'s `createClient(Service, transport)` produces typed clients with `Promise<Response>` returns and `AsyncIterable` for streaming. The transport is `createGrpcWebTransport` from `@connectrpc/connect-web` (gRPC-web over `fetch`, browser- and Node-compatible). Generated shapes use tagged-union `oneof` (`{ case, value }`), `bigint` for 64-bit fields, and `Timestamp` for timestamps — the mapper converts these to the public types. No adapter layers, no casts at the boundary.
 
 ### 13. Every resource is disposable
 

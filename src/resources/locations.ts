@@ -27,11 +27,9 @@ import { unwrap } from "../utils/unwrap.ts";
  */
 export class LocationsResource {
   private readonly _client: LocationServiceClient;
-  private readonly _streamClient: LocationServiceClient;
 
-  constructor(client: LocationServiceClient, streamClient = client) {
+  constructor(client: LocationServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
   }
 
   /**
@@ -90,7 +88,7 @@ export class LocationsResource {
   /** Watch updates for every shared friend, or one friend when `address` is set. */
   watch(address?: string): TypedEventStream<SharedFriendLocationUpdated> {
     const abort = new AbortController();
-    const rpcStream = this._streamClient.watchSharedFriendLocations(
+    const rpcStream = this._client.watchSharedFriendLocations(
       { address },
       { signal: abort.signal }
     );
@@ -98,10 +96,10 @@ export class LocationsResource {
     async function* mapUpdates(): AsyncGenerator<SharedFriendLocationUpdated> {
       try {
         for await (const frame of rpcStream) {
-          if (!frame.locationUpdated) {
+          if (frame.payload.case !== "locationUpdated") {
             continue;
           }
-          yield mapSharedFriendLocationUpdated(frame.locationUpdated);
+          yield mapSharedFriendLocationUpdated(frame.payload.value);
         }
       } catch (err) {
         throw fromGrpcError(err);
