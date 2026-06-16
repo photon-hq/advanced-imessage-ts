@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { ValidationError } from "../../src/errors/imessage-error.ts";
-import { MessageReactionKind } from "../../src/generated/photon/imessage/v1/message_types.ts";
+import { MessageReactionKind } from "../../src/generated/photon/imessage/v1/message_types_pb.js";
 import { MessagesResource } from "../../src/resources/messages.ts";
 import { MessageEffect, TextEffect } from "../../src/types/effects.ts";
 
@@ -20,7 +21,7 @@ function makeMessage(guid: string) {
       text: "ok",
     },
     dataDetectorResultsPresent: false,
-    dateCreated: now,
+    dateCreated: timestampFromDate(now),
     didNotifyRecipient: false,
     guid,
     isArchived: false,
@@ -74,7 +75,7 @@ describe("MessagesResource", () => {
       width: 80,
     });
     expect(capturedRequest?.sticker).toEqual({
-      attachmentGuid: attachmentGuidValue,
+      source: { case: "attachmentGuid", value: attachmentGuidValue },
     });
   });
 
@@ -97,11 +98,11 @@ describe("MessagesResource", () => {
     expect(parts).toHaveLength(3);
     expect(parts[0]?.attachment).toBeUndefined();
     expect(parts[1]?.attachment).toEqual({
-      attachmentGuid: "att-a",
+      source: { case: "attachmentGuid", value: "att-a" },
       attachmentName: "a.jpg",
     });
     expect(parts[2]?.attachment).toEqual({
-      attachmentGuid: "att-b",
+      source: { case: "attachmentGuid", value: "att-b" },
       attachmentName: "b.jpg",
     });
   });
@@ -305,13 +306,13 @@ describe("MessagesResource", () => {
 
   describe("SettableMessageReaction.kind → wire MessageReactionKind (exhaustive)", () => {
     const cases = [
-      ["love", MessageReactionKind.MESSAGE_REACTION_KIND_LOVE],
-      ["like", MessageReactionKind.MESSAGE_REACTION_KIND_LIKE],
-      ["dislike", MessageReactionKind.MESSAGE_REACTION_KIND_DISLIKE],
-      ["laugh", MessageReactionKind.MESSAGE_REACTION_KIND_LAUGH],
-      ["emphasize", MessageReactionKind.MESSAGE_REACTION_KIND_EMPHASIZE],
-      ["question", MessageReactionKind.MESSAGE_REACTION_KIND_QUESTION],
-      ["emoji", MessageReactionKind.MESSAGE_REACTION_KIND_EMOJI],
+      ["love", MessageReactionKind.LOVE],
+      ["like", MessageReactionKind.LIKE],
+      ["dislike", MessageReactionKind.DISLIKE],
+      ["laugh", MessageReactionKind.LAUGH],
+      ["emphasize", MessageReactionKind.EMPHASIZE],
+      ["question", MessageReactionKind.QUESTION],
+      ["emoji", MessageReactionKind.EMOJI],
     ] as const;
 
     for (const [kind, wire] of cases) {
@@ -510,7 +511,10 @@ describe("MessagesResource", () => {
         { attachmentGuid: "att-z", attachmentName: "z.png" },
       ]);
       expect((captured?.parts as any[])[0]).toEqual({
-        attachment: { attachmentGuid: "att-z", attachmentName: "z.png" },
+        attachment: {
+          source: { case: "attachmentGuid", value: "att-z" },
+          attachmentName: "z.png",
+        },
         bubbleIndex: undefined,
         formatting: [],
         mentionedAddress: undefined,
@@ -658,8 +662,8 @@ describe("MessagesResource", () => {
         pageToken: "tok-abc",
         isFromMe: true,
         isRead: false,
-        before: beforeDate,
-        after: afterDate,
+        before: timestampFromDate(beforeDate),
+        after: timestampFromDate(afterDate),
       });
     });
 
@@ -707,8 +711,8 @@ describe("MessagesResource", () => {
         pageToken: "tok-xyz",
         isFromMe: false,
         isRead: true,
-        before: beforeDate,
-        after: afterDate,
+        before: timestampFromDate(beforeDate),
+        after: timestampFromDate(afterDate),
       });
     });
   });

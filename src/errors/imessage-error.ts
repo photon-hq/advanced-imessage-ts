@@ -22,7 +22,7 @@ export interface IMessageErrorOptions {
   readonly code: ErrorCode;
   /** Arbitrary key-value pairs providing additional context. */
   readonly context?: Record<string, string>;
-  /** Numeric gRPC status code (mirrors `nice-grpc-common` Status enum). */
+  /** Numeric gRPC status code (mirrors Connect's `Code` enum). */
   readonly grpcCode: number;
   /** Whether the caller should retry the request. */
   readonly retryable: boolean;

@@ -20,9 +20,8 @@ Node.js `>=18.17` is supported. The package is ESM-only.
 import { createClient } from "@photon-ai/advanced-imessage";
 
 const im = createClient({
-  address: "127.0.0.1:50051",
+  baseUrl: "https://staging-spectrum-imessage-web.photon.codes",
   token: process.env.IMESSAGE_TOKEN!,
-  tls: false,
 });
 
 await im.close();
@@ -32,12 +31,13 @@ await im.close();
 
 ```ts
 const im = createClient({
-  address: "imessage.example.com:443",
+  baseUrl: "https://imessage.example.com",
   token: async () => process.env.IMESSAGE_TOKEN!,
 });
 ```
 
-`tls` defaults to `true`. Set `tls: false` only for local development.
+`baseUrl` is the gRPC-web endpoint (typically fronted by an Envoy proxy).
+Requests are made to `<baseUrl>/<package>.<service>/<method>`.
 
 ## Chat GUIDs
 
@@ -361,9 +361,8 @@ try {
 
 ```ts
 const im = createClient({
-  address: "127.0.0.1:50051",
+  baseUrl: "https://staging-spectrum-imessage-web.photon.codes",
   token: "api-token",
-  tls: false,
   timeout: 10_000,
   retry: { maxAttempts: 4, initialDelay: 200, maxDelay: 5_000 },
   autoIdempotency: true,

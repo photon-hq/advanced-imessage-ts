@@ -67,10 +67,10 @@ export class LocationsResource {
     async function* mapUpdates(): AsyncGenerator<SharedFriendLocationUpdated> {
       try {
         for await (const frame of rpcStream) {
-          if (!frame.locationUpdated) {
+          if (frame.payload.case !== "locationUpdated") {
             continue;
           }
-          yield mapSharedFriendLocationUpdated(frame.locationUpdated);
+          yield mapSharedFriendLocationUpdated(frame.payload.value);
         }
       } catch (err) {
         throw fromGrpcError(err);

@@ -1,5 +1,6 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { CompanionKind } from "../generated/photon/imessage/v1/attachment_types.ts";
+import type { DownloadAttachmentResponse } from "../generated/photon/imessage/v1/attachment_service_pb.js";
+import { CompanionKind } from "../generated/photon/imessage/v1/attachment_types_pb.js";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { AttachmentServiceClient } from "../transport/grpc-client.ts";
 import { mapAttachmentInfo, mapCompanionInfo } from "../transport/mapper.ts";
@@ -12,37 +13,32 @@ import type {
 import { unwrap } from "../utils/unwrap.ts";
 
 function mapDownloadFrame(
-  frame: Awaited<
-    ReturnType<AttachmentServiceClient["downloadAttachment"]>
-  > extends AsyncIterable<infer T>
-    ? T
-    : never
+  frame: DownloadAttachmentResponse
 ): DownloadAttachmentChunk | undefined {
-  if (frame.header) {
-    return {
-      type: "header",
-      info: mapAttachmentInfo(unwrap(frame.header.attachment, "attachment")),
-      companionInfo: frame.header.companion
-        ? mapCompanionInfo(frame.header.companion)
-        : undefined,
-    };
+  switch (frame.payload.case) {
+    case "header":
+      return {
+        type: "header",
+        info: mapAttachmentInfo(
+          unwrap(frame.payload.value.attachment, "attachment")
+        ),
+        companionInfo: frame.payload.value.companion
+          ? mapCompanionInfo(frame.payload.value.companion)
+          : undefined,
+      };
+    case "primaryChunk":
+      return {
+        type: "primaryChunk",
+        data: frame.payload.value,
+      };
+    case "companionChunk":
+      return {
+        type: "companionChunk",
+        data: frame.payload.value,
+      };
+    default:
+      return undefined;
   }
-
-  if (frame.primaryChunk) {
-    return {
-      type: "primaryChunk",
-      data: frame.primaryChunk,
-    };
-  }
-
-  if (frame.companionChunk) {
-    return {
-      type: "companionChunk",
-      data: frame.companionChunk,
-    };
-  }
-
-  return undefined;
 }
 
 /**
@@ -90,7 +86,7 @@ export class AttachmentsResource {
         companion: input.companion
           ? {
               data: input.companion.data,
-              kind: CompanionKind.COMPANION_KIND_LIVE_PHOTO_VIDEO,
+              kind: CompanionKind.LIVE_PHOTO_VIDEO,
             }
           : undefined,
       });

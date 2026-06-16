@@ -59,6 +59,6 @@ describe("EventsResource", () => {
       // Drain the finite test stream.
     }
 
-    expect(capturedRequest).toEqual({ afterSequence: 30 });
+    expect(capturedRequest).toEqual({ afterSequence: 30n });
   });
 });

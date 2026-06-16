@@ -1,5 +1,6 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { ValidationError } from "../errors/imessage-error.ts";
+import type { CatchUpEventsResponse } from "../generated/photon/imessage/v1/event_service_pb.js";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { EventServiceClient } from "../transport/grpc-client.ts";
 import {
@@ -30,18 +31,13 @@ function normalizeSequenceCursor(
   return cursor;
 }
 
-function mapCatchUpFrame(frame: {
-  complete?: { headSequence: number };
-  sequence?: number;
-  messageChanged?: Parameters<typeof mapMessageEvent>[1];
-  chatChanged?: Parameters<typeof mapChatEvent>[1];
-  groupChanged?: Parameters<typeof mapGroupEvent>[1];
-  pollChanged?: Parameters<typeof mapPollEvent>[1];
-}): CatchUpEvent | undefined {
-  if (frame.complete) {
+function mapCatchUpFrame(
+  frame: CatchUpEventsResponse
+): CatchUpEvent | undefined {
+  if (frame.payload.case === "complete") {
     return {
       type: "catchup.complete",
-      headSequence: frame.complete.headSequence,
+      headSequence: Number(frame.payload.value.headSequence),
     };
   }
 
@@ -49,23 +45,20 @@ function mapCatchUpFrame(frame: {
     return undefined;
   }
 
-  if (frame.messageChanged) {
-    return mapMessageEvent(frame.sequence, frame.messageChanged);
-  }
+  const sequence = Number(frame.sequence);
 
-  if (frame.chatChanged) {
-    return mapChatEvent(frame.sequence, frame.chatChanged);
+  switch (frame.payload.case) {
+    case "messageChanged":
+      return mapMessageEvent(sequence, frame.payload.value);
+    case "chatChanged":
+      return mapChatEvent(sequence, frame.payload.value);
+    case "groupChanged":
+      return mapGroupEvent(sequence, frame.payload.value);
+    case "pollChanged":
+      return mapPollEvent(sequence, frame.payload.value);
+    default:
+      return undefined;
   }
-
-  if (frame.groupChanged) {
-    return mapGroupEvent(frame.sequence, frame.groupChanged);
-  }
-
-  if (frame.pollChanged) {
-    return mapPollEvent(frame.sequence, frame.pollChanged);
-  }
-
-  return undefined;
 }
 
 /**
@@ -94,7 +87,10 @@ export class EventsResource {
     const afterSequence = normalizeSequenceCursor(since, "since");
     const abort = new AbortController();
     const rpcStream = this._client.catchUpEvents(
-      { afterSequence },
+      {
+        afterSequence:
+          afterSequence === undefined ? undefined : BigInt(afterSequence),
+      },
       { signal: abort.signal }
     );
 

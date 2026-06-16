@@ -282,10 +282,16 @@ export class GroupsResource {
     async function* mapEvents(): AsyncGenerator<GroupEvent> {
       try {
         for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.groupChanged) {
+          if (
+            frame.payload.case !== "groupChanged" ||
+            frame.sequence === undefined
+          ) {
             continue;
           }
-          const event = mapGroupEvent(frame.sequence, frame.groupChanged);
+          const event = mapGroupEvent(
+            Number(frame.sequence),
+            frame.payload.value
+          );
           if (event) {
             yield event;
           }

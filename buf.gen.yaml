@@ -1,9 +1,8 @@
 version: v2
 plugins:
-  - local: protoc-gen-ts_proto
+  - local: protoc-gen-es
     out: src/generated
     opt:
-      - outputServices=nice-grpc,outputServices=generic-definitions
-      - useExactTypes=false
-      - esModuleInterop=true
-      - importSuffix=.js
+      - target=ts
+      - import_extension=.js
+      - json_types=false

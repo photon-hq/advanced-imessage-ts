@@ -1,5 +1,6 @@
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { MessageReactionKind } from "../generated/photon/imessage/v1/message_types.ts";
+import { MessageReactionKind } from "../generated/photon/imessage/v1/message_types_pb.js";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { MessageServiceClient } from "../transport/grpc-client.ts";
 import {
@@ -32,19 +33,19 @@ function toReactionKind(
 ): MessageReactionKind {
   switch (reaction) {
     case "love":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_LOVE;
+      return MessageReactionKind.LOVE;
     case "like":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_LIKE;
+      return MessageReactionKind.LIKE;
     case "dislike":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_DISLIKE;
+      return MessageReactionKind.DISLIKE;
     case "laugh":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_LAUGH;
+      return MessageReactionKind.LAUGH;
     case "emphasize":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_EMPHASIZE;
+      return MessageReactionKind.EMPHASIZE;
     case "question":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_QUESTION;
+      return MessageReactionKind.QUESTION;
     case "emoji":
-      return MessageReactionKind.MESSAGE_REACTION_KIND_EMOJI;
+      return MessageReactionKind.EMOJI;
     default:
       throw new TypeError(`Unsupported reaction kind: ${String(reaction)}`);
   }
@@ -141,7 +142,9 @@ export class MessagesResource {
     try {
       const response = await this._client.sendAttachmentMessage({
         chatGuid: normalizeChatGuid(chat),
-        attachment: { attachmentGuid: attachment },
+        attachment: {
+          source: { case: "attachmentGuid", value: attachment },
+        },
         replyTo: mapReplyTarget(options?.replyTo),
         effectId: options?.effect,
         isAudioMessage: options?.isAudioMessage,
@@ -308,7 +311,7 @@ export class MessagesResource {
           messageGuid: message,
           targetPartIndex: options?.partIndex,
         },
-        sticker: { attachmentGuid: sticker },
+        sticker: { source: { case: "attachmentGuid", value: sticker } },
         placement,
         clientMessageId: options?.clientMessageId,
       });
@@ -374,8 +377,8 @@ export class MessagesResource {
         pageToken: options?.pageToken,
         isFromMe: options?.isFromMe,
         isRead: options?.isRead,
-        before: options?.before,
-        after: options?.after,
+        before: options?.before ? timestampFromDate(options.before) : undefined,
+        after: options?.after ? timestampFromDate(options.after) : undefined,
       });
       return {
         messages: response.messages.map(mapMessage),
@@ -406,8 +409,8 @@ export class MessagesResource {
         pageToken: options?.pageToken,
         isFromMe: options?.isFromMe,
         isRead: options?.isRead,
-        before: options?.before,
-        after: options?.after,
+        before: options?.before ? timestampFromDate(options.before) : undefined,
+        after: options?.after ? timestampFromDate(options.after) : undefined,
       });
       return {
         messages: response.messages.map(mapMessage),
@@ -462,10 +465,16 @@ export class MessagesResource {
     async function* mapEvents(): AsyncGenerator<MessageEvent> {
       try {
         for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.messageChanged) {
+          if (
+            frame.payload.case !== "messageChanged" ||
+            frame.sequence === undefined
+          ) {
             continue;
           }
-          const event = mapMessageEvent(frame.sequence, frame.messageChanged);
+          const event = mapMessageEvent(
+            Number(frame.sequence),
+            frame.payload.value
+          );
           if (event) {
             yield event;
           }

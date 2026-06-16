@@ -120,28 +120,27 @@ const chat = unwrap(response.chat, "chat");
 const chat = response.chat!;
 ```
 
-## Codegen: ts-proto
+## Codegen: protoc-gen-es (Connect-ES v2)
 
 ```yaml
 # buf.gen.yaml
 plugins:
-  - local: protoc-gen-ts_proto
+  - local: protoc-gen-es
     out: src/generated
     opt:
-      - outputServices=nice-grpc,outputServices=generic-definitions
-      - useExactTypes=false
-      - esModuleInterop=true
-      - importSuffix=.js
+      - target=ts
+      - import_extension=.js
+      - json_types=false
 ```
 
-ts-proto generates:
-- Native nice-grpc `ServiceDefinition` — no adapter
+protoc-gen-es generates:
+- Service descriptors (`MessageService`, …) — consumed by Connect's `createClient`
 - `Promise<Response>` for unary, `AsyncIterable<Response>` for streaming — no wrapper types
-- `oneof` as optional properties — `if (proto.field)`, no `oneofKind` ceremony
-- `Date` for Timestamps — no manual conversion
+- `oneof` as discriminated unions — `switch (proto.field.case)`, narrowed `.value`
+- `Timestamp` as a message and 64-bit fields as `bigint` — the mapper converts to `Date` / `number`
 - Strict-clean output — compiles under full strict mode
 
-Previous codegen (protobuf-ts) required adapter, wrapper destructuring, `oneofKind` unions that broke under strict, and couldn't handle `noUncheckedIndexedAccess`. We switched rather than weakening the tsconfig.
+The transport is Connect grpc-web (`@connectrpc/connect-web`) over `fetch`, so the SDK runs in browsers and Node 18+, typically fronted by an Envoy grpc-web proxy. The mapper (`src/transport/mapper.ts`) bridges generated shapes to the handwritten public types; requests are built as plain init-shape objects.
 
 ## Build
 

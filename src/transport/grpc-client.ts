@@ -1,74 +1,63 @@
 /**
- * Creates and configures the nice-grpc channel and all service clients.
+ * Creates the Connect grpc-web transport and all service clients.
  *
- * This module is the single entry point for establishing a gRPC connection.
- * It wires up channel creation, auth middleware, optional idempotency
- * middleware, and returns typed clients for every service defined in the
+ * This module is the single entry point for establishing a connection. It
+ * wires up the grpc-web transport, auth/idempotency/timeout/retry
+ * interceptors, and returns typed clients for every service defined in the
  * proto contract.
+ *
+ * The transport speaks gRPC-web over HTTP (via `fetch`), so it works both in
+ * browsers and in Node 18+ — typically fronted by an Envoy grpc-web proxy.
  */
 
 import {
-  type Channel,
-  ChannelCredentials,
-  createChannel,
-  createClientFactory,
-} from "nice-grpc";
-import type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
-import { AddressServiceDefinition } from "../generated/photon/imessage/v1/address_service.ts";
-import type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
-import { AttachmentServiceDefinition } from "../generated/photon/imessage/v1/attachment_service.ts";
-import type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
-import { ChatServiceDefinition } from "../generated/photon/imessage/v1/chat_service.ts";
-import type { EventServiceClient } from "../generated/photon/imessage/v1/event_service.ts";
-import { EventServiceDefinition } from "../generated/photon/imessage/v1/event_service.ts";
-import type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
-import { GroupServiceDefinition } from "../generated/photon/imessage/v1/group_service.ts";
-import type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
-import { LocationServiceDefinition } from "../generated/photon/imessage/v1/location_service.ts";
-import type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
-// Generated ts-proto ServiceDefinition instances (runtime descriptors)
-import { MessageServiceDefinition } from "../generated/photon/imessage/v1/message_service.ts";
-import type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
-import { PollServiceDefinition } from "../generated/photon/imessage/v1/poll_service.ts";
+  type Client,
+  createClient,
+  type Interceptor,
+} from "@connectrpc/connect";
+import { createGrpcWebTransport } from "@connectrpc/connect-web";
+import { AddressService } from "../generated/photon/imessage/v1/address_service_pb.js";
+import { AttachmentService } from "../generated/photon/imessage/v1/attachment_service_pb.js";
+import { ChatService } from "../generated/photon/imessage/v1/chat_service_pb.js";
+import { EventService } from "../generated/photon/imessage/v1/event_service_pb.js";
+import { GroupService } from "../generated/photon/imessage/v1/group_service_pb.js";
+import { LocationService } from "../generated/photon/imessage/v1/location_service_pb.js";
+import { MessageService } from "../generated/photon/imessage/v1/message_service_pb.js";
+import { PollService } from "../generated/photon/imessage/v1/poll_service_pb.js";
 import type { RetryOptions } from "../types/common.ts";
-// Middleware
+// Interceptors
 import {
-  authMiddleware,
-  idempotencyMiddleware,
-  retryMiddleware,
-  timeoutMiddleware,
-  trailingMetadataCaptureMiddleware,
+  authInterceptor,
+  idempotencyInterceptor,
+  retryInterceptor,
+  timeoutInterceptor,
 } from "./metadata.ts";
 
 // ---------------------------------------------------------------------------
 // Client type aliases
 //
-// Re-export with friendly names for resource classes. The ts-proto generated
-// client interfaces have correct method signatures for nice-grpc usage.
+// `Client<typeof Service>` gives each method a `Promise<Response>` return for
+// unary RPCs and an `AsyncIterable<Response>` for server-streaming RPCs, with
+// request bodies typed as init shapes (plain objects).
 // ---------------------------------------------------------------------------
 
-export type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
-export type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
-export type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
-export type { EventServiceClient } from "../generated/photon/imessage/v1/event_service.ts";
-export type { GroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
-export type { LocationServiceClient } from "../generated/photon/imessage/v1/location_service.ts";
-export type { MessageServiceClient } from "../generated/photon/imessage/v1/message_service.ts";
-export type { PollServiceClient } from "../generated/photon/imessage/v1/poll_service.ts";
+export type AddressServiceClient = Client<typeof AddressService>;
+export type AttachmentServiceClient = Client<typeof AttachmentService>;
+export type ChatServiceClient = Client<typeof ChatService>;
+export type EventServiceClient = Client<typeof EventService>;
+export type GroupServiceClient = Client<typeof GroupService>;
+export type LocationServiceClient = Client<typeof LocationService>;
+export type MessageServiceClient = Client<typeof MessageService>;
+export type PollServiceClient = Client<typeof PollService>;
+
 // ---------------------------------------------------------------------------
 // GrpcClients interface
 // ---------------------------------------------------------------------------
 
-/**
- * Container for all gRPC service clients and the underlying channel.
- *
- * The `channel` is exposed so the caller can close it when done (or use
- * the client's `AsyncDisposable` implementation).
- */
+/** Container for all Connect service clients. */
 export interface GrpcClients {
   readonly addresses: AddressServiceClient;
   readonly attachments: AttachmentServiceClient;
-  readonly channel: Channel;
   readonly chats: ChatServiceClient;
   readonly events: EventServiceClient;
   readonly groups: GroupServiceClient;
@@ -81,15 +70,19 @@ export interface GrpcClients {
 // Options
 // ---------------------------------------------------------------------------
 
-/** Options for creating the gRPC client bundle. */
+/** Options for creating the Connect client bundle. */
 export interface GrpcClientOptions {
-  /** Server address, e.g. `"127.0.0.1:50051"`. */
-  address: string;
   /**
    * Whether to automatically attach an `x-idempotency-key` header to
    * mutating RPC calls. Defaults to `false`.
    */
   autoIdempotency?: boolean;
+  /**
+   * Base URL of the gRPC-web endpoint, e.g.
+   * `"https://staging-spectrum-imessage-web.photon.codes"`. Requests are made
+   * to `<baseUrl>/<package>.<service>/<method>`.
+   */
+  baseUrl: string;
   /**
    * Enable automatic retry with exponential backoff for retryable errors.
    * Pass `true` for default settings, or a `RetryOptions` object to
@@ -98,15 +91,9 @@ export interface GrpcClientOptions {
   retry?: boolean | RetryOptions;
   /**
    * Default timeout in milliseconds for unary RPC calls.
-   * Sets a deadline on each call unless one is already provided.
+   * Sets a deadline on each unary call; streaming calls are left open.
    */
   timeout?: number;
-  /**
-   * Whether to use TLS. If `true`, the channel uses SSL credentials.
-   * If `false`, this forces `ChannelCredentials.createInsecure()`.
-   * Defaults to `true`.
-   */
-  tls?: boolean;
   /**
    * Bearer token for authentication. Can be a static string or an async
    * function that resolves a fresh token on each call.
@@ -119,13 +106,13 @@ export interface GrpcClientOptions {
 // ---------------------------------------------------------------------------
 
 /**
- * Create a gRPC channel and all service clients with the configured
- * middleware.
+ * Create a grpc-web transport and all service clients with the configured
+ * interceptors.
  *
  * @example
  * ```ts
  * const clients = createGrpcClients({
- *   address: "127.0.0.1:50051",
+ *   baseUrl: "https://staging-spectrum-imessage-web.photon.codes",
  *   token: "my-secret-token",
  * });
  *
@@ -133,53 +120,44 @@ export interface GrpcClientOptions {
  * ```
  */
 export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
-  // --- Channel ---
-  const credentials =
-    (options.tls ?? true)
-      ? ChannelCredentials.createSsl()
-      : ChannelCredentials.createInsecure();
-
-  const channel = createChannel(options.address, credentials);
-
-  // --- Client factory with middleware ---
+  // Interceptors are ordered outermost-first. Connect applies index 0 as the
+  // outermost wrapper, so the call chain is:
+  //   idempotency → retry → timeout → auth → RPC
   //
-  // Middleware is added outermost-first: the first .use() call runs first
-  // in the call chain. Desired execution order:
-  //   idempotency → retry → timeout → auth → trailingMetadataCapture → RPC
-  let factory = createClientFactory();
+  // Idempotency is outermost so a single key is reused across retries; auth is
+  // innermost so a fresh token is resolved on every (re)attempt.
+  const interceptors: Interceptor[] = [];
 
   if (options.autoIdempotency) {
-    factory = factory.use(idempotencyMiddleware());
+    interceptors.push(idempotencyInterceptor());
   }
 
   if (options.retry) {
     const retryOpts = options.retry === true ? {} : options.retry;
-    factory = factory.use(retryMiddleware(retryOpts));
+    interceptors.push(retryInterceptor(retryOpts));
   }
 
   if (options.timeout) {
-    factory = factory.use(timeoutMiddleware(options.timeout));
+    interceptors.push(timeoutInterceptor(options.timeout));
   }
 
   if (options.token) {
-    factory = factory.use(authMiddleware(options.token));
+    interceptors.push(authInterceptor(options.token));
   }
 
-  // Always capture trailing metadata — nice-grpc strips it from errors,
-  // but our error handler and retry middleware depend on it.
-  factory = factory.use(trailingMetadataCaptureMiddleware());
+  const transport = createGrpcWebTransport({
+    baseUrl: options.baseUrl,
+    interceptors,
+  });
 
-  // --- Create clients ---
-  // ts-proto definitions are natively compatible with nice-grpc, no casts needed.
   return {
-    messages: factory.create(MessageServiceDefinition, channel),
-    chats: factory.create(ChatServiceDefinition, channel),
-    events: factory.create(EventServiceDefinition, channel),
-    groups: factory.create(GroupServiceDefinition, channel),
-    attachments: factory.create(AttachmentServiceDefinition, channel),
-    addresses: factory.create(AddressServiceDefinition, channel),
-    polls: factory.create(PollServiceDefinition, channel),
-    locations: factory.create(LocationServiceDefinition, channel),
-    channel,
+    messages: createClient(MessageService, transport),
+    chats: createClient(ChatService, transport),
+    events: createClient(EventService, transport),
+    groups: createClient(GroupService, transport),
+    attachments: createClient(AttachmentService, transport),
+    addresses: createClient(AddressService, transport),
+    polls: createClient(PollService, transport),
+    locations: createClient(LocationService, transport),
   };
 }

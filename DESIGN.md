@@ -9,7 +9,7 @@ TypeScript SDK for [photon-hq/advanced-imessage-server-v2](https://github.com/ph
 ```ts
 import { createClient, MessageEffect } from "@photon-ai/advanced-imessage";
 
-const im = createClient({ address: "127.0.0.1:50051", token: "..." });
+const im = createClient({ baseUrl: "https://imessage.example.com", token: "..." });
 
 await im.messages.sendText("any;-;+1234567890", "Hello!");
 ```
@@ -45,7 +45,7 @@ behavior.
 
 **Keep protocol rules documented and enforced at the boundary.** Apple's effect IDs (`com.apple.messages.effect.CKConfettiEffect`) are hidden behind `MessageEffect.confetti`. Chat GUIDs stay plain strings for API simplicity, but the SDK validates them before sending.
 
-**Lifecycle is explicit.** The client owns the gRPC channel and implements
+**Lifecycle is explicit.** The client owns the transport and implements
 `Symbol.asyncDispose`. Streams also implement `Symbol.asyncDispose`. Resource
 namespaces are thin method groups and do not own sockets.
 
@@ -166,7 +166,7 @@ last event sequence you have fully handled.
 
 ## Errors are a Class Hierarchy
 
-`instanceof` over getter booleans. Factory function maps gRPC status + metadata to the right subclass.
+`instanceof` over getter booleans. Factory function maps Connect status codes + metadata to the right subclass.
 
 ```ts
 class IMessageError extends Error {
@@ -215,9 +215,8 @@ for await (const frame of im.attachments.downloadStream(guid)) {
 export function createClient(options: ClientOptions): AdvancedIMessage;
 
 interface ClientOptions {
-  address: string;
+  baseUrl: string;                     // gRPC-web endpoint, e.g. https://host
   token: string | (() => Promise<string>);
-  tls?: boolean;
   timeout?: number;
   retry?: boolean | RetryOptions;
   autoIdempotency?: boolean;           // auto x-idempotency-key on mutating RPCs
@@ -244,14 +243,21 @@ Factory function returns an interface. The class is an implementation detail.
 `proto/photon/imessage/v1/*.proto` is the contract. `src/generated/` is also
 committed so the repo is clone-and-build with no codegen step required.
 
-We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-definitions`. ts-proto generates:
-- Native nice-grpc `ServiceDefinition` objects
-- Typed `ServiceClient` interfaces where unary methods return `Promise<Response>` and streaming methods return `AsyncIterable<Response>`
-- `oneof` fields as plain optional properties
-- `Date` for Timestamp fields — no manual conversion
+We use **@bufbuild/protoc-gen-es** (Connect-ES v2). protoc-gen-es generates:
+- Service descriptors (`MessageService`, …) consumed by Connect's `createClient`
+- Message types created from plain init-shape objects; unary clients return
+  `Promise<Response>` and server-streaming clients return `AsyncIterable<Response>`
+- `oneof` fields as discriminated unions (`{ case, value }`)
+- `google.protobuf.Timestamp` as a message and 64-bit fields as `bigint`
 - Code that compiles under full strict mode
 
-Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` bridges generated types to public types. Same Mapper pattern the server uses.
+The transport is **Connect grpc-web** (`@connectrpc/connect-web`), which speaks
+gRPC-web over `fetch` and works in browsers and Node 18+, typically through an
+Envoy proxy.
+
+Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts`
+bridges generated types to public types — converting `Timestamp` to `Date`,
+`bigint` to `number`, and oneof unions to discriminated public events.
 
 ### When the server changes
 
@@ -276,4 +282,4 @@ Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` 
 - **No forced complexity** — simple things are always simple
 - **No weakened tsconfig** — generated code must compile strict. Pick a different tool if it can't
 - **No non-null assertions** — `unwrap()` with a clear error message, not `!`
-- **No type casts at the transport boundary** — if the codegen needs `as any` to work with the gRPC library, it's the wrong codegen
+- **No type casts at the transport boundary** — if the codegen needs `as any` to work with the Connect client, it's the wrong codegen

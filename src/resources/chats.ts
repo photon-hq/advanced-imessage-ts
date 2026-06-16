@@ -1,6 +1,6 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { ValidationError } from "../errors/imessage-error.ts";
-import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types.ts";
+import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types_pb.js";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { ChatServiceClient } from "../transport/grpc-client.ts";
 import { mapChat, mapChatEvent, mapMessage } from "../transport/mapper.ts";
@@ -76,7 +76,7 @@ export class ChatsResource {
       const response = await this._client.createChat({
         addresses,
         clientMessageId: options?.clientMessageId,
-        service: ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE,
+        service: ProtoChatServiceType.IMESSAGE,
         initialMessage:
           message === undefined
             ? undefined
@@ -122,7 +122,7 @@ export class ChatsResource {
       const response = await this._client.getChatCount({
         includeArchived: options?.includeArchived ?? false,
       });
-      return response.count;
+      return Number(response.count);
     } catch (err) {
       throw fromGrpcError(err);
     }
@@ -245,10 +245,16 @@ export class ChatsResource {
     async function* mapEvents(): AsyncGenerator<ChatEvent> {
       try {
         for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.chatChanged) {
+          if (
+            frame.payload.case !== "chatChanged" ||
+            frame.sequence === undefined
+          ) {
             continue;
           }
-          const event = mapChatEvent(frame.sequence, frame.chatChanged);
+          const event = mapChatEvent(
+            Number(frame.sequence),
+            frame.payload.value
+          );
           if (event) {
             yield event;
           }

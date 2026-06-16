@@ -157,10 +157,16 @@ export class PollsResource {
     async function* mapEvents(): AsyncGenerator<PollEvent> {
       try {
         for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.pollChanged) {
+          if (
+            frame.payload.case !== "pollChanged" ||
+            frame.sequence === undefined
+          ) {
             continue;
           }
-          const event = mapPollEvent(frame.sequence, frame.pollChanged);
+          const event = mapPollEvent(
+            Number(frame.sequence),
+            frame.payload.value
+          );
           if (event) {
             yield event;
           }

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Metadata } from "@grpc/grpc-js";
-import { ClientError, Status } from "nice-grpc-common";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { fromGrpcError } from "../../src/errors/error-handler.ts";
 import {
   ConnectionError,
@@ -9,30 +8,18 @@ import {
   ValidationError,
 } from "../../src/errors/imessage-error.ts";
 
-function makeClientError(
-  code: Status,
+function makeConnectError(
+  code: Code,
   details: string,
   metadataEntries: Record<string, string> = {}
-): ClientError {
-  const metadata = new Metadata();
-  for (const [key, value] of Object.entries(metadataEntries)) {
-    metadata.set(key, value);
-  }
-  const error = new ClientError(
-    "/photon.imessage.v1.TestService/TestMethod",
-    code,
-    details
-  ) as ClientError & {
-    metadata?: Metadata;
-  };
-  error.metadata = metadata;
-  return error;
+): ConnectError {
+  return new ConnectError(details, code, metadataEntries);
 }
 
 describe("fromGrpcError", () => {
-  it("maps NOT_FOUND to NotFoundError and preserves canonical error-code", () => {
+  it("maps NotFound to NotFoundError and preserves canonical error-code", () => {
     const error = fromGrpcError(
-      makeClientError(Status.NOT_FOUND, "Attachment does not exist", {
+      makeConnectError(Code.NotFound, "Attachment does not exist", {
         "error-code": "attachmentNotFound",
       })
     );
@@ -42,9 +29,9 @@ describe("fromGrpcError", () => {
     expect(error.message).toBe("Attachment does not exist");
   });
 
-  it("maps INVALID_ARGUMENT to ValidationError", () => {
+  it("maps InvalidArgument to ValidationError", () => {
     const error = fromGrpcError(
-      makeClientError(Status.INVALID_ARGUMENT, "chat_guid must be valid", {
+      makeConnectError(Code.InvalidArgument, "chat_guid must be valid", {
         "error-code": "invalidArgument",
       })
     );
@@ -55,7 +42,7 @@ describe("fromGrpcError", () => {
 
   it("surfaces error-context-* metadata on error.context", () => {
     const error = fromGrpcError(
-      makeClientError(Status.INVALID_ARGUMENT, "address must be valid", {
+      makeConnectError(Code.InvalidArgument, "address must be valid", {
         "error-code": "invalidArgument",
         "error-context-field": "address",
         "error-context-value": "foo@bar",
@@ -69,9 +56,9 @@ describe("fromGrpcError", () => {
     });
   });
 
-  it("maps DEADLINE_EXCEEDED to ConnectionError and surfaces retryability", () => {
+  it("maps DeadlineExceeded to ConnectionError and surfaces retryability", () => {
     const error = fromGrpcError(
-      makeClientError(Status.DEADLINE_EXCEEDED, "deadline exceeded", {
+      makeConnectError(Code.DeadlineExceeded, "deadline exceeded", {
         "error-code": "timeout",
         "x-retryable": "true",
       })
@@ -82,7 +69,7 @@ describe("fromGrpcError", () => {
     expect(error.retryable).toBe(true);
   });
 
-  it("wraps non-gRPC errors as base IMessageError with internalError", () => {
+  it("wraps non-Connect errors as base IMessageError with internalError", () => {
     const error = fromGrpcError(new Error("boom"));
 
     expect(error).toBeInstanceOf(IMessageError);

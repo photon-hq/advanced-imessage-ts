@@ -1,25 +1,21 @@
 /**
- * Unit tests for nice-grpc client middleware:
- * - retryMiddleware
- * - timeoutMiddleware
- * - trailingMetadataCaptureMiddleware
+ * Unit tests for the Connect client interceptors:
+ * - authInterceptor
+ * - idempotencyInterceptor
+ * - retryInterceptor
+ * - timeoutInterceptor
  *
- * These tests use a mock middleware call chain that simulates nice-grpc
- * behaviour without requiring an actual gRPC server.
+ * These tests build a fake `(req, next)` chain that mirrors Connect's
+ * interceptor contract without requiring an actual transport.
  */
 
 import { describe, expect, it } from "bun:test";
+import { Code, ConnectError } from "@connectrpc/connect";
 import {
-  type CallOptions,
-  ClientError,
-  Metadata,
-  Status,
-} from "nice-grpc-common";
-import {
-  idempotencyMiddleware,
-  retryMiddleware,
-  timeoutMiddleware,
-  trailingMetadataCaptureMiddleware,
+  authInterceptor,
+  idempotencyInterceptor,
+  retryInterceptor,
+  timeoutInterceptor,
 } from "../../src/transport/metadata.ts";
 import type { RetryOptions } from "../../src/types/common.ts";
 import {
@@ -28,509 +24,234 @@ import {
 } from "../../src/utils/grpc-metadata.ts";
 
 // ---------------------------------------------------------------------------
-// Helpers — mock the nice-grpc middleware call/next interface
+// Helpers — mock the Connect interceptor request/next interface
 // ---------------------------------------------------------------------------
 
-interface MockMethodDescriptor {
-  options: Record<string, unknown>;
-  path: string;
-  requestStream: boolean;
-  responseStream: boolean;
+interface MockRequest {
+  header: Headers;
+  message: unknown;
+  method: { name: string };
+  service: { typeName: string };
+  signal: AbortSignal;
+  stream: boolean;
 }
 
-const UNARY_METHOD: MockMethodDescriptor = {
-  path: "/test.Service/Unary",
-  requestStream: false,
-  responseStream: false,
-  options: {},
-};
-
-const SERVER_STREAM_METHOD: MockMethodDescriptor = {
-  path: "/test.Service/ServerStream",
-  requestStream: false,
-  responseStream: true,
-  options: {},
-};
-
-/**
- * Build a fake nice-grpc middleware `call` object whose `.next()` delegates
- * to `handler`.  `handler` receives the request and options and should either
- * return a value or throw.
- */
-function buildCall<Req, Res>(
-  method: MockMethodDescriptor,
-  request: Req,
-  handler: (req: Req, opts: CallOptions) => Promise<Res>
-) {
-  // biome-ignore lint/correctness/useYield: simulates nice-grpc async generator interface
-  async function* nextFn(
-    req: Req | AsyncIterable<Req>,
-    opts: CallOptions
-  ): AsyncGenerator<never, Res, undefined> {
-    return await handler(req as Req, opts);
-  }
-
+function makeReq(overrides: Partial<MockRequest> = {}): MockRequest {
   return {
-    method,
-    request,
-    requestStream: method.requestStream,
-    responseStream: method.responseStream,
-    next: nextFn,
+    stream: false,
+    header: new Headers(),
+    signal: new AbortController().signal,
+    service: { typeName: "test.Service" },
+    method: { name: "Unary" },
+    message: {},
+    ...overrides,
   };
 }
 
-/** Drain an async generator, returning the final return value. */
-async function drain<T>(
-  gen: AsyncGenerator<T, T | undefined, undefined>
-): Promise<T> {
-  let result = await gen.next();
-  while (!result.done) {
-    result = await gen.next();
-  }
-  return result.value as T;
+const passthrough = async (req: unknown) => ({ message: "ok", req });
+
+/** Apply an interceptor with a fake `next`, returning the response. */
+function run(
+  interceptor: any,
+  next: (req: any) => Promise<unknown>,
+  req: MockRequest
+): Promise<unknown> {
+  return interceptor(next)(req);
 }
 
-/**
- * Create a ClientError with fake trailing metadata attached (simulating
- * what trailingMetadataCaptureMiddleware would produce).
- */
-function errorWithMetadata(
-  code: number,
-  details: string,
-  meta: Record<string, string>
-): ClientError {
-  const err = new ClientError("/test.Service/Unary", code, details);
-  Object.defineProperty(err, "metadata", {
-    value: Metadata(meta),
-    writable: true,
-    configurable: true,
-  });
-  return err;
-}
+const retryableError = (details: string) =>
+  new ConnectError(details, Code.Unavailable, { "x-retryable": "true" });
 
 // =========================================================================
-// trailingMetadataCaptureMiddleware
+// authInterceptor
 // =========================================================================
 
-describe("trailingMetadataCaptureMiddleware", () => {
-  it("attaches trailing metadata to errors", async () => {
-    const mw = trailingMetadataCaptureMiddleware();
-
-    // Simulate a call that fails AND delivers trailing metadata via onTrailer
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      // Simulate the gRPC layer: fire onTrailer, then throw
-      const trailer = Metadata();
-      trailer.set("error-code", "chatNotFound");
-      trailer.set("x-retryable", "true");
-      opts.onTrailer?.(trailer);
-      throw new ClientError(
-        "/test.Service/Unary",
-        Status.NOT_FOUND,
-        "chat not found"
-      );
-    };
-
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-
-    try {
-      await drain(gen);
-      throw new Error("should have thrown");
-    } catch (err: any) {
-      expect(err).toBeInstanceOf(ClientError);
-      // Original metadata should be attached.
-      expect(err.metadata).toBeDefined();
-      expect(readMetadataValue(err, "error-code")).toBe("chatNotFound");
-      expect(readMetadataValue(err, "x-retryable")).toBe("true");
-      expect(readMetadataValue(err, "nonexistent")).toBeUndefined();
-    }
+describe("authInterceptor", () => {
+  it("sets a Bearer authorization header from a static token", async () => {
+    const req = makeReq();
+    await run(authInterceptor("my-token"), passthrough, req);
+    expect(req.header.get("authorization")).toBe("Bearer my-token");
   });
 
-  it("preserves metadata iteration for error-context parsing", async () => {
-    const mw = trailingMetadataCaptureMiddleware();
-
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      const trailer = Metadata();
-      trailer.set("error-code", "invalidArgument");
-      trailer.set("error-context-field", "address");
-      trailer.set("error-context-value", "foo@bar");
-      opts.onTrailer?.(trailer);
-      throw new ClientError(
-        "/test.Service/Unary",
-        Status.INVALID_ARGUMENT,
-        "address must be valid"
-      );
-    };
-
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-
-    try {
-      await drain(gen);
-      throw new Error("should have thrown");
-    } catch (err: any) {
-      expect(readMetadataPrefixedEntries(err, "error-context-")).toEqual({
-        field: "address",
-        value: "foo@bar",
-      });
-    }
-  });
-
-  it("preserves original onTrailer callback", async () => {
-    const mw = trailingMetadataCaptureMiddleware();
-    let callerTrailer: any;
-
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      const trailer = Metadata();
-      trailer.set("error-code", "timeout");
-      opts.onTrailer?.(trailer);
-      throw new ClientError(
-        "/test.Service/Unary",
-        Status.DEADLINE_EXCEEDED,
-        "timeout"
-      );
-    };
-
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {
-      onTrailer(t) {
-        callerTrailer = t;
-      },
-    });
-
-    try {
-      await drain(gen);
-    } catch {
-      // expected
-    }
-
-    expect(callerTrailer).toBeDefined();
-    expect(callerTrailer.get("error-code")).toBe("timeout");
-  });
-
-  it("passes through on success without modifying response", async () => {
-    const mw = trailingMetadataCaptureMiddleware();
-
-    const handler = async () => "ok";
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-    const result = await drain(gen);
-
-    expect(result).toBe("ok");
+  it("resolves an async token on each call", async () => {
+    const req = makeReq();
+    await run(
+      authInterceptor(() => Promise.resolve("fresh-token")),
+      passthrough,
+      req
+    );
+    expect(req.header.get("authorization")).toBe("Bearer fresh-token");
   });
 });
 
 // =========================================================================
-// idempotencyMiddleware
+// idempotencyInterceptor
 // =========================================================================
 
-describe("idempotencyMiddleware", () => {
-  it("adds x-idempotency-key only to mutating RPCs from the server contract", async () => {
-    const mw = idempotencyMiddleware();
-    let receivedMetadata: Metadata | undefined;
-
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      receivedMetadata = opts.metadata as Metadata | undefined;
-      return "ok";
-    };
-
-    const call = buildCall(
-      {
-        ...UNARY_METHOD,
-        path: "/photon.imessage.v1.MessageService/SendTextMessage",
-      },
-      {},
-      handler
-    );
-    const gen = mw(call as any, {});
-    const result = await drain(gen);
-
-    expect(result).toBe("ok");
-    expect(receivedMetadata?.get("x-idempotency-key")).toHaveLength(36);
+describe("idempotencyInterceptor", () => {
+  it("adds x-idempotency-key to mutating RPCs from the server contract", async () => {
+    const req = makeReq({
+      service: { typeName: "photon.imessage.v1.MessageService" },
+      method: { name: "SendTextMessage" },
+    });
+    await run(idempotencyInterceptor(), passthrough, req);
+    expect(req.header.get("x-idempotency-key")).toHaveLength(36);
   });
 
   it("does not add x-idempotency-key to catch-up streams", async () => {
-    const mw = idempotencyMiddleware();
-    let receivedMetadata: Metadata | undefined;
-
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      receivedMetadata = opts.metadata as Metadata | undefined;
-      return "ok";
-    };
-
-    const call = buildCall(
-      {
-        ...SERVER_STREAM_METHOD,
-        path: "/photon.imessage.v1.EventService/CatchUpEvents",
-      },
-      {},
-      handler
-    );
-    const gen = mw(call as any, {});
-    const result = await drain(gen);
-
-    expect(result).toBe("ok");
-    expect(receivedMetadata?.get("x-idempotency-key") ?? []).toHaveLength(0);
+    const req = makeReq({
+      stream: true,
+      service: { typeName: "photon.imessage.v1.EventService" },
+      method: { name: "CatchUpEvents" },
+    });
+    await run(idempotencyInterceptor(), passthrough, req);
+    expect(req.header.get("x-idempotency-key")).toBeNull();
   });
 
-  it("does not add x-idempotency-key to location watch streams", async () => {
-    const mw = idempotencyMiddleware();
-    let receivedMetadata: Metadata | undefined;
-
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      receivedMetadata = opts.metadata as Metadata | undefined;
-      return "ok";
-    };
-
-    const call = buildCall(
-      {
-        ...SERVER_STREAM_METHOD,
-        path: "/photon.imessage.v1.LocationService/WatchSharedFriendLocations",
-      },
-      {},
-      handler
-    );
-    const gen = mw(call as any, {});
-    const result = await drain(gen);
-
-    expect(result).toBe("ok");
-    expect(receivedMetadata?.get("x-idempotency-key") ?? []).toHaveLength(0);
+  it("does not add x-idempotency-key to read RPCs", async () => {
+    const req = makeReq({
+      service: { typeName: "photon.imessage.v1.MessageService" },
+      method: { name: "GetMessage" },
+    });
+    await run(idempotencyInterceptor(), passthrough, req);
+    expect(req.header.get("x-idempotency-key")).toBeNull();
   });
 });
 
 // =========================================================================
-// retryMiddleware
+// retryInterceptor
 // =========================================================================
 
-describe("retryMiddleware", () => {
+describe("retryInterceptor", () => {
   it("retries on x-retryable errors up to maxAttempts", async () => {
     const opts: RetryOptions = { maxAttempts: 3, initialDelay: 1, maxDelay: 1 };
-    const mw = retryMiddleware(opts);
-
     let attempts = 0;
-    const handler = async () => {
+    const next = async () => {
       attempts++;
       if (attempts < 3) {
-        throw errorWithMetadata(Status.UNAVAILABLE, "unavailable", {
-          "x-retryable": "true",
-        });
+        throw retryableError("unavailable");
       }
-      return "success";
+      return { message: "success" };
     };
 
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-    const result = await drain(gen);
+    const result = (await run(retryInterceptor(opts), next, makeReq())) as {
+      message: string;
+    };
 
-    expect(result).toBe("success");
+    expect(result.message).toBe("success");
     expect(attempts).toBe(3);
   });
 
   it("does not retry non-retryable errors", async () => {
     const opts: RetryOptions = { maxAttempts: 3, initialDelay: 1, maxDelay: 1 };
-    const mw = retryMiddleware(opts);
-
     let attempts = 0;
-    const handler = async () => {
+    const next = async () => {
       attempts++;
-      throw errorWithMetadata(Status.NOT_FOUND, "not found", {});
+      throw new ConnectError("not found", Code.NotFound);
     };
 
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-
-    try {
-      await drain(gen);
-      throw new Error("should have thrown");
-    } catch (err: any) {
-      expect(err).toBeInstanceOf(ClientError);
-      expect(err.details).toBe("not found");
-    }
-
+    await expect(run(retryInterceptor(opts), next, makeReq())).rejects.toThrow(
+      "not found"
+    );
     expect(attempts).toBe(1);
   });
 
   it("throws after exhausting all attempts", async () => {
     const opts: RetryOptions = { maxAttempts: 2, initialDelay: 1, maxDelay: 1 };
-    const mw = retryMiddleware(opts);
-
     let attempts = 0;
-    const handler = async () => {
+    const next = async () => {
       attempts++;
-      throw errorWithMetadata(Status.UNAVAILABLE, `fail ${attempts}`, {
-        "x-retryable": "true",
-      });
+      throw retryableError(`fail ${attempts}`);
     };
 
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-
-    try {
-      await drain(gen);
-      throw new Error("should have thrown");
-    } catch (err: any) {
-      expect(err.details).toBe("fail 2");
-    }
-
+    await expect(run(retryInterceptor(opts), next, makeReq())).rejects.toThrow(
+      "fail 2"
+    );
     expect(attempts).toBe(2);
   });
 
   it("skips retry for streaming calls", async () => {
     const opts: RetryOptions = { maxAttempts: 3, initialDelay: 1, maxDelay: 1 };
-    const mw = retryMiddleware(opts);
-
     let attempts = 0;
-    const handler = async () => {
+    const next = async () => {
       attempts++;
-      throw errorWithMetadata(Status.UNAVAILABLE, "unavailable", {
-        "x-retryable": "true",
-      });
+      throw retryableError("unavailable");
     };
 
-    const call = buildCall(SERVER_STREAM_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-
-    try {
-      await drain(gen);
-      throw new Error("should have thrown");
-    } catch (err: any) {
-      expect(err.details).toBe("unavailable");
-    }
-
-    // Should only attempt once — no retry for streaming
+    await expect(
+      run(retryInterceptor(opts), next, makeReq({ stream: true }))
+    ).rejects.toThrow("unavailable");
     expect(attempts).toBe(1);
   });
 
   it("uses default options when none provided", () => {
-    const mw = retryMiddleware();
-    expect(mw).toBeFunction();
+    expect(retryInterceptor()).toBeFunction();
   });
 });
 
 // =========================================================================
-// timeoutMiddleware
+// timeoutInterceptor
 // =========================================================================
 
-describe("timeoutMiddleware", () => {
-  it("sets AbortSignal.timeout on calls without existing signal", async () => {
-    const mw = timeoutMiddleware(5000);
-
+describe("timeoutInterceptor", () => {
+  it("combines the caller's signal with a timeout on unary calls", async () => {
     let receivedSignal: AbortSignal | undefined;
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      receivedSignal = opts.signal;
-      return "ok";
+    const next = async (req: MockRequest) => {
+      receivedSignal = req.signal;
+      return { message: "ok" };
     };
 
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-    const result = await drain(gen);
+    const caller = new AbortController();
+    const req = makeReq({ signal: caller.signal });
+    await run(timeoutInterceptor(5000), next as never, req);
 
-    expect(result).toBe("ok");
     expect(receivedSignal).toBeDefined();
+    expect(receivedSignal).not.toBe(caller.signal);
     expect(receivedSignal?.aborted).toBe(false);
+
+    caller.abort();
+    expect(receivedSignal?.aborted).toBe(true);
   });
 
   it("skips streaming calls", async () => {
-    const mw = timeoutMiddleware(5000);
-
     let receivedSignal: AbortSignal | undefined;
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      receivedSignal = opts.signal;
-      return "ok";
+    const next = async (req: MockRequest) => {
+      receivedSignal = req.signal;
+      return { message: "ok" };
     };
 
-    const call = buildCall(SERVER_STREAM_METHOD, {}, handler);
-    const gen = mw(call as any, {});
-    const result = await drain(gen);
+    const req = makeReq({ stream: true });
+    await run(timeoutInterceptor(5000), next as never, req);
 
-    expect(result).toBe("ok");
-    // Streaming calls should NOT get a timeout signal
-    expect(receivedSignal).toBeUndefined();
-  });
-
-  it("combines with existing caller signal", async () => {
-    const mw = timeoutMiddleware(5000);
-    const callerAbort = new AbortController();
-
-    let receivedSignal: AbortSignal | undefined;
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      receivedSignal = opts.signal;
-      return "ok";
-    };
-
-    const call = buildCall(UNARY_METHOD, {}, handler);
-    const gen = mw(call as any, { signal: callerAbort.signal });
-    await drain(gen);
-
-    expect(receivedSignal).toBeDefined();
-    // The received signal should be a combined signal (not the original)
-    expect(receivedSignal).not.toBe(callerAbort.signal);
-    expect(receivedSignal?.aborted).toBe(false);
-
-    // Aborting the caller's signal should propagate
-    callerAbort.abort();
-    expect(receivedSignal?.aborted).toBe(true);
+    // Streaming calls are passed through untouched.
+    expect(receivedSignal).toBe(req.signal);
   });
 });
 
 // =========================================================================
-// Integration: capture + retry working together
+// metadata helpers (Headers-based)
 // =========================================================================
 
-describe("trailingMetadataCapture + retry integration", () => {
-  it("retry reads x-retryable from captured trailing metadata", async () => {
-    const captureMw = trailingMetadataCaptureMiddleware();
-    const retryMw = retryMiddleware({
-      maxAttempts: 3,
-      initialDelay: 1,
-      maxDelay: 1,
+describe("metadata helpers", () => {
+  it("reads a single header value", () => {
+    const headers = new Headers({
+      "error-code": "chatNotFound",
+      "x-retryable": "true",
     });
+    expect(readMetadataValue(headers, "error-code")).toBe("chatNotFound");
+    expect(readMetadataValue(headers, "x-retryable")).toBe("true");
+    expect(readMetadataValue(headers, "nonexistent")).toBeUndefined();
+  });
 
-    let attempts = 0;
-
-    const handler = async (_req: unknown, opts: CallOptions) => {
-      attempts++;
-      // Simulate server: deliver trailing metadata, then error
-      const trailer = Metadata();
-      if (attempts < 3) {
-        trailer.set("x-retryable", "true");
-        trailer.set("error-code", "serviceUnavailable");
-      } else {
-        trailer.set("error-code", "ok");
-      }
-      opts.onTrailer?.(trailer);
-
-      if (attempts < 3) {
-        throw new ClientError(
-          "/test.Service/Unary",
-          Status.UNAVAILABLE,
-          "unavailable"
-        );
-      }
-      return "success";
-    };
-
-    // Build a chained middleware: retry(outer) → capture(inner) → handler
-    // We simulate this by nesting: retry calls capture's generator which calls handler
-
-    // Inner: capture wraps handler
-    const innerCall = buildCall(UNARY_METHOD, {}, handler);
-    const captureGen = (_req: unknown, opts: CallOptions) =>
-      captureMw(innerCall as any, opts);
-
-    // Outer: retry wraps capture
-    const outerCall = {
-      method: UNARY_METHOD,
-      request: {},
-      requestStream: false,
-      responseStream: false,
-      next: captureGen as any,
-    };
-
-    const gen = retryMw(outerCall as any, {});
-    const result = await drain(gen);
-
-    expect(result).toBe("success");
-    expect(attempts).toBe(3);
+  it("reads prefixed entries for error-context parsing", () => {
+    const headers = new Headers({
+      "error-code": "invalidArgument",
+      "error-context-field": "address",
+      "error-context-value": "foo@bar",
+    });
+    expect(readMetadataPrefixedEntries(headers, "error-context-")).toEqual({
+      field: "address",
+      value: "foo@bar",
+    });
   });
 });
