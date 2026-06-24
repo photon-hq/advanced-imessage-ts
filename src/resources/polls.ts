@@ -3,7 +3,7 @@ import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { PollServiceClient } from "../transport/grpc-client.ts";
 import { mapPoll, mapPollEvent } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
-import type { IdempotencyOptions } from "../types/common.ts";
+import type { HeartbeatHandler, IdempotencyOptions } from "../types/common.ts";
 import type { PollEvent } from "../types/events.ts";
 import type { Poll } from "../types/polls.ts";
 import { unwrap } from "../utils/unwrap.ts";
@@ -23,10 +23,16 @@ import { unwrap } from "../utils/unwrap.ts";
 export class PollsResource {
   private readonly _client: PollServiceClient;
   private readonly _streamClient: PollServiceClient;
+  private readonly _onHeartbeat: HeartbeatHandler | undefined;
 
-  constructor(client: PollServiceClient, streamClient = client) {
+  constructor(
+    client: PollServiceClient,
+    streamClient = client,
+    onHeartbeat?: HeartbeatHandler
+  ) {
     this._client = client;
     this._streamClient = streamClient;
+    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -149,6 +155,7 @@ export class PollsResource {
     pollMessage?: string;
   }): TypedEventStream<PollEvent> {
     const abort = new AbortController();
+    const onHeartbeat = this._onHeartbeat;
     const rpcStream = this._streamClient.subscribePollEvents(
       {
         pollMessageGuid: filter?.pollMessage,
@@ -160,6 +167,9 @@ export class PollsResource {
       try {
         for await (const frame of rpcStream) {
           if (frame.sequence === undefined || !frame.pollChanged) {
+            if (frame.heartbeat) {
+              onHeartbeat?.();
+            }
             continue;
           }
           const event = mapPollEvent(frame.sequence, frame.pollChanged);

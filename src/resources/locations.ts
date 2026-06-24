@@ -7,7 +7,7 @@ import {
   mapSharedFriendLocationUpdated,
 } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
-import type { IdempotencyOptions } from "../types/common.ts";
+import type { HeartbeatHandler, IdempotencyOptions } from "../types/common.ts";
 import type {
   LocationRequestReceipt,
   SharedFriendLocation,
@@ -28,10 +28,16 @@ import { unwrap } from "../utils/unwrap.ts";
 export class LocationsResource {
   private readonly _client: LocationServiceClient;
   private readonly _streamClient: LocationServiceClient;
+  private readonly _onHeartbeat: HeartbeatHandler | undefined;
 
-  constructor(client: LocationServiceClient, streamClient = client) {
+  constructor(
+    client: LocationServiceClient,
+    streamClient = client,
+    onHeartbeat?: HeartbeatHandler
+  ) {
     this._client = client;
     this._streamClient = streamClient;
+    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -90,6 +96,7 @@ export class LocationsResource {
   /** Watch updates for every shared friend, or one friend when `address` is set. */
   watch(address?: string): TypedEventStream<SharedFriendLocationUpdated> {
     const abort = new AbortController();
+    const onHeartbeat = this._onHeartbeat;
     const rpcStream = this._streamClient.watchSharedFriendLocations(
       { address },
       { signal: abort.signal }
@@ -99,6 +106,9 @@ export class LocationsResource {
       try {
         for await (const frame of rpcStream) {
           if (!frame.locationUpdated) {
+            if (frame.heartbeat) {
+              onHeartbeat?.();
+            }
             continue;
           }
           yield mapSharedFriendLocationUpdated(frame.locationUpdated);

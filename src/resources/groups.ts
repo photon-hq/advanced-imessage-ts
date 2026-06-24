@@ -5,7 +5,7 @@ import type { GroupServiceClient } from "../transport/grpc-client.ts";
 import { mapChat, mapGroupEvent } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
 import type { Chat } from "../types/chats.ts";
-import type { IdempotencyOptions } from "../types/common.ts";
+import type { HeartbeatHandler, IdempotencyOptions } from "../types/common.ts";
 import type { GroupEvent } from "../types/events.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
@@ -113,10 +113,16 @@ function normalizeIconData(data: Uint8Array): Uint8Array {
 export class GroupsResource {
   private readonly _client: GroupServiceClient;
   private readonly _streamClient: GroupServiceClient;
+  private readonly _onHeartbeat: HeartbeatHandler | undefined;
 
-  constructor(client: GroupServiceClient, streamClient = client) {
+  constructor(
+    client: GroupServiceClient,
+    streamClient = client,
+    onHeartbeat?: HeartbeatHandler
+  ) {
     this._client = client;
     this._streamClient = streamClient;
+    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -274,6 +280,7 @@ export class GroupsResource {
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent> {
     const abort = new AbortController();
+    const onHeartbeat = this._onHeartbeat;
     const rpcStream = this._streamClient.subscribeGroupEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
@@ -285,6 +292,9 @@ export class GroupsResource {
       try {
         for await (const frame of rpcStream) {
           if (frame.sequence === undefined || !frame.groupChanged) {
+            if (frame.heartbeat) {
+              onHeartbeat?.();
+            }
             continue;
           }
           const event = mapGroupEvent(frame.sequence, frame.groupChanged);

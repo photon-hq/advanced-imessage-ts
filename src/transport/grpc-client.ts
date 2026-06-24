@@ -9,8 +9,8 @@
 
 import {
   type Channel,
-  type ChannelOptions,
   ChannelCredentials,
+  type ChannelOptions,
   createChannel,
   createClientFactory,
 } from "nice-grpc";
@@ -48,6 +48,11 @@ import {
 // client interfaces have correct method signatures for nice-grpc usage.
 // ---------------------------------------------------------------------------
 
+/**
+ * `@grpc/grpc-js` channel options. Re-exported so callers can type custom
+ * channel/keepalive overrides without importing from `nice-grpc` directly.
+ */
+export type { ChannelOptions as GrpcChannelOptions } from "nice-grpc";
 export type { AddressServiceClient } from "../generated/photon/imessage/v1/address_service.ts";
 export type { AttachmentServiceClient } from "../generated/photon/imessage/v1/attachment_service.ts";
 export type { ChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
@@ -100,6 +105,13 @@ export interface GrpcClientOptions {
    */
   autoIdempotency?: boolean;
   /**
+   * Additional `@grpc/grpc-js` channel options merged onto (and able to
+   * override) the SDK defaults for both the unary and streaming channels.
+   * Use this to tune keepalive — e.g. `grpc.keepalive_time_ms` — without
+   * waiting for an SDK release.
+   */
+  channelOptions?: ChannelOptions;
+  /**
    * Enable automatic retry with exponential backoff for retryable errors.
    * Pass `true` for default settings, or a `RetryOptions` object to
    * customise the behaviour.
@@ -136,6 +148,28 @@ export interface GrpcClientOptions {
 const MAX_MESSAGE_BYTES = 100 * 1024 * 1024;
 
 /**
+ * How often (ms) the client sends an HTTP/2 keepalive PING when no other
+ * data is in flight. Chosen to match the server's ~30s heartbeat cadence and
+ * to stay above the server-side minimum ping interval, so the client never
+ * trips a GOAWAY `too_many_pings`. Lets a half-open connection (a silent
+ * gateway drop with no RST/GOAWAY) be detected within
+ * `keepalive_time_ms + keepalive_timeout_ms` instead of stalling forever.
+ */
+const KEEPALIVE_TIME_MS = 30_000;
+
+/**
+ * How long (ms) the client waits for a keepalive PING ACK before declaring
+ * the connection dead and tearing it down.
+ */
+const KEEPALIVE_TIMEOUT_MS = 20_000;
+
+/** Send keepalive pings even when there are no active RPC calls (`1` = on). */
+const KEEPALIVE_PERMIT_WITHOUT_CALLS = 1;
+
+/** Allow unlimited keepalive pings without data in flight (`0` = no cap). */
+const KEEPALIVE_MAX_PINGS_WITHOUT_DATA = 0;
+
+/**
  * Create a gRPC channel and all service clients with the configured
  * middleware.
  *
@@ -156,9 +190,18 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
       ? ChannelCredentials.createSsl()
       : ChannelCredentials.createInsecure();
 
+  // Keepalive lets clients detect a half-open connection (failure mode 2 of
+  // ENG-1688): a silent gateway drop that sends no RST/GOAWAY would otherwise
+  // leave the event `for await` blocked forever. Applied to BOTH channels.
+  // Caller-supplied `channelOptions` win, so liveness stays tunable.
   const channelOptions: ChannelOptions = {
     "grpc.max_receive_message_length": MAX_MESSAGE_BYTES,
     "grpc.max_send_message_length": MAX_MESSAGE_BYTES,
+    "grpc.keepalive_time_ms": KEEPALIVE_TIME_MS,
+    "grpc.keepalive_timeout_ms": KEEPALIVE_TIMEOUT_MS,
+    "grpc.keepalive_permit_without_calls": KEEPALIVE_PERMIT_WITHOUT_CALLS,
+    "grpc.http2.max_pings_without_data": KEEPALIVE_MAX_PINGS_WITHOUT_DATA,
+    ...options.channelOptions,
   };
 
   const channel = createChannel(options.address, credentials, channelOptions);

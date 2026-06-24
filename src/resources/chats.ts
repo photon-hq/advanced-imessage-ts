@@ -10,6 +10,7 @@ import type {
   CreateChatOptions,
   CreateChatResult,
 } from "../types/chats.ts";
+import type { HeartbeatHandler } from "../types/common.ts";
 import type { ChatEvent } from "../types/events.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
@@ -52,10 +53,16 @@ function normalizeInitialMessageText(
 export class ChatsResource {
   private readonly _client: ChatServiceClient;
   private readonly _streamClient: ChatServiceClient;
+  private readonly _onHeartbeat: HeartbeatHandler | undefined;
 
-  constructor(client: ChatServiceClient, streamClient = client) {
+  constructor(
+    client: ChatServiceClient,
+    streamClient = client,
+    onHeartbeat?: HeartbeatHandler
+  ) {
     this._client = client;
     this._streamClient = streamClient;
+    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -237,6 +244,7 @@ export class ChatsResource {
    */
   subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent> {
     const abort = new AbortController();
+    const onHeartbeat = this._onHeartbeat;
     const rpcStream = this._streamClient.subscribeChatEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
@@ -248,6 +256,9 @@ export class ChatsResource {
       try {
         for await (const frame of rpcStream) {
           if (frame.sequence === undefined || !frame.chatChanged) {
+            if (frame.heartbeat) {
+              onHeartbeat?.();
+            }
             continue;
           }
           const event = mapChatEvent(frame.sequence, frame.chatChanged);
