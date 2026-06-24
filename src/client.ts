@@ -8,7 +8,10 @@ import { LocationsResource as LocationsImpl } from "./resources/locations.js";
 import { MessagesResource as MessagesImpl } from "./resources/messages.js";
 import { PollsResource as PollsImpl } from "./resources/polls.js";
 import type { TypedEventStream } from "./streaming/event-stream.js";
-import { createGrpcClients } from "./transport/grpc-client.js";
+import {
+  createGrpcClients,
+  type GrpcChannelOptions,
+} from "./transport/grpc-client.js";
 import type { MultiServiceAddressInfo } from "./types/addresses.js";
 import type {
   AttachmentInfo,
@@ -21,7 +24,11 @@ import type {
   CreateChatOptions,
   CreateChatResult,
 } from "./types/chats.js";
-import type { IdempotencyOptions, RetryOptions } from "./types/common.js";
+import type {
+  HeartbeatHandler,
+  IdempotencyOptions,
+  RetryOptions,
+} from "./types/common.js";
 import type { MessageEffect } from "./types/effects.js";
 import type {
   CatchUpEvent,
@@ -54,6 +61,21 @@ export interface ClientOptions {
   readonly address: string;
   /** When `true`, adds an `x-idempotency-key` header to mutating RPCs. */
   readonly autoIdempotency?: boolean;
+  /**
+   * Extra `@grpc/grpc-js` channel options merged onto (and able to override)
+   * the SDK defaults — including the built-in keepalive settings — for both
+   * the unary and streaming channels. Tune keepalive here, e.g.
+   * `{ "grpc.keepalive_time_ms": 15000 }`, without waiting for an SDK release.
+   */
+  readonly channelOptions?: GrpcChannelOptions;
+  /**
+   * Called once for every server heartbeat frame on any `subscribeEvents` /
+   * `watch` stream. The server emits heartbeats on a fixed cadence even when
+   * idle, so this is a liveness signal: drive a stall watchdog from it to
+   * detect a half-open connection and re-establish the stream. Without it,
+   * heartbeat frames are silently dropped.
+   */
+  readonly onHeartbeat?: HeartbeatHandler;
   /** Retries retryable unary RPC failures; streaming RPCs are never retried automatically. */
   readonly retry?: boolean | RetryOptions;
   /** Default unary RPC timeout in milliseconds; streaming RPCs are left open. */
@@ -466,25 +488,36 @@ export function createClient(options: ClientOptions): AdvancedIMessage {
   const clients = createGrpcClients({
     address: options.address,
     autoIdempotency: options.autoIdempotency,
+    channelOptions: options.channelOptions,
     retry: options.retry,
     timeout: options.timeout,
     tls: options.tls,
     token: options.token,
   });
 
-  const messages = new MessagesImpl(clients.messages, clients.messagesStream);
-  const chats = new ChatsImpl(clients.chats, clients.chatsStream);
+  const onHeartbeat = options.onHeartbeat;
+  const messages = new MessagesImpl(
+    clients.messages,
+    clients.messagesStream,
+    onHeartbeat
+  );
+  const chats = new ChatsImpl(clients.chats, clients.chatsStream, onHeartbeat);
   const events = new EventsImpl(clients.events);
-  const groups = new GroupsImpl(clients.groups, clients.groupsStream);
+  const groups = new GroupsImpl(
+    clients.groups,
+    clients.groupsStream,
+    onHeartbeat
+  );
   const attachments = new AttachmentsImpl(
     clients.attachments,
     clients.attachmentsStream
   );
   const addresses = new AddressesImpl(clients.addresses);
-  const polls = new PollsImpl(clients.polls, clients.pollsStream);
+  const polls = new PollsImpl(clients.polls, clients.pollsStream, onHeartbeat);
   const locations = new LocationsImpl(
     clients.locations,
-    clients.locationsStream
+    clients.locationsStream,
+    onHeartbeat
   );
 
   function close(): Promise<void> {
