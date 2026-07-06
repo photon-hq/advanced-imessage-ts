@@ -49,6 +49,9 @@ import type {
   MessageListFilter,
   MessageListPage,
   MessagePart,
+  MiniAppCardSession,
+  MiniAppMessage,
+  MiniAppMessageResult,
   SendOptions,
   SettableMessageReaction,
   StickerPlacement,
@@ -231,8 +234,15 @@ export interface LocationsResource {
  *   by GUID with replies, effects, and audio-message mode.
  * - `sendMultipart(chat, parts, options)` sends multiple text / attachment /
  *   mention bubbles atomically.
+ * - `sendMiniApp(chat, message, options)` sends a server-managed Spectrum
+ *   mini app card and returns the session needed for updates.
  * - `sendCustomizedMiniApp(chat, message, options)` sends a mini app card
- *   backed by the caller's own iMessage extension.
+ *   backed by the caller's own iMessage extension and returns the session
+ *   needed for updates.
+ * - `updateMiniApp(session, message, options)` updates a server-managed
+ *   mini app card in place.
+ * - `updateCustomizedMiniApp(session, message, options)` updates a caller-owned
+ *   mini app card in place.
  * - `edit(chat, message, newText, options)` edits an existing message.
  * - `unsend(chat, message, options)` retracts an existing message.
  * - `setReaction(chat, message, reaction, isSet, options)` adds or removes
@@ -292,7 +302,12 @@ export interface MessagesResource {
     chat: string,
     message: CustomizedMiniAppMessage,
     options?: IdempotencyOptions
-  ): Promise<Message>;
+  ): Promise<MiniAppMessageResult>;
+  sendMiniApp(
+    chat: string,
+    message: MiniAppMessage,
+    options?: IdempotencyOptions
+  ): Promise<MiniAppMessageResult>;
   sendMultipart(
     chat: string,
     parts: readonly MessagePart[],
@@ -318,6 +333,16 @@ export interface MessagesResource {
     message: string,
     options?: { readonly clientMessageId?: string; readonly partIndex?: number }
   ): Promise<void>;
+  updateCustomizedMiniApp(
+    session: MiniAppCardSession,
+    message: CustomizedMiniAppMessage,
+    options?: IdempotencyOptions
+  ): Promise<MiniAppMessageResult>;
+  updateMiniApp(
+    session: MiniAppCardSession,
+    message: MiniAppMessage,
+    options?: IdempotencyOptions
+  ): Promise<MiniAppMessageResult>;
 }
 
 /**
@@ -437,8 +462,15 @@ export interface AdvancedIMessage extends AsyncDisposable {
    *   by GUID with replies, effects, and audio-message mode.
    * - `sendMultipart(chat, parts, options)` sends multiple text / attachment /
    *   mention bubbles atomically.
+   * - `sendMiniApp(chat, message, options)` sends a server-managed Spectrum
+   *   mini app card and returns the session needed for updates.
    * - `sendCustomizedMiniApp(chat, message, options)` sends a mini app card
-   *   backed by the caller's own iMessage extension.
+   *   backed by the caller's own iMessage extension and returns the session
+   *   needed for updates.
+   * - `updateMiniApp(session, message, options)` updates a server-managed
+   *   mini app card in place.
+   * - `updateCustomizedMiniApp(session, message, options)` updates a
+   *   caller-owned mini app card in place.
    * - `edit(chat, message, newText, options)` edits an existing message.
    * - `unsend(chat, message, options)` retracts an existing message.
    * - `setReaction(chat, message, reaction, isSet, options)` adds or removes

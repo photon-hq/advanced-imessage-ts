@@ -103,7 +103,7 @@ export interface MiniAppPreview {
   body?:
     | string
     | undefined;
-  /** JPEG preview image bytes. */
+  /** JPEG preview image bytes. Server validates that the bytes decode as JPEG. */
   imageJpeg?:
     | Uint8Array
     | undefined;
@@ -157,7 +157,7 @@ export interface MiniAppLayout {
   trailingSubcaption?:
     | string
     | undefined;
-  /** JPEG preview image bytes. Server validates the JPEG SOI marker. */
+  /** JPEG preview image bytes. Server validates that the bytes decode as JPEG. */
   image?:
     | Uint8Array
     | undefined;
@@ -186,7 +186,7 @@ export interface SendCustomizedMiniAppMessageRequest {
   extensionBundleId: string;
   /** Human-readable name of the owning app. */
   appName: string;
-  /** Absolute URL the recipient's installed extension receives on tap. */
+  /** Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap. */
   url: string;
   /**
    * The visible layout of the card. Mirrors Apple's
@@ -200,12 +200,63 @@ export interface SendCustomizedMiniAppMessageRequest {
   clientMessageId?: string | undefined;
 }
 
+/**
+ * Stable iMessage app-card handle returned by mini-app send/update RPCs.
+ * Pass the latest session back to the matching update RPC. The `session_id`
+ * remains stable across updates; `target_message_guid` identifies the original
+ * bubble being replaced in place.
+ */
+export interface MiniAppCardSession {
+  messageGuid: string;
+  chatGuid: string;
+  sessionId: string;
+  targetMessageGuid: string;
+}
+
+export interface UpdateMiniAppMessageRequest {
+  session:
+    | MiniAppCardSession
+    | undefined;
+  /** Absolute HTTP or HTTPS URL opened from the card. */
+  url: string;
+  preview: MiniAppPreview | undefined;
+  clientMessageId?: string | undefined;
+}
+
+export interface UpdateCustomizedMiniAppMessageRequest {
+  session:
+    | MiniAppCardSession
+    | undefined;
+  /** 10-character uppercase alphanumeric Apple Team ID. */
+  teamId: string;
+  /** Bundle identifier of the iMessage extension target. */
+  extensionBundleId: string;
+  /** Human-readable name of the owning app. */
+  appName: string;
+  /** Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap. */
+  url: string;
+  /** The replacement visible layout for the card. */
+  layout:
+    | MiniAppLayout
+    | undefined;
+  /** Apple App Store numeric id of the owning app. When set, must be > 0. */
+  appStoreId?: number | undefined;
+  clientMessageId?: string | undefined;
+}
+
 export interface MessageResponse {
   /**
    * Snapshot of the persisted message after Apple has accepted the send
    * and chat.db has been observed.
    */
-  message: Message | undefined;
+  message:
+    | Message
+    | undefined;
+  /**
+   * Present for mini-app card sends/updates. Save this handle and pass it to
+   * the matching update RPC to replace the original card in place.
+   */
+  miniAppCardSession?: MiniAppCardSession | undefined;
 }
 
 export interface EditMessageRequest {
@@ -1712,14 +1763,462 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
   },
 };
 
+function createBaseMiniAppCardSession(): MiniAppCardSession {
+  return { messageGuid: "", chatGuid: "", sessionId: "", targetMessageGuid: "" };
+}
+
+export const MiniAppCardSession: MessageFns<MiniAppCardSession> = {
+  encode(message: MiniAppCardSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.messageGuid !== "") {
+      writer.uint32(10).string(message.messageGuid);
+    }
+    if (message.chatGuid !== "") {
+      writer.uint32(18).string(message.chatGuid);
+    }
+    if (message.sessionId !== "") {
+      writer.uint32(26).string(message.sessionId);
+    }
+    if (message.targetMessageGuid !== "") {
+      writer.uint32(34).string(message.targetMessageGuid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MiniAppCardSession {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMiniAppCardSession();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.messageGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.sessionId = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.targetMessageGuid = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MiniAppCardSession {
+    return {
+      messageGuid: isSet(object.messageGuid)
+        ? globalThis.String(object.messageGuid)
+        : isSet(object.message_guid)
+        ? globalThis.String(object.message_guid)
+        : "",
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      sessionId: isSet(object.sessionId)
+        ? globalThis.String(object.sessionId)
+        : isSet(object.session_id)
+        ? globalThis.String(object.session_id)
+        : "",
+      targetMessageGuid: isSet(object.targetMessageGuid)
+        ? globalThis.String(object.targetMessageGuid)
+        : isSet(object.target_message_guid)
+        ? globalThis.String(object.target_message_guid)
+        : "",
+    };
+  },
+
+  toJSON(message: MiniAppCardSession): unknown {
+    const obj: any = {};
+    if (message.messageGuid !== "") {
+      obj.messageGuid = message.messageGuid;
+    }
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.sessionId !== "") {
+      obj.sessionId = message.sessionId;
+    }
+    if (message.targetMessageGuid !== "") {
+      obj.targetMessageGuid = message.targetMessageGuid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MiniAppCardSession>): MiniAppCardSession {
+    return MiniAppCardSession.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MiniAppCardSession>): MiniAppCardSession {
+    const message = createBaseMiniAppCardSession();
+    message.messageGuid = object.messageGuid ?? "";
+    message.chatGuid = object.chatGuid ?? "";
+    message.sessionId = object.sessionId ?? "";
+    message.targetMessageGuid = object.targetMessageGuid ?? "";
+    return message;
+  },
+};
+
+function createBaseUpdateMiniAppMessageRequest(): UpdateMiniAppMessageRequest {
+  return { session: undefined, url: "", preview: undefined, clientMessageId: undefined };
+}
+
+export const UpdateMiniAppMessageRequest: MessageFns<UpdateMiniAppMessageRequest> = {
+  encode(message: UpdateMiniAppMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.session !== undefined) {
+      MiniAppCardSession.encode(message.session, writer.uint32(10).fork()).join();
+    }
+    if (message.url !== "") {
+      writer.uint32(18).string(message.url);
+    }
+    if (message.preview !== undefined) {
+      MiniAppPreview.encode(message.preview, writer.uint32(26).fork()).join();
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdateMiniAppMessageRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdateMiniAppMessageRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.session = MiniAppCardSession.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.url = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.preview = MiniAppPreview.decode(reader, reader.uint32());
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpdateMiniAppMessageRequest {
+    return {
+      session: isSet(object.session) ? MiniAppCardSession.fromJSON(object.session) : undefined,
+      url: isSet(object.url) ? globalThis.String(object.url) : "",
+      preview: isSet(object.preview) ? MiniAppPreview.fromJSON(object.preview) : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: UpdateMiniAppMessageRequest): unknown {
+    const obj: any = {};
+    if (message.session !== undefined) {
+      obj.session = MiniAppCardSession.toJSON(message.session);
+    }
+    if (message.url !== "") {
+      obj.url = message.url;
+    }
+    if (message.preview !== undefined) {
+      obj.preview = MiniAppPreview.toJSON(message.preview);
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<UpdateMiniAppMessageRequest>): UpdateMiniAppMessageRequest {
+    return UpdateMiniAppMessageRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<UpdateMiniAppMessageRequest>): UpdateMiniAppMessageRequest {
+    const message = createBaseUpdateMiniAppMessageRequest();
+    message.session = (object.session !== undefined && object.session !== null)
+      ? MiniAppCardSession.fromPartial(object.session)
+      : undefined;
+    message.url = object.url ?? "";
+    message.preview = (object.preview !== undefined && object.preview !== null)
+      ? MiniAppPreview.fromPartial(object.preview)
+      : undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
+function createBaseUpdateCustomizedMiniAppMessageRequest(): UpdateCustomizedMiniAppMessageRequest {
+  return {
+    session: undefined,
+    teamId: "",
+    extensionBundleId: "",
+    appName: "",
+    url: "",
+    layout: undefined,
+    appStoreId: undefined,
+    clientMessageId: undefined,
+  };
+}
+
+export const UpdateCustomizedMiniAppMessageRequest: MessageFns<UpdateCustomizedMiniAppMessageRequest> = {
+  encode(message: UpdateCustomizedMiniAppMessageRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.session !== undefined) {
+      MiniAppCardSession.encode(message.session, writer.uint32(10).fork()).join();
+    }
+    if (message.teamId !== "") {
+      writer.uint32(18).string(message.teamId);
+    }
+    if (message.extensionBundleId !== "") {
+      writer.uint32(26).string(message.extensionBundleId);
+    }
+    if (message.appName !== "") {
+      writer.uint32(34).string(message.appName);
+    }
+    if (message.url !== "") {
+      writer.uint32(42).string(message.url);
+    }
+    if (message.layout !== undefined) {
+      MiniAppLayout.encode(message.layout, writer.uint32(50).fork()).join();
+    }
+    if (message.appStoreId !== undefined) {
+      writer.uint32(56).int64(message.appStoreId);
+    }
+    if (message.clientMessageId !== undefined) {
+      writer.uint32(802).string(message.clientMessageId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpdateCustomizedMiniAppMessageRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUpdateCustomizedMiniAppMessageRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.session = MiniAppCardSession.decode(reader, reader.uint32());
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.teamId = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.extensionBundleId = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.appName = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.url = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.layout = MiniAppLayout.decode(reader, reader.uint32());
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.appStoreId = longToNumber(reader.int64());
+          continue;
+        }
+        case 100: {
+          if (tag !== 802) {
+            break;
+          }
+
+          message.clientMessageId = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UpdateCustomizedMiniAppMessageRequest {
+    return {
+      session: isSet(object.session) ? MiniAppCardSession.fromJSON(object.session) : undefined,
+      teamId: isSet(object.teamId)
+        ? globalThis.String(object.teamId)
+        : isSet(object.team_id)
+        ? globalThis.String(object.team_id)
+        : "",
+      extensionBundleId: isSet(object.extensionBundleId)
+        ? globalThis.String(object.extensionBundleId)
+        : isSet(object.extension_bundle_id)
+        ? globalThis.String(object.extension_bundle_id)
+        : "",
+      appName: isSet(object.appName)
+        ? globalThis.String(object.appName)
+        : isSet(object.app_name)
+        ? globalThis.String(object.app_name)
+        : "",
+      url: isSet(object.url) ? globalThis.String(object.url) : "",
+      layout: isSet(object.layout) ? MiniAppLayout.fromJSON(object.layout) : undefined,
+      appStoreId: isSet(object.appStoreId)
+        ? globalThis.Number(object.appStoreId)
+        : isSet(object.app_store_id)
+        ? globalThis.Number(object.app_store_id)
+        : undefined,
+      clientMessageId: isSet(object.clientMessageId)
+        ? globalThis.String(object.clientMessageId)
+        : isSet(object.client_message_id)
+        ? globalThis.String(object.client_message_id)
+        : undefined,
+    };
+  },
+
+  toJSON(message: UpdateCustomizedMiniAppMessageRequest): unknown {
+    const obj: any = {};
+    if (message.session !== undefined) {
+      obj.session = MiniAppCardSession.toJSON(message.session);
+    }
+    if (message.teamId !== "") {
+      obj.teamId = message.teamId;
+    }
+    if (message.extensionBundleId !== "") {
+      obj.extensionBundleId = message.extensionBundleId;
+    }
+    if (message.appName !== "") {
+      obj.appName = message.appName;
+    }
+    if (message.url !== "") {
+      obj.url = message.url;
+    }
+    if (message.layout !== undefined) {
+      obj.layout = MiniAppLayout.toJSON(message.layout);
+    }
+    if (message.appStoreId !== undefined) {
+      obj.appStoreId = Math.round(message.appStoreId);
+    }
+    if (message.clientMessageId !== undefined) {
+      obj.clientMessageId = message.clientMessageId;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<UpdateCustomizedMiniAppMessageRequest>): UpdateCustomizedMiniAppMessageRequest {
+    return UpdateCustomizedMiniAppMessageRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<UpdateCustomizedMiniAppMessageRequest>): UpdateCustomizedMiniAppMessageRequest {
+    const message = createBaseUpdateCustomizedMiniAppMessageRequest();
+    message.session = (object.session !== undefined && object.session !== null)
+      ? MiniAppCardSession.fromPartial(object.session)
+      : undefined;
+    message.teamId = object.teamId ?? "";
+    message.extensionBundleId = object.extensionBundleId ?? "";
+    message.appName = object.appName ?? "";
+    message.url = object.url ?? "";
+    message.layout = (object.layout !== undefined && object.layout !== null)
+      ? MiniAppLayout.fromPartial(object.layout)
+      : undefined;
+    message.appStoreId = object.appStoreId ?? undefined;
+    message.clientMessageId = object.clientMessageId ?? undefined;
+    return message;
+  },
+};
+
 function createBaseMessageResponse(): MessageResponse {
-  return { message: undefined };
+  return { message: undefined, miniAppCardSession: undefined };
 }
 
 export const MessageResponse: MessageFns<MessageResponse> = {
   encode(message: MessageResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.message !== undefined) {
       Message.encode(message.message, writer.uint32(10).fork()).join();
+    }
+    if (message.miniAppCardSession !== undefined) {
+      MiniAppCardSession.encode(message.miniAppCardSession, writer.uint32(18).fork()).join();
     }
     return writer;
   },
@@ -1739,6 +2238,14 @@ export const MessageResponse: MessageFns<MessageResponse> = {
           message.message = Message.decode(reader, reader.uint32());
           continue;
         }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.miniAppCardSession = MiniAppCardSession.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1749,13 +2256,23 @@ export const MessageResponse: MessageFns<MessageResponse> = {
   },
 
   fromJSON(object: any): MessageResponse {
-    return { message: isSet(object.message) ? Message.fromJSON(object.message) : undefined };
+    return {
+      message: isSet(object.message) ? Message.fromJSON(object.message) : undefined,
+      miniAppCardSession: isSet(object.miniAppCardSession)
+        ? MiniAppCardSession.fromJSON(object.miniAppCardSession)
+        : isSet(object.mini_app_card_session)
+        ? MiniAppCardSession.fromJSON(object.mini_app_card_session)
+        : undefined,
+    };
   },
 
   toJSON(message: MessageResponse): unknown {
     const obj: any = {};
     if (message.message !== undefined) {
       obj.message = Message.toJSON(message.message);
+    }
+    if (message.miniAppCardSession !== undefined) {
+      obj.miniAppCardSession = MiniAppCardSession.toJSON(message.miniAppCardSession);
     }
     return obj;
   },
@@ -1767,6 +2284,9 @@ export const MessageResponse: MessageFns<MessageResponse> = {
     const message = createBaseMessageResponse();
     message.message = (object.message !== undefined && object.message !== null)
       ? Message.fromPartial(object.message)
+      : undefined;
+    message.miniAppCardSession = (object.miniAppCardSession !== undefined && object.miniAppCardSession !== null)
+      ? MiniAppCardSession.fromPartial(object.miniAppCardSession)
       : undefined;
     return message;
   },
@@ -3307,10 +3827,27 @@ export const MessageServiceDefinition = {
       responseStream: false,
       options: {},
     },
+    updateMiniAppMessage: {
+      name: "UpdateMiniAppMessage",
+      requestType: UpdateMiniAppMessageRequest as typeof UpdateMiniAppMessageRequest,
+      requestStream: false,
+      responseType: MessageResponse as typeof MessageResponse,
+      responseStream: false,
+      options: {},
+    },
     /** Sends an iMessage mini-app card backed by the caller's own extension. */
     sendCustomizedMiniAppMessage: {
       name: "SendCustomizedMiniAppMessage",
       requestType: SendCustomizedMiniAppMessageRequest as typeof SendCustomizedMiniAppMessageRequest,
+      requestStream: false,
+      responseType: MessageResponse as typeof MessageResponse,
+      responseStream: false,
+      options: {},
+    },
+    /** Updates an iMessage mini-app card backed by the caller's own extension. */
+    updateCustomizedMiniAppMessage: {
+      name: "UpdateCustomizedMiniAppMessage",
+      requestType: UpdateCustomizedMiniAppMessageRequest as typeof UpdateCustomizedMiniAppMessageRequest,
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
@@ -3424,9 +3961,18 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
     request: SendMiniAppMessageRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<MessageResponse>>;
+  updateMiniAppMessage(
+    request: UpdateMiniAppMessageRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<MessageResponse>>;
   /** Sends an iMessage mini-app card backed by the caller's own extension. */
   sendCustomizedMiniAppMessage(
     request: SendCustomizedMiniAppMessageRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<MessageResponse>>;
+  /** Updates an iMessage mini-app card backed by the caller's own extension. */
+  updateCustomizedMiniAppMessage(
+    request: UpdateCustomizedMiniAppMessageRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<MessageResponse>>;
   editMessage(
@@ -3493,9 +4039,18 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<SendMiniAppMessageRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<MessageResponse>;
+  updateMiniAppMessage(
+    request: DeepPartial<UpdateMiniAppMessageRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<MessageResponse>;
   /** Sends an iMessage mini-app card backed by the caller's own extension. */
   sendCustomizedMiniAppMessage(
     request: DeepPartial<SendCustomizedMiniAppMessageRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<MessageResponse>;
+  /** Updates an iMessage mini-app card backed by the caller's own extension. */
+  updateCustomizedMiniAppMessage(
+    request: DeepPartial<UpdateCustomizedMiniAppMessageRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<MessageResponse>;
   editMessage(

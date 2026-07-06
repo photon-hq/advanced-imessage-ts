@@ -35,8 +35,13 @@ service MessageService {
 
   rpc SendMiniAppMessage(SendMiniAppMessageRequest) returns (MessageResponse);
 
+  rpc UpdateMiniAppMessage(UpdateMiniAppMessageRequest) returns (MessageResponse);
+
   // Sends an iMessage mini-app card backed by the caller's own extension.
   rpc SendCustomizedMiniAppMessage(SendCustomizedMiniAppMessageRequest) returns (MessageResponse);
+
+  // Updates an iMessage mini-app card backed by the caller's own extension.
+  rpc UpdateCustomizedMiniAppMessage(UpdateCustomizedMiniAppMessageRequest) returns (MessageResponse);
 
   rpc EditMessage(EditMessageRequest) returns (MessageResponse);
 
@@ -183,7 +188,7 @@ message MiniAppPreview {
   // Supporting body text for the card template.
   optional string body = 3;
 
-  // JPEG preview image bytes.
+  // JPEG preview image bytes. Server validates that the bytes decode as JPEG.
   optional bytes image_jpeg = 4;
 
   // Small label shown by the card template.
@@ -230,7 +235,7 @@ message MiniAppLayout {
   // Below `trailing_caption`, on the right.
   optional string trailing_subcaption = 7;
 
-  // JPEG preview image bytes. Server validates the JPEG SOI marker.
+  // JPEG preview image bytes. Server validates that the bytes decode as JPEG.
   optional bytes image = 4;
 
   // Overlay text shown above the image. Must be set together with `image`.
@@ -261,7 +266,7 @@ message SendCustomizedMiniAppMessageRequest {
   // Human-readable name of the owning app.
   string app_name = 4;
 
-  // Absolute URL the recipient's installed extension receives on tap.
+  // Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap.
   string url = 5;
 
   // The visible layout of the card. Mirrors Apple's
@@ -275,12 +280,70 @@ message SendCustomizedMiniAppMessageRequest {
 
 }
 
+// Stable iMessage app-card handle returned by mini-app send/update RPCs.
+// Pass the latest session back to the matching update RPC. The `session_id`
+// remains stable across updates; `target_message_guid` identifies the original
+// bubble being replaced in place.
+message MiniAppCardSession {
+
+  string message_guid = 1;
+
+  string chat_guid = 2;
+
+  string session_id = 3;
+
+  string target_message_guid = 4;
+
+}
+
+message UpdateMiniAppMessageRequest {
+
+  MiniAppCardSession session = 1;
+
+  // Absolute HTTP or HTTPS URL opened from the card.
+  string url = 2;
+
+  MiniAppPreview preview = 3;
+
+  optional string client_message_id = 100;
+
+}
+
+message UpdateCustomizedMiniAppMessageRequest {
+
+  MiniAppCardSession session = 1;
+
+  // 10-character uppercase alphanumeric Apple Team ID.
+  string team_id = 2;
+
+  // Bundle identifier of the iMessage extension target.
+  string extension_bundle_id = 3;
+
+  // Human-readable name of the owning app.
+  string app_name = 4;
+
+  // Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap.
+  string url = 5;
+
+  // The replacement visible layout for the card.
+  MiniAppLayout layout = 6;
+
+  // Apple App Store numeric id of the owning app. When set, must be > 0.
+  optional int64 app_store_id = 7;
+
+  optional string client_message_id = 100;
+
+}
 
 message MessageResponse {
 
   // Snapshot of the persisted message after Apple has accepted the send
   // and chat.db has been observed.
   Message message = 1;
+
+  // Present for mini-app card sends/updates. Save this handle and pass it to
+  // the matching update RPC to replace the original card in place.
+  optional MiniAppCardSession mini_app_card_session = 2;
 
 }
 

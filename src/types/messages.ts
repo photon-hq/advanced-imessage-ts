@@ -186,6 +186,38 @@ export interface SendOptions {
 }
 
 /**
+ * Visible preview for a server-managed Spectrum mini-app card.
+ *
+ * `title` is always required because it is the static-card fallback. `imageJpeg`
+ * must contain JPEG bytes when set.
+ */
+export interface MiniAppPreview {
+  /** Supporting body text for the card template. */
+  readonly body?: string;
+  /** Small label shown by the card template. */
+  readonly caption?: string;
+  /** Additional detail label shown by the card template. */
+  readonly detail?: string;
+  /** Secondary label shown by the card template. */
+  readonly footer?: string;
+  /** JPEG preview image bytes. */
+  readonly imageJpeg?: Uint8Array;
+  /** Secondary text for the card template. */
+  readonly subtitle?: string;
+  /** Fallback text for surfaces that cannot render the full card. */
+  readonly summary?: string;
+  /** Main title shown on the card. */
+  readonly title: string;
+}
+
+export interface MiniAppMessage {
+  /** Visible card preview. */
+  readonly preview: MiniAppPreview;
+  /** Absolute HTTP or HTTPS URL opened from the card. */
+  readonly url: string;
+}
+
+/**
  * Visible layout of an iMessage mini-app card. Mirrors Apple's
  * `MSMessageTemplateLayout`. At least one of `caption`, `subcaption`,
  * `trailingCaption`, `trailingSubcaption`, or `image` must be set;
@@ -227,9 +259,29 @@ export interface CustomizedMiniAppMessage {
   readonly layout: MiniAppLayout;
   /** 10-character uppercase alphanumeric Apple Team ID. */
   readonly teamId: string;
-  /** Absolute URL delivered to the installed extension on tap. */
+  /** Absolute HTTP or HTTPS URL delivered to the installed extension on tap. */
   readonly url: string;
 }
+
+/**
+ * Stable mini-app card handle returned by mini-app send/update calls. Save it
+ * and pass it unchanged to the matching update call.
+ */
+export interface MiniAppCardSession {
+  /** Chat GUID accepted by IMAgentKit for future updates. */
+  readonly chatGuid: string;
+  /** Message GUID returned by the card send/update primitive. */
+  readonly messageGuid: string;
+  /** Stable UUID reused across in-place updates. */
+  readonly sessionId: string;
+  /** Original card bubble GUID that future updates replace in place. */
+  readonly targetMessageGuid: string;
+}
+
+/** Message snapshot plus the card session needed for later in-place updates. */
+export type MiniAppMessageResult = Message & {
+  readonly miniAppCardSession: MiniAppCardSession;
+};
 
 export interface MessagePart {
   /** Uploaded attachment guid for an attachment bubble. */
