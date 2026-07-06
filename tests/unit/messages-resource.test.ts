@@ -43,6 +43,15 @@ function makeMessage(guid: string) {
   };
 }
 
+function makeMiniAppCardSession(messageGuid = "card-message-1") {
+  return {
+    chatGuid: chatGuidValue,
+    messageGuid,
+    sessionId: "8D898034-407B-4FF5-91E8-9DC18911DCA9",
+    targetMessageGuid: messageGuid,
+  };
+}
+
 describe("MessagesResource", () => {
   it("includes sticker width when placing a sticker", async () => {
     let capturedRequest: Record<string, unknown> | undefined;
@@ -219,19 +228,22 @@ describe("MessagesResource", () => {
     const resource = new MessagesResource({
       async sendCustomizedMiniAppMessage(request: Record<string, unknown>) {
         captured = request;
-        return { message: makeMessage("customized-mini-app") };
+        return {
+          message: makeMessage("customized-mini-app"),
+          miniAppCardSession: makeMiniAppCardSession("customized-mini-app"),
+        };
       },
     } as any);
     const image = new Uint8Array([0xff, 0xd8, 0xff]);
 
-    await resource.sendCustomizedMiniApp(
+    const sent = await resource.sendCustomizedMiniApp(
       chatGuidValue,
       {
         teamId: "TEAMID1234",
         extensionBundleId: "com.example.app.MessagesExtension",
         appName: "Example",
         appStoreId: 1_234_567_890,
-        url: "exampleapp://card/42",
+        url: "https://example.com/card/42",
         layout: {
           caption: "Card Title",
           subcaption: "example.com",
@@ -246,13 +258,17 @@ describe("MessagesResource", () => {
       { clientMessageId: "tmp-customized-mini-app-1" }
     );
 
+    expect(sent.guid).toBe("customized-mini-app");
+    expect(sent.miniAppCardSession).toEqual(
+      makeMiniAppCardSession("customized-mini-app")
+    );
     expect(captured).toEqual({
       chatGuid: chatGuidValue,
       teamId: "TEAMID1234",
       extensionBundleId: "com.example.app.MessagesExtension",
       appName: "Example",
       appStoreId: 1_234_567_890,
-      url: "exampleapp://card/42",
+      url: "https://example.com/card/42",
       layout: {
         caption: "Card Title",
         subcaption: "example.com",
@@ -272,7 +288,12 @@ describe("MessagesResource", () => {
     const resource = new MessagesResource({
       async sendCustomizedMiniAppMessage(request: Record<string, unknown>) {
         captured = request;
-        return { message: makeMessage("customized-mini-app-no-store") };
+        return {
+          message: makeMessage("customized-mini-app-no-store"),
+          miniAppCardSession: makeMiniAppCardSession(
+            "customized-mini-app-no-store"
+          ),
+        };
       },
     } as any);
 
@@ -280,7 +301,7 @@ describe("MessagesResource", () => {
       teamId: "TEAMID1234",
       extensionBundleId: "com.example.app.MessagesExtension",
       appName: "Example",
-      url: "exampleapp://card/42",
+      url: "https://example.com/card/42",
       layout: {
         caption: "Card Title",
       },
@@ -291,12 +312,129 @@ describe("MessagesResource", () => {
       teamId: "TEAMID1234",
       extensionBundleId: "com.example.app.MessagesExtension",
       appName: "Example",
-      url: "exampleapp://card/42",
+      url: "https://example.com/card/42",
       layout: {
         caption: "Card Title",
       },
     });
     expect(captured?.appStoreId).toBeUndefined();
+  });
+
+  it("forwards server-managed mini app cards and returns the card session", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async sendMiniAppMessage(request: Record<string, unknown>) {
+        captured = request;
+        return {
+          message: makeMessage("mini-app"),
+          miniAppCardSession: makeMiniAppCardSession("mini-app"),
+        };
+      },
+    } as any);
+    const imageJpeg = new Uint8Array([0xff, 0xd8, 0xff]);
+
+    const sent = await resource.sendMiniApp(
+      chatGuidValue,
+      {
+        url: "https://example.com/card/42",
+        preview: {
+          title: "Card Title",
+          subtitle: "Subtitle",
+          body: "Body",
+          imageJpeg,
+          caption: "Caption",
+          footer: "Footer",
+          detail: "Detail",
+          summary: "Summary",
+        },
+      },
+      { clientMessageId: "tmp-mini-app-1" }
+    );
+
+    expect(sent.guid).toBe("mini-app");
+    expect(sent.miniAppCardSession).toEqual(makeMiniAppCardSession("mini-app"));
+    expect(captured).toEqual({
+      chatGuid: chatGuidValue,
+      url: "https://example.com/card/42",
+      preview: {
+        title: "Card Title",
+        subtitle: "Subtitle",
+        body: "Body",
+        imageJpeg,
+        caption: "Caption",
+        footer: "Footer",
+        detail: "Detail",
+        summary: "Summary",
+      },
+      clientMessageId: "tmp-mini-app-1",
+    });
+  });
+
+  it("forwards server-managed mini app updates with session", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const session = makeMiniAppCardSession("mini-app");
+    const resource = new MessagesResource({
+      async updateMiniAppMessage(request: Record<string, unknown>) {
+        captured = request;
+        return {
+          message: makeMessage("mini-app"),
+          miniAppCardSession: session,
+        };
+      },
+    } as any);
+
+    await resource.updateMiniApp(
+      session,
+      {
+        url: "https://example.com/card/updated",
+        preview: { title: "Updated" },
+      },
+      { clientMessageId: "tmp-mini-app-update-1" }
+    );
+
+    expect(captured).toEqual({
+      session,
+      url: "https://example.com/card/updated",
+      preview: { title: "Updated" },
+      clientMessageId: "tmp-mini-app-update-1",
+    });
+  });
+
+  it("forwards customized mini app updates with session", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const session = makeMiniAppCardSession("customized-mini-app");
+    const resource = new MessagesResource({
+      async updateCustomizedMiniAppMessage(request: Record<string, unknown>) {
+        captured = request;
+        return {
+          message: makeMessage("customized-mini-app"),
+          miniAppCardSession: session,
+        };
+      },
+    } as any);
+
+    await resource.updateCustomizedMiniApp(
+      session,
+      {
+        teamId: "TEAMID1234",
+        extensionBundleId: "com.example.app.MessagesExtension",
+        appName: "Example",
+        url: "https://example.com/card/updated",
+        layout: { caption: "Updated Card" },
+      },
+      { clientMessageId: "tmp-customized-mini-app-update-1" }
+    );
+
+    expect(captured).toEqual({
+      session,
+      teamId: "TEAMID1234",
+      extensionBundleId: "com.example.app.MessagesExtension",
+      appName: "Example",
+      url: "https://example.com/card/updated",
+      layout: { caption: "Updated Card" },
+      appStoreId: undefined,
+      clientMessageId: "tmp-customized-mini-app-update-1",
+    });
   });
 
   describe("TextFormatInput → wire formatting (exhaustive)", () => {

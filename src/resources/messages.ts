@@ -21,11 +21,43 @@ import type {
   MessageListFilter,
   MessageListPage,
   MessagePart,
+  MiniAppCardSession,
+  MiniAppMessage,
+  MiniAppMessageResult,
   SendOptions,
   SettableMessageReaction,
   StickerPlacement,
 } from "../types/messages.ts";
 import { unwrap } from "../utils/unwrap.ts";
+
+function mapMiniAppCardSession(
+  session:
+    | {
+        readonly chatGuid: string;
+        readonly messageGuid: string;
+        readonly sessionId: string;
+        readonly targetMessageGuid: string;
+      }
+    | undefined
+): MiniAppCardSession {
+  const cardSession = unwrap(session, "miniAppCardSession");
+  return {
+    chatGuid: cardSession.chatGuid,
+    messageGuid: cardSession.messageGuid,
+    sessionId: cardSession.sessionId,
+    targetMessageGuid: cardSession.targetMessageGuid,
+  };
+}
+
+function mapMiniAppMessageResult(response: {
+  readonly message?: Parameters<typeof mapMessage>[0];
+  readonly miniAppCardSession?: Parameters<typeof mapMiniAppCardSession>[0];
+}): MiniAppMessageResult {
+  return {
+    ...mapMessage(unwrap(response.message, "message")),
+    miniAppCardSession: mapMiniAppCardSession(response.miniAppCardSession),
+  };
+}
 
 // Wire enum is the single source of truth for ordinal values; routing through
 // the named constant keeps reorderings in proto from silently misaligning.
@@ -64,8 +96,15 @@ function toReactionKind(
  * - `sendMultipart(chat, parts, options)` sends multiple bubbles atomically;
  *   parts can contain text, uploaded attachment GUIDs, mentions, formatting,
  *   and bubble indexes.
+ * - `sendMiniApp(chat, message, options)` sends a server-managed Spectrum
+ *   mini app card and returns the session needed for updates.
  * - `sendCustomizedMiniApp(chat, message, options)` sends a mini app card
- *   backed by the caller's own iMessage extension.
+ *   backed by the caller's own iMessage extension and returns the session
+ *   needed for updates.
+ * - `updateMiniApp(session, message, options)` updates a server-managed
+ *   mini app card in place.
+ * - `updateCustomizedMiniApp(session, message, options)` updates a caller-owned
+ *   mini app card in place.
  * - `edit(chat, message, newText, options)` edits an existing message and can
  *   target a specific multipart bubble with `partIndex`.
  * - `unsend(chat, message, options)` retracts an existing message and can
@@ -223,7 +262,7 @@ export class MessagesResource {
    * @param message.appName - App display name used by Messages fallback UI.
    * @param message.appStoreId - Optional positive Apple App Store id of the
    *   owning app.
-   * @param message.url - Absolute URL delivered to the extension on tap.
+   * @param message.url - Absolute HTTP or HTTPS URL delivered to the extension on tap.
    * @param message.layout - Visible card layout. See `MiniAppLayout` for the
    *   rendering map of each slot.
    */
@@ -231,7 +270,7 @@ export class MessagesResource {
     chat: string,
     message: CustomizedMiniAppMessage,
     options?: IdempotencyOptions
-  ): Promise<Message> {
+  ): Promise<MiniAppMessageResult> {
     try {
       const response = await this._client.sendCustomizedMiniAppMessage({
         chatGuid: normalizeChatGuid(chat),
@@ -243,7 +282,84 @@ export class MessagesResource {
         appStoreId: message.appStoreId,
         clientMessageId: options?.clientMessageId,
       });
-      return mapMessage(unwrap(response.message, "message"));
+      return mapMiniAppMessageResult(response);
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Send a server-managed Spectrum mini-app card.
+   *
+   * The server owns the iMessage extension identity and wraps `message.url`
+   * for the Spectrum mini-app host. Save `miniAppCardSession` from the returned
+   * message if the card may be updated later.
+   */
+  async sendMiniApp(
+    chat: string,
+    message: MiniAppMessage,
+    options?: IdempotencyOptions
+  ): Promise<MiniAppMessageResult> {
+    try {
+      const response = await this._client.sendMiniAppMessage({
+        chatGuid: normalizeChatGuid(chat),
+        url: message.url,
+        preview: message.preview,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMiniAppMessageResult(response);
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Update a server-managed Spectrum mini-app card in place.
+   *
+   * Pass the `miniAppCardSession` returned by `sendMiniApp(...)` or the latest
+   * `updateMiniApp(...)` response.
+   */
+  async updateMiniApp(
+    session: MiniAppCardSession,
+    message: MiniAppMessage,
+    options?: IdempotencyOptions
+  ): Promise<MiniAppMessageResult> {
+    try {
+      const response = await this._client.updateMiniAppMessage({
+        session,
+        url: message.url,
+        preview: message.preview,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMiniAppMessageResult(response);
+    } catch (err) {
+      throw fromGrpcError(err);
+    }
+  }
+
+  /**
+   * Update a caller-owned mini-app card in place.
+   *
+   * Pass the `miniAppCardSession` returned by `sendCustomizedMiniApp(...)` or
+   * the latest `updateCustomizedMiniApp(...)` response.
+   */
+  async updateCustomizedMiniApp(
+    session: MiniAppCardSession,
+    message: CustomizedMiniAppMessage,
+    options?: IdempotencyOptions
+  ): Promise<MiniAppMessageResult> {
+    try {
+      const response = await this._client.updateCustomizedMiniAppMessage({
+        session,
+        teamId: message.teamId,
+        extensionBundleId: message.extensionBundleId,
+        appName: message.appName,
+        url: message.url,
+        layout: message.layout,
+        appStoreId: message.appStoreId,
+        clientMessageId: options?.clientMessageId,
+      });
+      return mapMiniAppMessageResult(response);
     } catch (err) {
       throw fromGrpcError(err);
     }
