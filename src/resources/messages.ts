@@ -22,7 +22,6 @@ import type {
   MessageListPage,
   MessagePart,
   MiniAppCardSession,
-  MiniAppMessage,
   MiniAppMessageResult,
   SendOptions,
   SettableMessageReaction,
@@ -96,13 +95,9 @@ function toReactionKind(
  * - `sendMultipart(chat, parts, options)` sends multiple bubbles atomically;
  *   parts can contain text, uploaded attachment GUIDs, mentions, formatting,
  *   and bubble indexes.
- * - `sendMiniApp(chat, message, options)` sends a server-managed Spectrum
- *   mini app card and returns the session needed for updates.
  * - `sendCustomizedMiniApp(chat, message, options)` sends a mini app card
  *   backed by the caller's own iMessage extension and returns the session
  *   needed for updates.
- * - `updateMiniApp(session, message, options)` updates a server-managed
- *   mini app card in place.
  * - `updateCustomizedMiniApp(session, message, options)` updates a caller-owned
  *   mini app card in place.
  * - `edit(chat, message, newText, options)` edits an existing message and can
@@ -280,55 +275,6 @@ export class MessagesResource {
         url: message.url,
         layout: message.layout,
         appStoreId: message.appStoreId,
-        clientMessageId: options?.clientMessageId,
-      });
-      return mapMiniAppMessageResult(response);
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Send a server-managed Spectrum mini-app card.
-   *
-   * The server owns the iMessage extension identity and wraps `message.url`
-   * for the Spectrum mini-app host. Save `miniAppCardSession` from the returned
-   * message if the card may be updated later.
-   */
-  async sendMiniApp(
-    chat: string,
-    message: MiniAppMessage,
-    options?: IdempotencyOptions
-  ): Promise<MiniAppMessageResult> {
-    try {
-      const response = await this._client.sendMiniAppMessage({
-        chatGuid: normalizeChatGuid(chat),
-        url: message.url,
-        preview: message.preview,
-        clientMessageId: options?.clientMessageId,
-      });
-      return mapMiniAppMessageResult(response);
-    } catch (err) {
-      throw fromGrpcError(err);
-    }
-  }
-
-  /**
-   * Update a server-managed Spectrum mini-app card in place.
-   *
-   * Pass the `miniAppCardSession` returned by `sendMiniApp(...)` or the latest
-   * `updateMiniApp(...)` response.
-   */
-  async updateMiniApp(
-    session: MiniAppCardSession,
-    message: MiniAppMessage,
-    options?: IdempotencyOptions
-  ): Promise<MiniAppMessageResult> {
-    try {
-      const response = await this._client.updateMiniAppMessage({
-        session,
-        url: message.url,
-        preview: message.preview,
         clientMessageId: options?.clientMessageId,
       });
       return mapMiniAppMessageResult(response);
