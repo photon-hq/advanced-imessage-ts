@@ -224,6 +224,10 @@ message SendCustomizedMiniAppMessageRequest {
   // Apple App Store numeric id of the owning app. When set, must be > 0.
   optional int64 app_store_id = 7;
 
+  // Whether to include MSMessageLiveLayout metadata. When unset, defaults to
+  // false so the static layout remains visible.
+  optional bool live = 8;
+
   optional string client_message_id = 100;
 
 }
@@ -265,6 +269,10 @@ message UpdateCustomizedMiniAppMessageRequest {
 
   // Apple App Store numeric id of the owning app. When set, must be > 0.
   optional int64 app_store_id = 7;
+
+  // Whether to include MSMessageLiveLayout metadata. When unset, defaults to
+  // false so the static layout remains visible.
+  optional bool live = 8;
 
   optional string client_message_id = 100;
 

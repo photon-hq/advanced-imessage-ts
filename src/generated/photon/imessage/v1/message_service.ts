@@ -150,7 +150,14 @@ export interface SendCustomizedMiniAppMessageRequest {
     | MiniAppLayout
     | undefined;
   /** Apple App Store numeric id of the owning app. When set, must be > 0. */
-  appStoreId?: number | undefined;
+  appStoreId?:
+    | number
+    | undefined;
+  /**
+   * Whether to include MSMessageLiveLayout metadata. When unset, defaults to
+   * false so the static layout remains visible.
+   */
+  live?: boolean | undefined;
   clientMessageId?: string | undefined;
 }
 
@@ -184,7 +191,14 @@ export interface UpdateCustomizedMiniAppMessageRequest {
     | MiniAppLayout
     | undefined;
   /** Apple App Store numeric id of the owning app. When set, must be > 0. */
-  appStoreId?: number | undefined;
+  appStoreId?:
+    | number
+    | undefined;
+  /**
+   * Whether to include MSMessageLiveLayout metadata. When unset, defaults to
+   * false so the static layout remains visible.
+   */
+  live?: boolean | undefined;
   clientMessageId?: string | undefined;
 }
 
@@ -1206,6 +1220,7 @@ function createBaseSendCustomizedMiniAppMessageRequest(): SendCustomizedMiniAppM
     url: "",
     layout: undefined,
     appStoreId: undefined,
+    live: undefined,
     clientMessageId: undefined,
   };
 }
@@ -1232,6 +1247,9 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
     }
     if (message.appStoreId !== undefined) {
       writer.uint32(56).int64(message.appStoreId);
+    }
+    if (message.live !== undefined) {
+      writer.uint32(64).bool(message.live);
     }
     if (message.clientMessageId !== undefined) {
       writer.uint32(802).string(message.clientMessageId);
@@ -1302,6 +1320,14 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
           message.appStoreId = longToNumber(reader.int64());
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.live = reader.bool();
+          continue;
+        }
         case 100: {
           if (tag !== 802) {
             break;
@@ -1348,6 +1374,7 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
         : isSet(object.app_store_id)
         ? globalThis.Number(object.app_store_id)
         : undefined,
+      live: isSet(object.live) ? globalThis.Boolean(object.live) : undefined,
       clientMessageId: isSet(object.clientMessageId)
         ? globalThis.String(object.clientMessageId)
         : isSet(object.client_message_id)
@@ -1379,6 +1406,9 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
     if (message.appStoreId !== undefined) {
       obj.appStoreId = Math.round(message.appStoreId);
     }
+    if (message.live !== undefined) {
+      obj.live = message.live;
+    }
     if (message.clientMessageId !== undefined) {
       obj.clientMessageId = message.clientMessageId;
     }
@@ -1399,6 +1429,7 @@ export const SendCustomizedMiniAppMessageRequest: MessageFns<SendCustomizedMiniA
       ? MiniAppLayout.fromPartial(object.layout)
       : undefined;
     message.appStoreId = object.appStoreId ?? undefined;
+    message.live = object.live ?? undefined;
     message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },
@@ -1537,6 +1568,7 @@ function createBaseUpdateCustomizedMiniAppMessageRequest(): UpdateCustomizedMini
     url: "",
     layout: undefined,
     appStoreId: undefined,
+    live: undefined,
     clientMessageId: undefined,
   };
 }
@@ -1563,6 +1595,9 @@ export const UpdateCustomizedMiniAppMessageRequest: MessageFns<UpdateCustomizedM
     }
     if (message.appStoreId !== undefined) {
       writer.uint32(56).int64(message.appStoreId);
+    }
+    if (message.live !== undefined) {
+      writer.uint32(64).bool(message.live);
     }
     if (message.clientMessageId !== undefined) {
       writer.uint32(802).string(message.clientMessageId);
@@ -1633,6 +1668,14 @@ export const UpdateCustomizedMiniAppMessageRequest: MessageFns<UpdateCustomizedM
           message.appStoreId = longToNumber(reader.int64());
           continue;
         }
+        case 8: {
+          if (tag !== 64) {
+            break;
+          }
+
+          message.live = reader.bool();
+          continue;
+        }
         case 100: {
           if (tag !== 802) {
             break;
@@ -1675,6 +1718,7 @@ export const UpdateCustomizedMiniAppMessageRequest: MessageFns<UpdateCustomizedM
         : isSet(object.app_store_id)
         ? globalThis.Number(object.app_store_id)
         : undefined,
+      live: isSet(object.live) ? globalThis.Boolean(object.live) : undefined,
       clientMessageId: isSet(object.clientMessageId)
         ? globalThis.String(object.clientMessageId)
         : isSet(object.client_message_id)
@@ -1706,6 +1750,9 @@ export const UpdateCustomizedMiniAppMessageRequest: MessageFns<UpdateCustomizedM
     if (message.appStoreId !== undefined) {
       obj.appStoreId = Math.round(message.appStoreId);
     }
+    if (message.live !== undefined) {
+      obj.live = message.live;
+    }
     if (message.clientMessageId !== undefined) {
       obj.clientMessageId = message.clientMessageId;
     }
@@ -1728,6 +1775,7 @@ export const UpdateCustomizedMiniAppMessageRequest: MessageFns<UpdateCustomizedM
       ? MiniAppLayout.fromPartial(object.layout)
       : undefined;
     message.appStoreId = object.appStoreId ?? undefined;
+    message.live = object.live ?? undefined;
     message.clientMessageId = object.clientMessageId ?? undefined;
     return message;
   },

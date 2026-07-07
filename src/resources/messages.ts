@@ -260,6 +260,8 @@ export class MessagesResource {
    * @param message.url - Absolute HTTP or HTTPS URL delivered to the extension on tap.
    * @param message.layout - Visible card layout. See `MiniAppLayout` for the
    *   rendering map of each slot.
+   * @param message.live - Render with the installed extension's live UI when
+   *   available. Defaults to `false`.
    */
   async sendCustomizedMiniApp(
     chat: string,
@@ -275,6 +277,7 @@ export class MessagesResource {
         url: message.url,
         layout: message.layout,
         appStoreId: message.appStoreId,
+        live: message.live ?? false,
         clientMessageId: options?.clientMessageId,
       });
       return mapMiniAppMessageResult(response);
@@ -303,6 +306,7 @@ export class MessagesResource {
         url: message.url,
         layout: message.layout,
         appStoreId: message.appStoreId,
+        live: message.live ?? false,
         clientMessageId: options?.clientMessageId,
       });
       return mapMiniAppMessageResult(response);

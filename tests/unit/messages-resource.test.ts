@@ -244,6 +244,7 @@ describe("MessagesResource", () => {
         appName: "Example",
         appStoreId: 1_234_567_890,
         url: "https://example.com/card/42",
+        live: true,
         layout: {
           caption: "Card Title",
           subcaption: "example.com",
@@ -269,6 +270,7 @@ describe("MessagesResource", () => {
       appName: "Example",
       appStoreId: 1_234_567_890,
       url: "https://example.com/card/42",
+      live: true,
       layout: {
         caption: "Card Title",
         subcaption: "example.com",
@@ -318,6 +320,7 @@ describe("MessagesResource", () => {
       },
     });
     expect(captured?.appStoreId).toBeUndefined();
+    expect(captured?.live).toBe(false);
   });
 
   it("forwards customized mini app updates with session", async () => {
@@ -340,6 +343,7 @@ describe("MessagesResource", () => {
         extensionBundleId: "com.example.app.MessagesExtension",
         appName: "Example",
         url: "https://example.com/card/updated",
+        live: true,
         layout: { caption: "Updated Card" },
       },
       { clientMessageId: "tmp-customized-mini-app-update-1" }
@@ -353,8 +357,33 @@ describe("MessagesResource", () => {
       url: "https://example.com/card/updated",
       layout: { caption: "Updated Card" },
       appStoreId: undefined,
+      live: true,
       clientMessageId: "tmp-customized-mini-app-update-1",
     });
+  });
+
+  it("defaults customized mini app update live to false when unset", async () => {
+    let captured: Record<string, unknown> | undefined;
+    const session = makeMiniAppCardSession("customized-mini-app");
+    const resource = new MessagesResource({
+      async updateCustomizedMiniAppMessage(request: Record<string, unknown>) {
+        captured = request;
+        return {
+          message: makeMessage("customized-mini-app"),
+          miniAppCardSession: session,
+        };
+      },
+    } as any);
+
+    await resource.updateCustomizedMiniApp(session, {
+      teamId: "TEAMID1234",
+      extensionBundleId: "com.example.app.MessagesExtension",
+      appName: "Example",
+      url: "https://example.com/card/updated",
+      layout: { caption: "Updated Card" },
+    });
+
+    expect(captured?.live).toBe(false);
   });
 
   describe("TextFormatInput → wire formatting (exhaustive)", () => {

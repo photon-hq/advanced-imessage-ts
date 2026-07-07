@@ -225,6 +225,8 @@ export interface CustomizedMiniAppMessage {
   readonly extensionBundleId: string;
   /** Visible card layout. */
   readonly layout: MiniAppLayout;
+  /** Render with the installed extension's live UI when available. Defaults to `false`. */
+  readonly live?: boolean;
   /** 10-character uppercase alphanumeric Apple Team ID. */
   readonly teamId: string;
   /** Absolute HTTP or HTTPS URL delivered to the installed extension on tap. */
