@@ -33,10 +33,6 @@ service MessageService {
 
   rpc SendMultipartMessage(SendMultipartMessageRequest) returns (MessageResponse);
 
-  rpc SendMiniAppMessage(SendMiniAppMessageRequest) returns (MessageResponse);
-
-  rpc UpdateMiniAppMessage(UpdateMiniAppMessageRequest) returns (MessageResponse);
-
   // Sends an iMessage mini-app card backed by the caller's own extension.
   rpc SendCustomizedMiniAppMessage(SendCustomizedMiniAppMessageRequest) returns (MessageResponse);
 
@@ -158,54 +154,6 @@ message SendMultipartMessageRequest {
 
 }
 
-// Sends a mini app card.
-//
-// Recipients open `url` when they tap the card. The caller supplies every
-// visible preview field; the mini app host identity is server-managed.
-message SendMiniAppMessageRequest {
-
-  // Target chat GUID.
-  string chat_guid = 1;
-
-  // Absolute HTTP or HTTPS URL opened from the card.
-  string url = 2;
-
-  MiniAppPreview preview = 3;
-
-  optional string client_message_id = 100;
-
-}
-
-
-message MiniAppPreview {
-
-  // Main title shown on the card.
-  string title = 1;
-
-  // Secondary text for the card template.
-  optional string subtitle = 2;
-
-  // Supporting body text for the card template.
-  optional string body = 3;
-
-  // JPEG preview image bytes. Server validates that the bytes decode as JPEG.
-  optional bytes image_jpeg = 4;
-
-  // Small label shown by the card template.
-  optional string caption = 5;
-
-  // Secondary label shown by the card template.
-  optional string footer = 6;
-
-  // Additional detail label shown by the card template.
-  optional string detail = 7;
-
-  // Fallback text for surfaces that cannot render the full card.
-  optional string summary = 8;
-
-}
-
-
 // Visible content of a customized mini-app card. Field names match Apple's
 // `MSMessageTemplateLayout` public API so callers do not need to translate
 // between our names and Apple's docs.
@@ -276,6 +224,10 @@ message SendCustomizedMiniAppMessageRequest {
   // Apple App Store numeric id of the owning app. When set, must be > 0.
   optional int64 app_store_id = 7;
 
+  // Whether to include MSMessageLiveLayout metadata. When unset, defaults to
+  // false so the static layout remains visible.
+  optional bool live = 8;
+
   optional string client_message_id = 100;
 
 }
@@ -293,19 +245,6 @@ message MiniAppCardSession {
   string session_id = 3;
 
   string target_message_guid = 4;
-
-}
-
-message UpdateMiniAppMessageRequest {
-
-  MiniAppCardSession session = 1;
-
-  // Absolute HTTP or HTTPS URL opened from the card.
-  string url = 2;
-
-  MiniAppPreview preview = 3;
-
-  optional string client_message_id = 100;
 
 }
 
@@ -330,6 +269,10 @@ message UpdateCustomizedMiniAppMessageRequest {
 
   // Apple App Store numeric id of the owning app. When set, must be > 0.
   optional int64 app_store_id = 7;
+
+  // Whether to include MSMessageLiveLayout metadata. When unset, defaults to
+  // false so the static layout remains visible.
+  optional bool live = 8;
 
   optional string client_message_id = 100;
 

@@ -186,38 +186,6 @@ export interface SendOptions {
 }
 
 /**
- * Visible preview for a server-managed Spectrum mini-app card.
- *
- * `title` is always required because it is the static-card fallback. `imageJpeg`
- * must contain JPEG bytes when set.
- */
-export interface MiniAppPreview {
-  /** Supporting body text for the card template. */
-  readonly body?: string;
-  /** Small label shown by the card template. */
-  readonly caption?: string;
-  /** Additional detail label shown by the card template. */
-  readonly detail?: string;
-  /** Secondary label shown by the card template. */
-  readonly footer?: string;
-  /** JPEG preview image bytes. */
-  readonly imageJpeg?: Uint8Array;
-  /** Secondary text for the card template. */
-  readonly subtitle?: string;
-  /** Fallback text for surfaces that cannot render the full card. */
-  readonly summary?: string;
-  /** Main title shown on the card. */
-  readonly title: string;
-}
-
-export interface MiniAppMessage {
-  /** Visible card preview. */
-  readonly preview: MiniAppPreview;
-  /** Absolute HTTP or HTTPS URL opened from the card. */
-  readonly url: string;
-}
-
-/**
  * Visible layout of an iMessage mini-app card. Mirrors Apple's
  * `MSMessageTemplateLayout`. At least one of `caption`, `subcaption`,
  * `trailingCaption`, `trailingSubcaption`, or `image` must be set;
@@ -257,6 +225,8 @@ export interface CustomizedMiniAppMessage {
   readonly extensionBundleId: string;
   /** Visible card layout. */
   readonly layout: MiniAppLayout;
+  /** Render with the installed extension's live UI when available. Defaults to `false`. */
+  readonly live?: boolean;
   /** 10-character uppercase alphanumeric Apple Team ID. */
   readonly teamId: string;
   /** Absolute HTTP or HTTPS URL delivered to the installed extension on tap. */
