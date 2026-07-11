@@ -8,7 +8,6 @@ export type {
   AttachmentsResource,
   ChatsResource,
   ClientOptions,
-  EventsResource,
   GroupsResource,
   LocationsResource,
   MessagesResource,
@@ -28,8 +27,6 @@ export {
 export type { GroupIcon } from "./resources/groups.js";
 // Streaming
 export { TypedEventStream } from "./streaming/event-stream.js";
-// Transport
-export type { GrpcChannelOptions } from "./transport/grpc-client.js";
 export type {
   MultiServiceAddressInfo,
   SingleServiceAddressInfo,
@@ -47,11 +44,7 @@ export type {
   CreateChatResult,
 } from "./types/chats.js";
 // Common
-export type {
-  HeartbeatHandler,
-  IdempotencyOptions,
-  RetryOptions,
-} from "./types/common.js";
+export type { IdempotencyOptions, RetryOptions } from "./types/common.js";
 // Effects
 export { MessageEffect, TextEffect } from "./types/effects.js";
 // Enums

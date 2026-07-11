@@ -1,6 +1,6 @@
 {
   "name": "@photon-ai/advanced-imessage",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "TypeScript SDK for Advanced iMessage API",
   "author": "Photon",
   "license": "MIT",
@@ -42,21 +42,22 @@
     "lint:fix": "biome check --fix .",
     "test": "bun test",
     "test:unit": "bun test tests/unit",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "generate:http": "openapi-ts -i gen/openapi/imessage.swagger.json -o src/generated/http -c @hey-api/client-fetch"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
-    "@grpc/grpc-js": "^1.12.6",
-    "nice-grpc": "^2.1.11",
-    "nice-grpc-common": "^2.0.2"
+    "nice-grpc-common": "^2.0.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.7",
     "@bufbuild/buf": "^1.50.0",
+    "@hey-api/openapi-ts": "^0.99.0",
     "@types/bun": "latest",
     "ts-proto": "^2.6.1",
     "tsup": "^8.4.0",
     "typescript": "^5.7.0",
-    "ultracite": "7.3.2"
+    "ultracite": "7.3.2",
+    "wrangler": "^4.110.0"
   }
 }

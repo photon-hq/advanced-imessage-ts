@@ -43,3 +43,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Local testing scratch (not part of repo)
 .scratch/
+
+# workerd gate bundle output
+tests/workerd/dist/
+.wrangler/

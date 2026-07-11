@@ -1,10 +1,8 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-import type { PollServiceClient } from "../transport/grpc-client.ts";
-import { mapPoll, mapPollEvent } from "../transport/mapper.ts";
+import type { PollServiceClient } from "../transport/http-client.ts";
+import { mapPoll } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
-import type { HeartbeatHandler, IdempotencyOptions } from "../types/common.ts";
-import type { PollEvent } from "../types/events.ts";
+import type { IdempotencyOptions } from "../types/common.ts";
 import type { Poll } from "../types/polls.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
@@ -22,17 +20,8 @@ import { unwrap } from "../utils/unwrap.ts";
  */
 export class PollsResource {
   private readonly _client: PollServiceClient;
-  private readonly _streamClient: PollServiceClient;
-  private readonly _onHeartbeat: HeartbeatHandler | undefined;
-
-  constructor(
-    client: PollServiceClient,
-    streamClient = client,
-    onHeartbeat?: HeartbeatHandler
-  ) {
+  constructor(client: PollServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
-    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -143,45 +132,5 @@ export class PollsResource {
     } catch (err) {
       throw fromGrpcError(err);
     }
-  }
-
-  /**
-   * Subscribe to poll lifecycle events (created / option added / voted /
-   * unvoted). Vote and unvote events include the affected option identifier.
-   *
-   * Pass `filter.pollMessage` to scope the stream to a single poll.
-   */
-  subscribeEvents(filter?: {
-    pollMessage?: string;
-  }): TypedEventStream<PollEvent> {
-    const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
-    const rpcStream = this._streamClient.subscribePollEvents(
-      {
-        pollMessageGuid: filter?.pollMessage,
-      },
-      { signal: abort.signal }
-    );
-
-    async function* mapEvents(): AsyncGenerator<PollEvent> {
-      try {
-        for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.pollChanged) {
-            if (frame.heartbeat) {
-              onHeartbeat?.();
-            }
-            continue;
-          }
-          const event = mapPollEvent(frame.sequence, frame.pollChanged);
-          if (event) {
-            yield event;
-          }
-        }
-      } catch (err) {
-        throw fromGrpcError(err);
-      }
-    }
-
-    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }

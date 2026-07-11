@@ -1,10 +1,19 @@
 # @photon-ai/advanced-imessage
 
-TypeScript SDK for the v2 Advanced iMessage server.
+TypeScript SDK for the v2 Advanced iMessage server, over plain HTTP.
 
-The SDK is intentionally thin: each resource method maps to one server RPC,
-returns handwritten SDK types, and keeps reconnect / catch-up behavior explicit.
-Generated protobuf types are not part of the public API.
+The SDK talks `fetch` to the REST middleware
+([imessage-server-v2-http](https://github.com/photon-hq/imessage-server-v2-http)),
+which forwards to the iMessage plane — no gRPC anywhere in the client, so it
+runs wherever `fetch` exists: **Cloudflare Workers**, edge runtimes, browsers,
+Node, Bun, Deno.
+
+The SDK is intentionally thin: each resource method maps to one HTTP endpoint,
+returns handwritten SDK types, and keeps behavior explicit. Generated types
+are not part of the public API.
+
+Outbound (sending, reading, mutating) lives here. **Inbound events ride
+webhooks**, not client streams — see [Inbound events](#inbound-events).
 
 ## Install
 
@@ -12,7 +21,9 @@ Generated protobuf types are not part of the public API.
 bun add @photon-ai/advanced-imessage
 ```
 
-Node.js `>=18.17` is supported. The package is ESM-only.
+Runs on any runtime with `fetch` (Cloudflare Workers, Node `>=18.17`, Bun,
+Deno, browsers). The package is ESM-only. Workers compatibility is enforced
+in CI: every build bundles the SDK and boots it in workerd.
 
 ## Connect
 
@@ -20,24 +31,26 @@ Node.js `>=18.17` is supported. The package is ESM-only.
 import { createClient } from "@photon-ai/advanced-imessage";
 
 const im = createClient({
-  address: "127.0.0.1:50051",
+  address: "http://localhost:8080", // the HTTP middleware
   token: process.env.IMESSAGE_TOKEN!,
-  tls: false,
 });
 
 await im.close();
 ```
 
-`token` may also be an async function when credentials rotate:
+`address` is the imessage-server-v2-http middleware: a bare `host[:port]` or
+a full `http(s)://` URL. `token` may also be an async function when
+credentials rotate — it is resolved fresh for every call:
 
 ```ts
 const im = createClient({
-  address: "imessage.example.com:443",
+  address: "imessage.example.com",
   token: async () => process.env.IMESSAGE_TOKEN!,
 });
 ```
 
-`tls` defaults to `true`. Set `tls: false` only for local development.
+Bare addresses default to `https`; set `tls: false` only for local
+development.
 
 ## Chat GUIDs
 
@@ -119,8 +132,7 @@ attachment formats:
   `tar.bz2`, `tar.xz`, `gz`, `bz2`, `xz`
 
 Downloads are streamed by GUID and preserve byte-for-byte content. The first
-frame is metadata, followed by primary payload chunks and, for Live Photos,
-companion payload chunks:
+frame is metadata, followed by primary payload chunks:
 
 ```ts
 for await (const frame of im.attachments.downloadStream(uploaded.attachment.guid)) {
@@ -130,37 +142,12 @@ for await (const frame of im.attachments.downloadStream(uploaded.attachment.guid
   if (frame.type === "primaryChunk") {
     // append frame.data
   }
-  if (frame.type === "companionChunk") {
-    // append Live Photo companion bytes
-  }
 }
 ```
 
-Live Photo upload uses the same `attachments.upload(...)` method with a
-companion. The supported and tested Live Photo shape is a HEIC/HEIF primary
-image plus a QuickTime MOV companion video:
-
-```ts
-const livePhoto = await im.attachments.upload({
-  fileName: "live_photo.HEIC",
-  data: await readFile("live_photo.HEIC"),
-  companion: {
-    data: await readFile("live_photo.MOV"),
-  },
-});
-
-await im.messages.sendAttachment(chatGuid, livePhoto.attachment.guid);
-```
-
-For Live Photos:
-
-- The primary should be a HEIC/HEIF image, normally `.HEIC`, `.heic`, `.HEIF`,
-  or `.heif`.
-- The companion must be a QuickTime `.MOV` / `.mov` video.
-- Do not use a `.mov` primary filename; the server stores the companion as a
-  sidecar with the same stem and a `.mov` extension, so that collides.
-- The SDK fixes the companion kind to `"live-photo-video"`; callers only pass
-  companion bytes.
+**Live Photo companions are not supported over the HTTP transport yet.**
+`attachments.upload(...)` with a `companion` throws a `ValidationError`
+(`operationNotSupported`), and downloads carry the primary payload only.
 
 `7z` and `rar` are not currently listed as tested formats because the current
 server test workspace does not include real encoders for those archive types.
@@ -237,7 +224,7 @@ bubble.
 ## Read Messages
 
 ```ts
-const message = await im.messages.get(chatGuid, sent.guid);
+const message = await im.messages.get(sent.guid);
 
 const recent = await im.messages.listRecent({ pageSize: 25 });
 const inChat = await im.messages.listInChat(chatGuid, {
@@ -248,53 +235,39 @@ const inChat = await im.messages.listInChat(chatGuid, {
 
 `pageSize`, when provided, must be between `1` and `100`.
 
-## Streams and Catch-Up
+## Inbound events
 
-Live streams are observation APIs. They do not hide reconnect loops and they do
-not replace write responses. Use the response from a write call as the
-authoritative result for that write.
+This SDK is outbound-only. There are no client-held event streams: the
+`subscribeEvents(...)` / `watch(...)` / `events.catchUp(...)` APIs from v1
+are gone, because long-lived gRPC streams don't exist on `fetch`-only
+runtimes and inbound delivery is the platform's job, not the client's.
 
-Persist the latest fully handled `event.sequence`. After a disconnect, replay
-missed durable events with `events.catchUp(since)` before opening a new live
-stream.
-
-```ts
-let since: number | undefined;
-
-for await (const event of im.events.catchUp(since)) {
-  if (event.type === "catchup.complete") {
-    since = event.headSequence;
-    break;
-  }
-
-  console.log("replayed", event.type, event.sequence);
-  since = event.sequence;
-}
-
-for await (const event of im.messages.subscribeEvents({ chat: chatGuid })) {
-  console.log("live", event.type, event.sequence);
-  since = event.sequence;
-}
-```
-
-Every `subscribeEvents(...)`, `downloadStream(...)`, and `locations.watch(...)`
-call returns a `TypedEventStream<T>`. Streams support `for await`, `.on(...)`,
-`.filter(...)`, `.map(...)`, `.take(...)`, `.close()`, and `await using`.
+To receive messages and other events, register a **webhook** for your
+project (via Spectrum) and reply from your handler using this SDK. A typical
+Cloudflare Worker:
 
 ```ts
-const stream = im.messages.subscribeEvents();
-
-const stop = stream.on(
-  (event) => {
-    console.log(event.type, event.sequence);
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const event = await request.json();
+    if (event.type === "message.received") {
+      const im = createClient({
+        address: env.IMESSAGE_HTTP_ADDRESS,
+        token: () => mintToken(env),
+      });
+      await im.messages.sendText(event.chat.guid, "got it!");
+    }
+    return new Response("ok");
   },
-  (error) => {
-    console.error(error);
-  }
-);
-
-stop();
+};
 ```
+
+Write responses remain authoritative: use the return value of a send/mutate
+call as the result of that write, not a later event.
+
+`downloadStream(...)` still returns a `TypedEventStream<T>` (backed by the
+HTTP response stream). Streams support `for await`, `.on(...)`,
+`.filter(...)`, `.map(...)`, `.take(...)`, `.close()`, and `await using`.
 
 ## Other Resources
 
@@ -361,18 +334,23 @@ try {
 
 ```ts
 const im = createClient({
-  address: "127.0.0.1:50051",
+  address: "http://localhost:8080",
   token: "api-token",
-  tls: false,
   timeout: 10_000,
   retry: { maxAttempts: 4, initialDelay: 200, maxDelay: 5_000 },
   autoIdempotency: true,
 });
 ```
 
-`timeout` and `retry` apply to unary RPCs. Streaming RPCs are left open and are
-not retried automatically. `autoIdempotency` adds an idempotency key only to
-mutating RPCs.
+`timeout` applies per call. `retry` retries only failures the server
+explicitly marked retryable, with exponential backoff and jitter; the
+idempotency key (when enabled) is generated once per logical call and reused
+across attempts, so retries dedupe server-side. `autoIdempotency` adds the
+key only to mutating calls.
+
+For dedupe across *client* restarts, pass `clientMessageId` in a send's
+options — the server rejects a repeated `clientMessageId` with a
+`duplicateMessage` error, which means the original send succeeded.
 
 ## Development
 
@@ -385,3 +363,7 @@ bun run build
 ```
 
 `bun run build` regenerates protobuf output and builds `dist/`.
+`bun run generate:http` regenerates the HTTP client (`src/generated/http`)
+from the middleware's OpenAPI spec (`gen/openapi/imessage.swagger.json`).
+CI also bundles the SDK for workerd and boots it (`tests/workerd`), so a
+Workers-hostile dependency cannot land unnoticed.

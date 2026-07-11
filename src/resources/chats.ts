@@ -1,17 +1,14 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { ValidationError } from "../errors/imessage-error.ts";
 import { ChatServiceType as ProtoChatServiceType } from "../generated/photon/imessage/v1/address_types.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-import type { ChatServiceClient } from "../transport/grpc-client.ts";
-import { mapChat, mapChatEvent, mapMessage } from "../transport/mapper.ts";
+import type { ChatServiceClient } from "../transport/http-client.ts";
+import { mapChat, mapMessage } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
 import type {
   Chat,
   CreateChatOptions,
   CreateChatResult,
 } from "../types/chats.ts";
-import type { HeartbeatHandler } from "../types/common.ts";
-import type { ChatEvent } from "../types/events.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
 function normalizeInitialMessageText(
@@ -52,17 +49,8 @@ function normalizeInitialMessageText(
  */
 export class ChatsResource {
   private readonly _client: ChatServiceClient;
-  private readonly _streamClient: ChatServiceClient;
-  private readonly _onHeartbeat: HeartbeatHandler | undefined;
-
-  constructor(
-    client: ChatServiceClient,
-    streamClient = client,
-    onHeartbeat?: HeartbeatHandler
-  ) {
+  constructor(client: ChatServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
-    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -234,43 +222,5 @@ export class ChatsResource {
     } catch (err) {
       throw fromGrpcError(err);
     }
-  }
-
-  /**
-   * Subscribe to chat-level durable change events (background changed,
-   * marked-read, archive state).
-   *
-   * Pass `filter.chat` to scope the stream to a single chat.
-   */
-  subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent> {
-    const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
-    const rpcStream = this._streamClient.subscribeChatEvents(
-      {
-        chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
-      },
-      { signal: abort.signal }
-    );
-
-    async function* mapEvents(): AsyncGenerator<ChatEvent> {
-      try {
-        for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.chatChanged) {
-            if (frame.heartbeat) {
-              onHeartbeat?.();
-            }
-            continue;
-          }
-          const event = mapChatEvent(frame.sequence, frame.chatChanged);
-          if (event) {
-            yield event;
-          }
-        }
-      } catch (err) {
-        throw fromGrpcError(err);
-      }
-    }
-
-    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }

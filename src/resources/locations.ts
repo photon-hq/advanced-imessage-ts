@@ -1,17 +1,14 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-import type { LocationServiceClient } from "../transport/grpc-client.ts";
+import type { LocationServiceClient } from "../transport/http-client.ts";
 import {
   mapLocationRequestReceipt,
   mapSharedFriendLocation,
-  mapSharedFriendLocationUpdated,
 } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
-import type { HeartbeatHandler, IdempotencyOptions } from "../types/common.ts";
+import type { IdempotencyOptions } from "../types/common.ts";
 import type {
   LocationRequestReceipt,
   SharedFriendLocation,
-  SharedFriendLocationUpdated,
 } from "../types/locations.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
@@ -27,17 +24,8 @@ import { unwrap } from "../utils/unwrap.ts";
  */
 export class LocationsResource {
   private readonly _client: LocationServiceClient;
-  private readonly _streamClient: LocationServiceClient;
-  private readonly _onHeartbeat: HeartbeatHandler | undefined;
-
-  constructor(
-    client: LocationServiceClient,
-    streamClient = client,
-    onHeartbeat?: HeartbeatHandler
-  ) {
+  constructor(client: LocationServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
-    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -91,33 +79,5 @@ export class LocationsResource {
     } catch (err) {
       throw fromGrpcError(err);
     }
-  }
-
-  /** Watch updates for every shared friend, or one friend when `address` is set. */
-  watch(address?: string): TypedEventStream<SharedFriendLocationUpdated> {
-    const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
-    const rpcStream = this._streamClient.watchSharedFriendLocations(
-      { address },
-      { signal: abort.signal }
-    );
-
-    async function* mapUpdates(): AsyncGenerator<SharedFriendLocationUpdated> {
-      try {
-        for await (const frame of rpcStream) {
-          if (!frame.locationUpdated) {
-            if (frame.heartbeat) {
-              onHeartbeat?.();
-            }
-            continue;
-          }
-          yield mapSharedFriendLocationUpdated(frame.locationUpdated);
-        }
-      } catch (err) {
-        throw fromGrpcError(err);
-      }
-    }
-
-    return new TypedEventStream(mapUpdates(), async () => abort.abort());
   }
 }

@@ -1,7 +1,7 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { CompanionKind } from "../generated/photon/imessage/v1/attachment_types.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
-import type { AttachmentServiceClient } from "../transport/grpc-client.ts";
+import type { AttachmentServiceClient } from "../transport/http-client.ts";
 import { mapAttachmentInfo, mapCompanionInfo } from "../transport/mapper.ts";
 import type {
   AttachmentInfo,
@@ -57,11 +57,9 @@ function mapDownloadFrame(
  */
 export class AttachmentsResource {
   private readonly _client: AttachmentServiceClient;
-  private readonly _streamClient: AttachmentServiceClient;
 
-  constructor(client: AttachmentServiceClient, streamClient = client) {
+  constructor(client: AttachmentServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
   }
 
   /**
@@ -114,7 +112,7 @@ export class AttachmentsResource {
     attachment: string
   ): TypedEventStream<DownloadAttachmentChunk> {
     const abort = new AbortController();
-    const rpcStream = this._streamClient.downloadAttachment(
+    const rpcStream = this._client.downloadAttachment(
       {
         attachmentGuid: attachment,
       },

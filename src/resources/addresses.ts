@@ -1,5 +1,5 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
-import type { AddressServiceClient } from "../transport/grpc-client.ts";
+import type { AddressServiceClient } from "../transport/http-client.ts";
 import { mapMultiServiceAddressInfo } from "../transport/mapper.ts";
 import type { MultiServiceAddressInfo } from "../types/addresses.ts";
 import { unwrap } from "../utils/unwrap.ts";

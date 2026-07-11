@@ -1,37 +1,28 @@
 import { describe, expect, it } from "bun:test";
-import { Metadata } from "@grpc/grpc-js";
-import { ClientError, Status } from "nice-grpc-common";
+import { fromHttpErrorBody } from "../../src/errors/http-error-handler.ts";
 import { NotFoundError } from "../../src/errors/imessage-error.ts";
 import { AddressesResource } from "../../src/resources/addresses.ts";
 
-function makeClientError(
-  code: Status,
+/** Builds the error the HTTP transport would throw for a middleware body. */
+function makeTransportError(
+  code: string,
+  httpStatus: number,
   details: string,
-  metadataEntries: Record<string, string> = {}
-): ClientError {
-  const metadata = new Metadata();
-  for (const [key, value] of Object.entries(metadataEntries)) {
-    metadata.set(key, value);
-  }
-
-  const error = new ClientError(
-    "/photon.imessage.v1.AddressService/GetAddressInfo",
-    code,
-    details
-  ) as ClientError & {
-    metadata?: Metadata;
-  };
-  error.metadata = metadata;
-  return error;
+  errorCode?: string
+) {
+  return fromHttpErrorBody({ code, message: details, errorCode }, httpStatus);
 }
 
 describe("AddressesResource", () => {
   it("rethrows addressNotFound", async () => {
     const resource = new AddressesResource({
       async getAddressInfo() {
-        throw makeClientError(Status.NOT_FOUND, "Address does not exist", {
-          "error-code": "addressNotFound",
-        });
+        throw makeTransportError(
+          "not_found",
+          404,
+          "Address does not exist",
+          "addressNotFound"
+        );
       },
     } as any);
 
@@ -47,9 +38,12 @@ describe("AddressesResource", () => {
   it("rethrows unrelated NOT_FOUND errors", async () => {
     const resource = new AddressesResource({
       async getAddressInfo() {
-        throw makeClientError(Status.NOT_FOUND, "Chat does not exist", {
-          "error-code": "chatNotFound",
-        });
+        throw makeTransportError(
+          "not_found",
+          404,
+          "Chat does not exist",
+          "chatNotFound"
+        );
       },
     } as any);
 

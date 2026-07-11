@@ -1,12 +1,10 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { ValidationError } from "../errors/imessage-error.ts";
-import { TypedEventStream } from "../streaming/event-stream.ts";
-import type { GroupServiceClient } from "../transport/grpc-client.ts";
-import { mapChat, mapGroupEvent } from "../transport/mapper.ts";
+import type { GroupServiceClient } from "../transport/http-client.ts";
+import { mapChat } from "../transport/mapper.ts";
 import { normalizeChatGuid } from "../types/chat-guid.ts";
 import type { Chat } from "../types/chats.ts";
-import type { HeartbeatHandler, IdempotencyOptions } from "../types/common.ts";
-import type { GroupEvent } from "../types/events.ts";
+import type { IdempotencyOptions } from "../types/common.ts";
 import { unwrap } from "../utils/unwrap.ts";
 
 export interface GroupIcon {
@@ -112,17 +110,8 @@ function normalizeIconData(data: Uint8Array): Uint8Array {
  */
 export class GroupsResource {
   private readonly _client: GroupServiceClient;
-  private readonly _streamClient: GroupServiceClient;
-  private readonly _onHeartbeat: HeartbeatHandler | undefined;
-
-  constructor(
-    client: GroupServiceClient,
-    streamClient = client,
-    onHeartbeat?: HeartbeatHandler
-  ) {
+  constructor(client: GroupServiceClient) {
     this._client = client;
-    this._streamClient = streamClient;
-    this._onHeartbeat = onHeartbeat;
   }
 
   /**
@@ -271,42 +260,5 @@ export class GroupsResource {
     } catch (err) {
       throw fromGrpcError(err);
     }
-  }
-
-  /**
-   * Subscribe to group-membership / metadata events.
-   *
-   * Pass `filter.chat` to scope the stream to a single group.
-   */
-  subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent> {
-    const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
-    const rpcStream = this._streamClient.subscribeGroupEvents(
-      {
-        chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
-      },
-      { signal: abort.signal }
-    );
-
-    async function* mapEvents(): AsyncGenerator<GroupEvent> {
-      try {
-        for await (const frame of rpcStream) {
-          if (frame.sequence === undefined || !frame.groupChanged) {
-            if (frame.heartbeat) {
-              onHeartbeat?.();
-            }
-            continue;
-          }
-          const event = mapGroupEvent(frame.sequence, frame.groupChanged);
-          if (event) {
-            yield event;
-          }
-        }
-      } catch (err) {
-        throw fromGrpcError(err);
-      }
-    }
-
-    return new TypedEventStream(mapEvents(), async () => abort.abort());
   }
 }

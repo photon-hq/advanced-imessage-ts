@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run lint
+      - run: bun test
+      - run: bun run build
+
+  # The SDK's reason to exist is running where gRPC can't. This job bundles
+  # the package for Cloudflare's workerd and boots it there — any node:*,
+  # gRPC, or otherwise Workers-hostile dependency fails the build.
+  workerd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Bundle for workerd
+        working-directory: tests/workerd
+        run: bun x wrangler deploy --dry-run --outdir dist
+      - name: Boot in workerd and assert the client constructs
+        working-directory: tests/workerd
+        run: |
+          bun x wrangler dev --port 8799 --local &
+          for i in $(seq 1 45); do
+            body=$(curl -s -m 2 http://127.0.0.1:8799/ 2>/dev/null) && break
+            sleep 2
+          done
+          echo "workerd response: $body"
+          [ "$body" = '{"ok":true}' ]
