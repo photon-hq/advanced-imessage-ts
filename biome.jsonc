@@ -2,7 +2,9 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "extends": ["ultracite/biome/core"],
   "files": {
-    "includes": ["!!bun.lock"]
+    // gen/ holds buf-generated artifacts (OpenAPI spec); formatting them
+    // creates permanent churn against `buf generate` output.
+    "includes": ["!!bun.lock", "!gen"]
   },
   "overrides": [
     {

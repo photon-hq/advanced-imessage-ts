@@ -420,6 +420,9 @@ export const AddressServiceDefinition = {
      *
      * Errors: NOT_FOUND when the address has never been seen in this device's
      * iMessage history.
+     *
+     * Over HTTP, `address` is a query parameter (addresses contain `+`, which
+     * is path-hostile) — remember to URL-encode it (`%2B`).
      */
     getAddressInfo: {
       name: "GetAddressInfo",
@@ -427,7 +430,35 @@ export const AddressServiceDefinition = {
       requestStream: false,
       responseType: GetAddressInfoResponse as typeof GetAddressInfoResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              20,
+              18,
+              18,
+              47,
+              118,
+              49,
+              47,
+              97,
+              100,
+              100,
+              114,
+              101,
+              115,
+              115,
+              101,
+              115,
+              58,
+              105,
+              110,
+              102,
+              111,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Returns whether Messages currently reports this address as Focus-silenced. */
     getFocusStatus: {
@@ -436,7 +467,42 @@ export const AddressServiceDefinition = {
       requestStream: false,
       responseType: GetFocusStatusResponse as typeof GetFocusStatusResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              27,
+              18,
+              25,
+              47,
+              118,
+              49,
+              47,
+              97,
+              100,
+              100,
+              114,
+              101,
+              115,
+              115,
+              101,
+              115,
+              58,
+              102,
+              111,
+              99,
+              117,
+              115,
+              83,
+              116,
+              97,
+              116,
+              117,
+              115,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Returns whether the address is reachable via iMessage at query time. */
     getIMessageAvailability: {
@@ -445,7 +511,51 @@ export const AddressServiceDefinition = {
       requestStream: false,
       responseType: GetIMessageAvailabilityResponse as typeof GetIMessageAvailabilityResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              36,
+              18,
+              34,
+              47,
+              118,
+              49,
+              47,
+              97,
+              100,
+              100,
+              114,
+              101,
+              115,
+              115,
+              101,
+              115,
+              58,
+              105,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              65,
+              118,
+              97,
+              105,
+              108,
+              97,
+              98,
+              105,
+              108,
+              105,
+              116,
+              121,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
   },
 } as const;
@@ -456,6 +566,9 @@ export interface AddressServiceImplementation<CallContextExt = {}> {
    *
    * Errors: NOT_FOUND when the address has never been seen in this device's
    * iMessage history.
+   *
+   * Over HTTP, `address` is a query parameter (addresses contain `+`, which
+   * is path-hostile) — remember to URL-encode it (`%2B`).
    */
   getAddressInfo(
     request: GetAddressInfoRequest,
@@ -479,6 +592,9 @@ export interface AddressServiceClient<CallOptionsExt = {}> {
    *
    * Errors: NOT_FOUND when the address has never been seen in this device's
    * iMessage history.
+   *
+   * Over HTTP, `address` is a query parameter (addresses contain `+`, which
+   * is path-hostile) — remember to URL-encode it (`%2B`).
    */
   getAddressInfo(
     request: DeepPartial<GetAddressInfoRequest>,

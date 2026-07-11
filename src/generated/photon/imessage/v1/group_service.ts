@@ -1168,7 +1168,45 @@ export const GroupServiceDefinition = {
       requestStream: false,
       responseType: SetDisplayNameResponse as typeof SetDisplayNameResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              30,
+              58,
+              1,
+              42,
+              34,
+              25,
+              47,
+              118,
+              49,
+              47,
+              103,
+              114,
+              111,
+              117,
+              112,
+              115,
+              58,
+              115,
+              101,
+              116,
+              68,
+              105,
+              115,
+              112,
+              108,
+              97,
+              121,
+              78,
+              97,
+              109,
+              101,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     addParticipants: {
       name: "AddParticipants",
@@ -1176,7 +1214,46 @@ export const GroupServiceDefinition = {
       requestStream: false,
       responseType: AddParticipantsResponse as typeof AddParticipantsResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              31,
+              58,
+              1,
+              42,
+              34,
+              26,
+              47,
+              118,
+              49,
+              47,
+              103,
+              114,
+              111,
+              117,
+              112,
+              115,
+              58,
+              97,
+              100,
+              100,
+              80,
+              97,
+              114,
+              116,
+              105,
+              99,
+              105,
+              112,
+              97,
+              110,
+              116,
+              115,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     removeParticipants: {
       name: "RemoveParticipants",
@@ -1184,7 +1261,49 @@ export const GroupServiceDefinition = {
       requestStream: false,
       responseType: RemoveParticipantsResponse as typeof RemoveParticipantsResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              34,
+              58,
+              1,
+              42,
+              34,
+              29,
+              47,
+              118,
+              49,
+              47,
+              103,
+              114,
+              111,
+              117,
+              112,
+              115,
+              58,
+              114,
+              101,
+              109,
+              111,
+              118,
+              101,
+              80,
+              97,
+              114,
+              116,
+              105,
+              99,
+              105,
+              112,
+              97,
+              110,
+              116,
+              115,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /**
      * Local user voluntarily leaves the group. The chat ceases to be
@@ -1196,15 +1315,79 @@ export const GroupServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              21,
+              58,
+              1,
+              42,
+              34,
+              16,
+              47,
+              118,
+              49,
+              47,
+              103,
+              114,
+              111,
+              117,
+              112,
+              115,
+              58,
+              108,
+              101,
+              97,
+              118,
+              101,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
+    /**
+     * Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+     * `bytes` representation).
+     */
     setIcon: {
       name: "SetIcon",
       requestType: SetIconRequest as typeof SetIconRequest,
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              23,
+              58,
+              1,
+              42,
+              34,
+              18,
+              47,
+              118,
+              49,
+              47,
+              103,
+              114,
+              111,
+              117,
+              112,
+              115,
+              58,
+              115,
+              101,
+              116,
+              73,
+              99,
+              111,
+              110,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     removeIcon: {
       name: "RemoveIcon",
@@ -1212,16 +1395,78 @@ export const GroupServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              26,
+              58,
+              1,
+              42,
+              34,
+              21,
+              47,
+              118,
+              49,
+              47,
+              103,
+              114,
+              111,
+              117,
+              112,
+              115,
+              58,
+              114,
+              101,
+              109,
+              111,
+              118,
+              101,
+              73,
+              99,
+              111,
+              110,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
-    /** Reads */
+    /**
+     * Reads. Over HTTP the icon bytes come back base64-encoded in JSON —
+     * acceptable at group-icon sizes.
+     */
     getIcon: {
       name: "GetIcon",
       requestType: GetIconRequest as typeof GetIconRequest,
       requestStream: false,
       responseType: GetIconResponse as typeof GetIconResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              17,
+              18,
+              15,
+              47,
+              118,
+              49,
+              47,
+              103,
+              114,
+              111,
+              117,
+              112,
+              115,
+              58,
+              105,
+              99,
+              111,
+              110,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Streams */
     subscribeGroupEvents: {
@@ -1254,9 +1499,16 @@ export interface GroupServiceImplementation<CallContextExt = {}> {
    * visible from this device, hence no Chat snapshot.
    */
   leaveGroup(request: LeaveGroupRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  /**
+   * Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+   * `bytes` representation).
+   */
   setIcon(request: SetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
   removeIcon(request: RemoveIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
-  /** Reads */
+  /**
+   * Reads. Over HTTP the icon bytes come back base64-encoded in JSON —
+   * acceptable at group-icon sizes.
+   */
   getIcon(request: GetIconRequest, context: CallContext & CallContextExt): Promise<DeepPartial<GetIconResponse>>;
   /** Streams */
   subscribeGroupEvents(
@@ -1284,9 +1536,16 @@ export interface GroupServiceClient<CallOptionsExt = {}> {
    * visible from this device, hence no Chat snapshot.
    */
   leaveGroup(request: DeepPartial<LeaveGroupRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  /**
+   * Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+   * `bytes` representation).
+   */
   setIcon(request: DeepPartial<SetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
   removeIcon(request: DeepPartial<RemoveIconRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
-  /** Reads */
+  /**
+   * Reads. Over HTTP the icon bytes come back base64-encoded in JSON —
+   * acceptable at group-icon sizes.
+   */
   getIcon(request: DeepPartial<GetIconRequest>, options?: CallOptions & CallOptionsExt): Promise<GetIconResponse>;
   /** Streams */
   subscribeGroupEvents(

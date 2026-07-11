@@ -1318,7 +1318,11 @@ export const ChatServiceDefinition = {
       requestStream: false,
       responseType: CreateChatResponse as typeof CreateChatResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [new Uint8Array([14, 58, 1, 42, 34, 9, 47, 118, 49, 47, 99, 104, 97, 116, 115]) as Uint8Array],
+        },
+      },
     },
     markChatRead: {
       name: "MarkChatRead",
@@ -1326,15 +1330,86 @@ export const ChatServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              23,
+              58,
+              1,
+              42,
+              34,
+              18,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              109,
+              97,
+              114,
+              107,
+              82,
+              101,
+              97,
+              100,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
+    /**
+     * Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+     * `bytes` representation).
+     */
     setBackground: {
       name: "SetBackground",
       requestType: SetBackgroundRequest as typeof SetBackgroundRequest,
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              28,
+              58,
+              1,
+              42,
+              34,
+              23,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              115,
+              101,
+              116,
+              66,
+              97,
+              99,
+              107,
+              103,
+              114,
+              111,
+              117,
+              110,
+              100,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     removeBackground: {
       name: "RemoveBackground",
@@ -1342,7 +1417,46 @@ export const ChatServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              31,
+              58,
+              1,
+              42,
+              34,
+              26,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              114,
+              101,
+              109,
+              111,
+              118,
+              101,
+              66,
+              97,
+              99,
+              107,
+              103,
+              114,
+              111,
+              117,
+              110,
+              100,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /**
      * Pushes the local user's name-and-photo card into the target chat so
@@ -1355,7 +1469,46 @@ export const ChatServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              31,
+              58,
+              1,
+              42,
+              34,
+              26,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              115,
+              104,
+              97,
+              114,
+              101,
+              67,
+              111,
+              110,
+              116,
+              97,
+              99,
+              116,
+              73,
+              110,
+              102,
+              111,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Transient typing-indicator write. No persisted state. */
     setTyping: {
@@ -1364,16 +1517,57 @@ export const ChatServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              24,
+              58,
+              1,
+              42,
+              34,
+              19,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              115,
+              101,
+              116,
+              84,
+              121,
+              112,
+              105,
+              110,
+              103,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
-    /** Reads */
+    /**
+     * Reads (chat_guid is path-hostile, so these are :customVerb GETs with
+     * query parameters rather than resource paths).
+     */
     getChat: {
       name: "GetChat",
       requestType: GetChatRequest as typeof GetChatRequest,
       requestStream: false,
       responseType: GetChatResponse as typeof GetChatResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([15, 18, 13, 47, 118, 49, 47, 99, 104, 97, 116, 115, 58, 103, 101, 116]) as Uint8Array,
+          ],
+        },
+      },
     },
     getChatCount: {
       name: "GetChatCount",
@@ -1381,7 +1575,32 @@ export const ChatServiceDefinition = {
       requestStream: false,
       responseType: GetChatCountResponse as typeof GetChatCountResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              17,
+              18,
+              15,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              99,
+              111,
+              117,
+              110,
+              116,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     hasBackground: {
       name: "HasBackground",
@@ -1389,7 +1608,40 @@ export const ChatServiceDefinition = {
       requestStream: false,
       responseType: HasBackgroundResponse as typeof HasBackgroundResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              25,
+              18,
+              23,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              104,
+              97,
+              115,
+              66,
+              97,
+              99,
+              107,
+              103,
+              114,
+              111,
+              117,
+              110,
+              100,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     subscribeChatEvents: {
       name: "SubscribeChatEvents",
@@ -1409,6 +1661,10 @@ export interface ChatServiceImplementation<CallContextExt = {}> {
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<CreateChatResponse>>;
   markChatRead(request: MarkChatReadRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  /**
+   * Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+   * `bytes` representation).
+   */
   setBackground(request: SetBackgroundRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
   removeBackground(
     request: RemoveBackgroundRequest,
@@ -1425,7 +1681,10 @@ export interface ChatServiceImplementation<CallContextExt = {}> {
   ): Promise<DeepPartial<Empty>>;
   /** Transient typing-indicator write. No persisted state. */
   setTyping(request: SetTypingRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
-  /** Reads */
+  /**
+   * Reads (chat_guid is path-hostile, so these are :customVerb GETs with
+   * query parameters rather than resource paths).
+   */
   getChat(request: GetChatRequest, context: CallContext & CallContextExt): Promise<DeepPartial<GetChatResponse>>;
   getChatCount(
     request: GetChatCountRequest,
@@ -1448,6 +1707,10 @@ export interface ChatServiceClient<CallOptionsExt = {}> {
     options?: CallOptions & CallOptionsExt,
   ): Promise<CreateChatResponse>;
   markChatRead(request: DeepPartial<MarkChatReadRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  /**
+   * Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+   * `bytes` representation).
+   */
   setBackground(request: DeepPartial<SetBackgroundRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
   removeBackground(
     request: DeepPartial<RemoveBackgroundRequest>,
@@ -1464,7 +1727,10 @@ export interface ChatServiceClient<CallOptionsExt = {}> {
   ): Promise<Empty>;
   /** Transient typing-indicator write. No persisted state. */
   setTyping(request: DeepPartial<SetTypingRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
-  /** Reads */
+  /**
+   * Reads (chat_guid is path-hostile, so these are :customVerb GETs with
+   * query parameters rather than resource paths).
+   */
   getChat(request: DeepPartial<GetChatRequest>, options?: CallOptions & CallOptionsExt): Promise<GetChatResponse>;
   getChatCount(
     request: DeepPartial<GetChatCountRequest>,

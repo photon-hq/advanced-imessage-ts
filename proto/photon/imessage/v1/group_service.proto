@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package photon.imessage.v1;
 
+import "google/api/annotations.proto";
 import "photon/imessage/v1/chat_types.proto";
 import "google/protobuf/empty.proto";
 import "photon/imessage/v1/group_types.proto";
@@ -18,22 +19,59 @@ option swift_prefix = "PIMsg_";
 service GroupService {
 
   // Writes
-  rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse);
+  rpc SetDisplayName(SetDisplayNameRequest) returns (SetDisplayNameResponse) {
+    option (google.api.http) = {
+      post: "/v1/groups:setDisplayName"
+      body: "*"
+    };
+  }
 
-  rpc AddParticipants(AddParticipantsRequest) returns (AddParticipantsResponse);
+  rpc AddParticipants(AddParticipantsRequest) returns (AddParticipantsResponse) {
+    option (google.api.http) = {
+      post: "/v1/groups:addParticipants"
+      body: "*"
+    };
+  }
 
-  rpc RemoveParticipants(RemoveParticipantsRequest) returns (RemoveParticipantsResponse);
+  rpc RemoveParticipants(RemoveParticipantsRequest) returns (RemoveParticipantsResponse) {
+    option (google.api.http) = {
+      post: "/v1/groups:removeParticipants"
+      body: "*"
+    };
+  }
 
   // Local user voluntarily leaves the group. The chat ceases to be
   // visible from this device, hence no Chat snapshot.
-  rpc LeaveGroup(LeaveGroupRequest) returns (google.protobuf.Empty);
+  rpc LeaveGroup(LeaveGroupRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/groups:leave"
+      body: "*"
+    };
+  }
 
-  rpc SetIcon(SetIconRequest) returns (google.protobuf.Empty);
+  // Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+  // `bytes` representation).
+  rpc SetIcon(SetIconRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/groups:setIcon"
+      body: "*"
+    };
+  }
 
-  rpc RemoveIcon(RemoveIconRequest) returns (google.protobuf.Empty);
+  rpc RemoveIcon(RemoveIconRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/groups:removeIcon"
+      body: "*"
+    };
+  }
 
-  // Reads
-  rpc GetIcon(GetIconRequest) returns (GetIconResponse);
+  // Reads. Over HTTP the icon bytes come back base64-encoded in JSON —
+  // acceptable at group-icon sizes.
+  rpc GetIcon(GetIconRequest) returns (GetIconResponse) {
+    option (google.api.http) = {
+      get: "/v1/groups:icon"
+    };
+  }
 
   // Streams
   rpc SubscribeGroupEvents(SubscribeGroupEventsRequest)

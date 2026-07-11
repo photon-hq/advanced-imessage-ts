@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package photon.imessage.v1;
 
+import "google/api/annotations.proto";
 import "photon/imessage/v1/location_types.proto";
 import "photon/imessage/v1/streaming.proto";
 
@@ -18,13 +19,26 @@ option swift_prefix = "PIMsg_";
 service LocationService {
 
   rpc ListSharedFriendLocations(ListSharedFriendLocationsRequest)
-      returns (ListSharedFriendLocationsResponse);
+      returns (ListSharedFriendLocationsResponse) {
+    option (google.api.http) = {
+      get: "/v1/locations:sharedFriends"
+    };
+  }
 
   rpc GetSharedFriendLocation(GetSharedFriendLocationRequest)
-      returns (GetSharedFriendLocationResponse);
+      returns (GetSharedFriendLocationResponse) {
+    option (google.api.http) = {
+      get: "/v1/locations:sharedFriend"
+    };
+  }
 
   rpc RequestFriendLocationSharing(RequestFriendLocationSharingRequest)
-      returns (RequestFriendLocationSharingResponse);
+      returns (RequestFriendLocationSharingResponse) {
+    option (google.api.http) = {
+      post: "/v1/locations:requestSharing"
+      body: "*"
+    };
+  }
 
   rpc WatchSharedFriendLocations(WatchSharedFriendLocationsRequest)
       returns (stream WatchSharedFriendLocationsResponse);

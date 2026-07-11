@@ -3367,14 +3367,57 @@ export const MessageServiceDefinition = {
   name: "MessageService",
   fullName: "photon.imessage.v1.MessageService",
   methods: {
-    /** Writes */
+    /**
+     * Writes
+     *
+     * HTTP mapping convention (governs all annotations in this package):
+     * - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
+     *   paths and never appear in one — they ride in the request body.
+     * - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
+     *   path-safe and map to resource paths.
+     * - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).
+     */
     sendTextMessage: {
       name: "SendTextMessage",
       requestType: SendTextMessageRequest as typeof SendTextMessageRequest,
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              26,
+              58,
+              1,
+              42,
+              34,
+              21,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              115,
+              101,
+              110,
+              100,
+              84,
+              101,
+              120,
+              116,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     sendAttachmentMessage: {
       name: "SendAttachmentMessage",
@@ -3382,7 +3425,47 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              32,
+              58,
+              1,
+              42,
+              34,
+              27,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              115,
+              101,
+              110,
+              100,
+              65,
+              116,
+              116,
+              97,
+              99,
+              104,
+              109,
+              101,
+              110,
+              116,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     sendMultipartMessage: {
       name: "SendMultipartMessage",
@@ -3390,7 +3473,46 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              31,
+              58,
+              1,
+              42,
+              34,
+              26,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              115,
+              101,
+              110,
+              100,
+              77,
+              117,
+              108,
+              116,
+              105,
+              112,
+              97,
+              114,
+              116,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Sends an iMessage mini-app card backed by the caller's own extension. */
     sendCustomizedMiniAppMessage: {
@@ -3399,7 +3521,54 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              39,
+              58,
+              1,
+              42,
+              34,
+              34,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              115,
+              101,
+              110,
+              100,
+              67,
+              117,
+              115,
+              116,
+              111,
+              109,
+              105,
+              122,
+              101,
+              100,
+              77,
+              105,
+              110,
+              105,
+              65,
+              112,
+              112,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Updates an iMessage mini-app card backed by the caller's own extension. */
     updateCustomizedMiniAppMessage: {
@@ -3408,7 +3577,56 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              41,
+              58,
+              1,
+              42,
+              34,
+              36,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              117,
+              112,
+              100,
+              97,
+              116,
+              101,
+              67,
+              117,
+              115,
+              116,
+              111,
+              109,
+              105,
+              122,
+              101,
+              100,
+              77,
+              105,
+              110,
+              105,
+              65,
+              112,
+              112,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     editMessage: {
       name: "EditMessage",
@@ -3416,7 +3634,37 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              22,
+              58,
+              1,
+              42,
+              34,
+              17,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              101,
+              100,
+              105,
+              116,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Retracts an existing message and returns Empty after helper success. */
     unsendMessage: {
@@ -3425,7 +3673,39 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              24,
+              58,
+              1,
+              42,
+              34,
+              19,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              117,
+              110,
+              115,
+              101,
+              110,
+              100,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     setReaction: {
       name: "SetReaction",
@@ -3433,7 +3713,44 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              29,
+              58,
+              1,
+              42,
+              34,
+              24,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              115,
+              101,
+              116,
+              82,
+              101,
+              97,
+              99,
+              116,
+              105,
+              111,
+              110,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     placeSticker: {
       name: "PlaceSticker",
@@ -3441,7 +3758,45 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: MessageResponse as typeof MessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              30,
+              58,
+              1,
+              42,
+              34,
+              25,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              112,
+              108,
+              97,
+              99,
+              101,
+              83,
+              116,
+              105,
+              99,
+              107,
+              101,
+              114,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Triggers Apple's per-message "Notify Anyway" action. */
     notifySilencedMessage: {
@@ -3450,7 +3805,47 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: Empty as typeof Empty,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              32,
+              58,
+              1,
+              42,
+              34,
+              27,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              110,
+              111,
+              116,
+              105,
+              102,
+              121,
+              83,
+              105,
+              108,
+              101,
+              110,
+              99,
+              101,
+              100,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Reads */
     getMessage: {
@@ -3459,24 +3854,139 @@ export const MessageServiceDefinition = {
       requestStream: false,
       responseType: GetMessageResponse as typeof GetMessageResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              29,
+              18,
+              27,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              47,
+              123,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              95,
+              103,
+              117,
+              105,
+              100,
+              125,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
+    /**
+     * Query parameters over HTTP: `pageSize` (int), `isFromMe`/`isRead`
+     * (true|false), `before`/`after` (RFC 3339 timestamps, the proto3-JSON
+     * form of `google.protobuf.Timestamp`).
+     */
     listRecentMessages: {
       name: "ListRecentMessages",
       requestType: ListRecentMessagesRequest as typeof ListRecentMessagesRequest,
       requestStream: false,
       responseType: ListRecentMessagesResponse as typeof ListRecentMessagesResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              25,
+              18,
+              23,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              108,
+              105,
+              115,
+              116,
+              82,
+              101,
+              99,
+              101,
+              110,
+              116,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
+    /** Same query-parameter shapes as `ListRecentMessages`, plus `chatGuid`. */
     listChatMessages: {
       name: "ListChatMessages",
       requestType: ListChatMessagesRequest as typeof ListChatMessagesRequest,
       requestStream: false,
       responseType: ListChatMessagesResponse as typeof ListChatMessagesResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              25,
+              18,
+              23,
+              47,
+              118,
+              49,
+              47,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              115,
+              58,
+              108,
+              105,
+              115,
+              116,
+              66,
+              121,
+              67,
+              104,
+              97,
+              116,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
+    /**
+     * No HTTP mapping on purpose: the response carries raw media bytes
+     * (`EmbeddedMedia.data`), which don't belong base64-encoded in JSON.
+     * Served over HTTP by a dedicated raw-bytes route in the transcoding
+     * middleware alongside Upload/DownloadAttachment.
+     */
     getEmbeddedMedia: {
       name: "GetEmbeddedMedia",
       requestType: GetEmbeddedMediaRequest as typeof GetEmbeddedMediaRequest,
@@ -3501,7 +4011,16 @@ export const MessageServiceDefinition = {
 } as const;
 
 export interface MessageServiceImplementation<CallContextExt = {}> {
-  /** Writes */
+  /**
+   * Writes
+   *
+   * HTTP mapping convention (governs all annotations in this package):
+   * - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
+   *   paths and never appear in one — they ride in the request body.
+   * - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
+   *   path-safe and map to resource paths.
+   * - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).
+   */
   sendTextMessage(
     request: SendTextMessageRequest,
     context: CallContext & CallContextExt,
@@ -3548,14 +4067,26 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
     request: GetMessageRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GetMessageResponse>>;
+  /**
+   * Query parameters over HTTP: `pageSize` (int), `isFromMe`/`isRead`
+   * (true|false), `before`/`after` (RFC 3339 timestamps, the proto3-JSON
+   * form of `google.protobuf.Timestamp`).
+   */
   listRecentMessages(
     request: ListRecentMessagesRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<ListRecentMessagesResponse>>;
+  /** Same query-parameter shapes as `ListRecentMessages`, plus `chatGuid`. */
   listChatMessages(
     request: ListChatMessagesRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<ListChatMessagesResponse>>;
+  /**
+   * No HTTP mapping on purpose: the response carries raw media bytes
+   * (`EmbeddedMedia.data`), which don't belong base64-encoded in JSON.
+   * Served over HTTP by a dedicated raw-bytes route in the transcoding
+   * middleware alongside Upload/DownloadAttachment.
+   */
   getEmbeddedMedia(
     request: GetEmbeddedMediaRequest,
     context: CallContext & CallContextExt,
@@ -3571,7 +4102,16 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
 }
 
 export interface MessageServiceClient<CallOptionsExt = {}> {
-  /** Writes */
+  /**
+   * Writes
+   *
+   * HTTP mapping convention (governs all annotations in this package):
+   * - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
+   *   paths and never appear in one — they ride in the request body.
+   * - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
+   *   path-safe and map to resource paths.
+   * - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).
+   */
   sendTextMessage(
     request: DeepPartial<SendTextMessageRequest>,
     options?: CallOptions & CallOptionsExt,
@@ -3618,14 +4158,26 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<GetMessageRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GetMessageResponse>;
+  /**
+   * Query parameters over HTTP: `pageSize` (int), `isFromMe`/`isRead`
+   * (true|false), `before`/`after` (RFC 3339 timestamps, the proto3-JSON
+   * form of `google.protobuf.Timestamp`).
+   */
   listRecentMessages(
     request: DeepPartial<ListRecentMessagesRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<ListRecentMessagesResponse>;
+  /** Same query-parameter shapes as `ListRecentMessages`, plus `chatGuid`. */
   listChatMessages(
     request: DeepPartial<ListChatMessagesRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<ListChatMessagesResponse>;
+  /**
+   * No HTTP mapping on purpose: the response carries raw media bytes
+   * (`EmbeddedMedia.data`), which don't belong base64-encoded in JSON.
+   * Served over HTTP by a dedicated raw-bytes route in the transcoding
+   * middleware alongside Upload/DownloadAttachment.
+   */
   getEmbeddedMedia(
     request: DeepPartial<GetEmbeddedMediaRequest>,
     options?: CallOptions & CallOptionsExt,

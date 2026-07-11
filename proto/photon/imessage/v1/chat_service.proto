@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package photon.imessage.v1;
 
+import "google/api/annotations.proto";
 import "photon/imessage/v1/address_types.proto";
 import "photon/imessage/v1/chat_types.proto";
 import "google/protobuf/empty.proto";
@@ -19,28 +20,73 @@ option swift_prefix = "PIMsg_";
 service ChatService {
 
   // Writes
-  rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
+  rpc CreateChat(CreateChatRequest) returns (CreateChatResponse) {
+    option (google.api.http) = {
+      post: "/v1/chats"
+      body: "*"
+    };
+  }
 
-  rpc MarkChatRead(MarkChatReadRequest) returns (google.protobuf.Empty);
+  rpc MarkChatRead(MarkChatReadRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/chats:markRead"
+      body: "*"
+    };
+  }
 
-  rpc SetBackground(SetBackgroundRequest) returns (google.protobuf.Empty);
+  // Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON
+  // `bytes` representation).
+  rpc SetBackground(SetBackgroundRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/chats:setBackground"
+      body: "*"
+    };
+  }
 
-  rpc RemoveBackground(RemoveBackgroundRequest) returns (google.protobuf.Empty);
+  rpc RemoveBackground(RemoveBackgroundRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/chats:removeBackground"
+      body: "*"
+    };
+  }
 
   // Pushes the local user's name-and-photo card into the target chat so
   // the recipient sees it in their contact suggestions. No observable
   // local state change.
-  rpc ShareContactInfo(ShareContactInfoRequest) returns (google.protobuf.Empty);
+  rpc ShareContactInfo(ShareContactInfoRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/chats:shareContactInfo"
+      body: "*"
+    };
+  }
 
   // Transient typing-indicator write. No persisted state.
-  rpc SetTyping(SetTypingRequest) returns (google.protobuf.Empty);
+  rpc SetTyping(SetTypingRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/chats:setTyping"
+      body: "*"
+    };
+  }
 
-  // Reads
-  rpc GetChat(GetChatRequest) returns (GetChatResponse);
+  // Reads (chat_guid is path-hostile, so these are :customVerb GETs with
+  // query parameters rather than resource paths).
+  rpc GetChat(GetChatRequest) returns (GetChatResponse) {
+    option (google.api.http) = {
+      get: "/v1/chats:get"
+    };
+  }
 
-  rpc GetChatCount(GetChatCountRequest) returns (GetChatCountResponse);
+  rpc GetChatCount(GetChatCountRequest) returns (GetChatCountResponse) {
+    option (google.api.http) = {
+      get: "/v1/chats:count"
+    };
+  }
 
-  rpc HasBackground(HasBackgroundRequest) returns (HasBackgroundResponse);
+  rpc HasBackground(HasBackgroundRequest) returns (HasBackgroundResponse) {
+    option (google.api.http) = {
+      get: "/v1/chats:hasBackground"
+    };
+  }
 
   rpc SubscribeChatEvents(SubscribeChatEventsRequest)
       returns (stream SubscribeChatEventsResponse);

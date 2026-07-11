@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package photon.imessage.v1;
 
+import "google/api/annotations.proto";
 import "photon/imessage/v1/attachment_types.proto";
 
 option swift_prefix = "PIMsg_";
@@ -16,11 +17,19 @@ option swift_prefix = "PIMsg_";
 service AttachmentService {
 
   // Metadata-only lookup. Cheap; never touches attachment bytes.
-  rpc GetAttachmentInfo(GetAttachmentInfoRequest) returns (GetAttachmentInfoResponse);
+  rpc GetAttachmentInfo(GetAttachmentInfoRequest) returns (GetAttachmentInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/attachments/{attachment_guid}"
+    };
+  }
 
   // Atomic upload of one primary file plus an optional sidecar. The
   // server persists both before responding; on failure neither is visible
   // to subsequent reads.
+  //
+  // No HTTP mapping on purpose: attachment payloads don't belong
+  // base64-encoded in JSON. Served over HTTP by a dedicated raw-bytes
+  // route in the transcoding middleware (as is `DownloadAttachment`).
   rpc UploadAttachment(UploadAttachmentRequest) returns (UploadAttachmentResponse);
 
   // Server-streaming bytes. See `DownloadAttachmentResponse` for the

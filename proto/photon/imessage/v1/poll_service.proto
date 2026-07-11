@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package photon.imessage.v1;
 
+import "google/api/annotations.proto";
 import "photon/imessage/v1/poll_types.proto";
 import "photon/imessage/v1/streaming.proto";
 
@@ -21,16 +22,40 @@ option swift_prefix = "PIMsg_";
 service PollService {
 
   // Writes
-  rpc CreatePoll(CreatePollRequest) returns (PollResponse);
+  rpc CreatePoll(CreatePollRequest) returns (PollResponse) {
+    option (google.api.http) = {
+      post: "/v1/polls"
+      body: "*"
+    };
+  }
 
-  rpc VotePoll(VotePollRequest) returns (PollResponse);
+  rpc VotePoll(VotePollRequest) returns (PollResponse) {
+    option (google.api.http) = {
+      post: "/v1/polls:vote"
+      body: "*"
+    };
+  }
 
-  rpc UnvotePoll(UnvotePollRequest) returns (PollResponse);
+  rpc UnvotePoll(UnvotePollRequest) returns (PollResponse) {
+    option (google.api.http) = {
+      post: "/v1/polls:unvote"
+      body: "*"
+    };
+  }
 
-  rpc AddPollOption(AddPollOptionRequest) returns (PollResponse);
+  rpc AddPollOption(AddPollOptionRequest) returns (PollResponse) {
+    option (google.api.http) = {
+      post: "/v1/polls:addOption"
+      body: "*"
+    };
+  }
 
-  // Reads
-  rpc GetPoll(GetPollRequest) returns (PollResponse);
+  // Reads (poll message GUIDs are path-safe)
+  rpc GetPoll(GetPollRequest) returns (PollResponse) {
+    option (google.api.http) = {
+      get: "/v1/polls/{poll_message_guid}"
+    };
+  }
 
   // Streams
   rpc SubscribePollEvents(SubscribePollEventsRequest) returns (stream SubscribePollEventsResponse);

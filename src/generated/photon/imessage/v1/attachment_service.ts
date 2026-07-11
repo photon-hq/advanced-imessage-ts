@@ -626,12 +626,59 @@ export const AttachmentServiceDefinition = {
       requestStream: false,
       responseType: GetAttachmentInfoResponse as typeof GetAttachmentInfoResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              35,
+              18,
+              33,
+              47,
+              118,
+              49,
+              47,
+              97,
+              116,
+              116,
+              97,
+              99,
+              104,
+              109,
+              101,
+              110,
+              116,
+              115,
+              47,
+              123,
+              97,
+              116,
+              116,
+              97,
+              99,
+              104,
+              109,
+              101,
+              110,
+              116,
+              95,
+              103,
+              117,
+              105,
+              100,
+              125,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /**
      * Atomic upload of one primary file plus an optional sidecar. The
      * server persists both before responding; on failure neither is visible
      * to subsequent reads.
+     *
+     * No HTTP mapping on purpose: attachment payloads don't belong
+     * base64-encoded in JSON. Served over HTTP by a dedicated raw-bytes
+     * route in the transcoding middleware (as is `DownloadAttachment`).
      */
     uploadAttachment: {
       name: "UploadAttachment",
@@ -666,6 +713,10 @@ export interface AttachmentServiceImplementation<CallContextExt = {}> {
    * Atomic upload of one primary file plus an optional sidecar. The
    * server persists both before responding; on failure neither is visible
    * to subsequent reads.
+   *
+   * No HTTP mapping on purpose: attachment payloads don't belong
+   * base64-encoded in JSON. Served over HTTP by a dedicated raw-bytes
+   * route in the transcoding middleware (as is `DownloadAttachment`).
    */
   uploadAttachment(
     request: UploadAttachmentRequest,
@@ -691,6 +742,10 @@ export interface AttachmentServiceClient<CallOptionsExt = {}> {
    * Atomic upload of one primary file plus an optional sidecar. The
    * server persists both before responding; on failure neither is visible
    * to subsequent reads.
+   *
+   * No HTTP mapping on purpose: attachment payloads don't belong
+   * base64-encoded in JSON. Served over HTTP by a dedicated raw-bytes
+   * route in the transcoding middleware (as is `DownloadAttachment`).
    */
   uploadAttachment(
     request: DeepPartial<UploadAttachmentRequest>,

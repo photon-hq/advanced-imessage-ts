@@ -1,4 +1,14 @@
 version: v2
+managed:
+  enabled: true
+  # Only used by the Go-based openapiv2 plugin to resolve import paths at
+  # generation time; nothing Go is ever emitted or committed.
+  override:
+    - file_option: go_package_prefix
+      value: github.com/photon-hq/advanced-imessage-ts/gen/go
+  # Keep the source-defined swift_prefix untouched for Swift consumers.
+  disable:
+    - file_option: swift_prefix
 plugins:
   - local: protoc-gen-ts_proto
     out: src/generated
@@ -7,3 +17,8 @@ plugins:
       - useExactTypes=false
       - esModuleInterop=true
       - importSuffix=.js
+  - remote: buf.build/grpc-ecosystem/openapiv2
+    out: gen/openapi
+    opt:
+      - allow_merge=true
+      - merge_file_name=imessage

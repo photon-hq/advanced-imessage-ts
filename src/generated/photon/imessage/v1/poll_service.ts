@@ -773,7 +773,11 @@ export const PollServiceDefinition = {
       requestStream: false,
       responseType: PollResponse as typeof PollResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [new Uint8Array([14, 58, 1, 42, 34, 9, 47, 118, 49, 47, 112, 111, 108, 108, 115]) as Uint8Array],
+        },
+      },
     },
     votePoll: {
       name: "VotePoll",
@@ -781,7 +785,34 @@ export const PollServiceDefinition = {
       requestStream: false,
       responseType: PollResponse as typeof PollResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              19,
+              58,
+              1,
+              42,
+              34,
+              14,
+              47,
+              118,
+              49,
+              47,
+              112,
+              111,
+              108,
+              108,
+              115,
+              58,
+              118,
+              111,
+              116,
+              101,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     unvotePoll: {
       name: "UnvotePoll",
@@ -789,7 +820,36 @@ export const PollServiceDefinition = {
       requestStream: false,
       responseType: PollResponse as typeof PollResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              21,
+              58,
+              1,
+              42,
+              34,
+              16,
+              47,
+              118,
+              49,
+              47,
+              112,
+              111,
+              108,
+              108,
+              115,
+              58,
+              117,
+              110,
+              118,
+              111,
+              116,
+              101,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     addPollOption: {
       name: "AddPollOption",
@@ -797,16 +857,87 @@ export const PollServiceDefinition = {
       requestStream: false,
       responseType: PollResponse as typeof PollResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              24,
+              58,
+              1,
+              42,
+              34,
+              19,
+              47,
+              118,
+              49,
+              47,
+              112,
+              111,
+              108,
+              108,
+              115,
+              58,
+              97,
+              100,
+              100,
+              79,
+              112,
+              116,
+              105,
+              111,
+              110,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
-    /** Reads */
+    /** Reads (poll message GUIDs are path-safe) */
     getPoll: {
       name: "GetPoll",
       requestType: GetPollRequest as typeof GetPollRequest,
       requestStream: false,
       responseType: PollResponse as typeof PollResponse,
       responseStream: false,
-      options: {},
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              31,
+              18,
+              29,
+              47,
+              118,
+              49,
+              47,
+              112,
+              111,
+              108,
+              108,
+              115,
+              47,
+              123,
+              112,
+              111,
+              108,
+              108,
+              95,
+              109,
+              101,
+              115,
+              115,
+              97,
+              103,
+              101,
+              95,
+              103,
+              117,
+              105,
+              100,
+              125,
+            ]) as Uint8Array,
+          ],
+        },
+      },
     },
     /** Streams */
     subscribePollEvents: {
@@ -829,7 +960,7 @@ export interface PollServiceImplementation<CallContextExt = {}> {
     request: AddPollOptionRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<PollResponse>>;
-  /** Reads */
+  /** Reads (poll message GUIDs are path-safe) */
   getPoll(request: GetPollRequest, context: CallContext & CallContextExt): Promise<DeepPartial<PollResponse>>;
   /** Streams */
   subscribePollEvents(
@@ -847,7 +978,7 @@ export interface PollServiceClient<CallOptionsExt = {}> {
     request: DeepPartial<AddPollOptionRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<PollResponse>;
-  /** Reads */
+  /** Reads (poll message GUIDs are path-safe) */
   getPoll(request: DeepPartial<GetPollRequest>, options?: CallOptions & CallOptionsExt): Promise<PollResponse>;
   /** Streams */
   subscribePollEvents(

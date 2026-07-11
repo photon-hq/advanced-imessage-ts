@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package photon.imessage.v1;
 
+import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "photon/imessage/v1/message_types.proto";
@@ -27,37 +28,114 @@ option swift_prefix = "PIMsg_";
 service MessageService {
 
   // Writes
-  rpc SendTextMessage(SendTextMessageRequest) returns (MessageResponse);
+  //
+  // HTTP mapping convention (governs all annotations in this package):
+  // - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
+  //   paths and never appear in one — they ride in the request body.
+  // - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
+  //   path-safe and map to resource paths.
+  // - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).
+  rpc SendTextMessage(SendTextMessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:sendText"
+      body: "*"
+    };
+  }
 
-  rpc SendAttachmentMessage(SendAttachmentMessageRequest) returns (MessageResponse);
+  rpc SendAttachmentMessage(SendAttachmentMessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:sendAttachment"
+      body: "*"
+    };
+  }
 
-  rpc SendMultipartMessage(SendMultipartMessageRequest) returns (MessageResponse);
+  rpc SendMultipartMessage(SendMultipartMessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:sendMultipart"
+      body: "*"
+    };
+  }
 
   // Sends an iMessage mini-app card backed by the caller's own extension.
-  rpc SendCustomizedMiniAppMessage(SendCustomizedMiniAppMessageRequest) returns (MessageResponse);
+  rpc SendCustomizedMiniAppMessage(SendCustomizedMiniAppMessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:sendCustomizedMiniApp"
+      body: "*"
+    };
+  }
 
   // Updates an iMessage mini-app card backed by the caller's own extension.
-  rpc UpdateCustomizedMiniAppMessage(UpdateCustomizedMiniAppMessageRequest) returns (MessageResponse);
+  rpc UpdateCustomizedMiniAppMessage(UpdateCustomizedMiniAppMessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:updateCustomizedMiniApp"
+      body: "*"
+    };
+  }
 
-  rpc EditMessage(EditMessageRequest) returns (MessageResponse);
+  rpc EditMessage(EditMessageRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:edit"
+      body: "*"
+    };
+  }
 
   // Retracts an existing message and returns Empty after helper success.
-  rpc UnsendMessage(UnsendMessageRequest) returns (google.protobuf.Empty);
+  rpc UnsendMessage(UnsendMessageRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/messages:unsend"
+      body: "*"
+    };
+  }
 
-  rpc SetReaction(SetReactionRequest) returns (MessageResponse);
+  rpc SetReaction(SetReactionRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:setReaction"
+      body: "*"
+    };
+  }
 
-  rpc PlaceSticker(PlaceStickerRequest) returns (MessageResponse);
+  rpc PlaceSticker(PlaceStickerRequest) returns (MessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/messages:placeSticker"
+      body: "*"
+    };
+  }
 
   // Triggers Apple's per-message "Notify Anyway" action.
-  rpc NotifySilencedMessage(NotifySilencedMessageRequest) returns (google.protobuf.Empty);
+  rpc NotifySilencedMessage(NotifySilencedMessageRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/messages:notifySilenced"
+      body: "*"
+    };
+  }
 
   // Reads
-  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse) {
+    option (google.api.http) = {
+      get: "/v1/messages/{message_guid}"
+    };
+  }
 
-  rpc ListRecentMessages(ListRecentMessagesRequest) returns (ListRecentMessagesResponse);
+  // Query parameters over HTTP: `pageSize` (int), `isFromMe`/`isRead`
+  // (true|false), `before`/`after` (RFC 3339 timestamps, the proto3-JSON
+  // form of `google.protobuf.Timestamp`).
+  rpc ListRecentMessages(ListRecentMessagesRequest) returns (ListRecentMessagesResponse) {
+    option (google.api.http) = {
+      get: "/v1/messages:listRecent"
+    };
+  }
 
-  rpc ListChatMessages(ListChatMessagesRequest) returns (ListChatMessagesResponse);
+  // Same query-parameter shapes as `ListRecentMessages`, plus `chatGuid`.
+  rpc ListChatMessages(ListChatMessagesRequest) returns (ListChatMessagesResponse) {
+    option (google.api.http) = {
+      get: "/v1/messages:listByChat"
+    };
+  }
 
+  // No HTTP mapping on purpose: the response carries raw media bytes
+  // (`EmbeddedMedia.data`), which don't belong base64-encoded in JSON.
+  // Served over HTTP by a dedicated raw-bytes route in the transcoding
+  // middleware alongside Upload/DownloadAttachment.
   rpc GetEmbeddedMedia(GetEmbeddedMediaRequest) returns (GetEmbeddedMediaResponse);
 
   // Live durable-event subscription. Pair with `EventService.CatchUpEvents`
