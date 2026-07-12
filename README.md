@@ -25,12 +25,45 @@ Runs on any runtime with `fetch` (Cloudflare Workers, Node `>=18.17`, Bun,
 Deno, browsers). The package is ESM-only. Workers compatibility is enforced
 in CI: every build bundles the SDK and boots it in workerd.
 
+## Entrypoints
+
+One package, three entrypoints:
+
+| Import | What you get |
+| --- | --- |
+| `@photon-ai/advanced-imessage` | `createHttpClient`, `createGrpcClient`, and every shared type. HTTP-flavored: `ClientOptions` etc. are the HTTP client's. |
+| `@photon-ai/advanced-imessage/http` | The HTTP transport only. Safe everywhere `fetch` exists. |
+| `@photon-ai/advanced-imessage/grpc` | The legacy v1 gRPC transport: the full v1 surface, including `events` and the live `subscribeEvents`/`watch` streams. Node/Bun only. |
+
+The gRPC transport is frozen at its v1 behavior and exists for backwards
+compatibility; new code should use HTTP. Using it requires its optional peer
+dependencies (never installed, downloaded, or evaluated otherwise):
+
+```bash
+bun add nice-grpc nice-grpc-common @grpc/grpc-js
+```
+
+## Migrating from v1 (gRPC)
+
+v1 of this package *was* the gRPC SDK. Your code keeps working with two
+changes — an import specifier and the peer install above:
+
+```diff
+-import { createClient, type ClientOptions } from "@photon-ai/advanced-imessage";
++import { createClient, type ClientOptions } from "@photon-ai/advanced-imessage/grpc";
+```
+
+Every v1 export keeps its name on the `/grpc` subpath (`createClient` is a
+deprecated alias of `createGrpcClient`). Live event streams stay
+gRPC-only — over HTTP, inbound events ride webhooks instead (see
+[Inbound events](#inbound-events)).
+
 ## Connect
 
 ```ts
-import { createClient } from "@photon-ai/advanced-imessage";
+import { createHttpClient } from "@photon-ai/advanced-imessage";
 
-const im = createClient({
+const im = createHttpClient({
   address: "http://localhost:8080", // the HTTP middleware
   token: process.env.IMESSAGE_TOKEN!,
 });
@@ -43,7 +76,7 @@ a full `http(s)://` URL. `token` may also be an async function when
 credentials rotate — it is resolved fresh for every call:
 
 ```ts
-const im = createClient({
+const im = createHttpClient({
   address: "imessage.example.com",
   token: async () => process.env.IMESSAGE_TOKEN!,
 });
@@ -253,7 +286,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const event = await request.json();
     if (event.type === "message.received") {
-      const im = createClient({
+      const im = createHttpClient({
         address: env.IMESSAGE_HTTP_ADDRESS,
         token: () => mintToken(env),
       });
@@ -335,7 +368,7 @@ try {
 ## Client Options
 
 ```ts
-const im = createClient({
+const im = createHttpClient({
   address: "http://localhost:8080",
   token: "api-token",
   timeout: 10_000,
@@ -364,8 +397,19 @@ bun test
 bun run build
 ```
 
-`bun run build` regenerates protobuf output and builds `dist/`.
-`bun run generate:http` regenerates the HTTP client (`src/generated/http`)
-from the middleware's OpenAPI spec (`gen/openapi/imessage.swagger.json`).
+The repo is a bun-workspaces monorepo; only `packages/advanced-imessage`
+publishes to npm — it bundles the private workspace packages:
+
+- `packages/core` — shared types, errors, streaming, proto↔public mapper,
+  generated proto codecs
+- `packages/http` — the fetch transport and the live resources
+- `packages/grpc` — the frozen v1 gRPC transport behind a lazy façade
+
+`bun run build` regenerates protobuf output and builds
+`packages/advanced-imessage/dist/`. `bun run generate:http` regenerates the
+HTTP route client (`packages/http/src/generated/http`) from the middleware's
+OpenAPI spec (`gen/openapi/imessage.swagger.json`). After a build,
+`bun test tests/dist` gates the published artifact: single class identity
+across entrypoints and no static `nice-grpc` in the index/http graphs.
 CI also bundles the SDK for workerd and boots it (`tests/workerd`), so a
 Workers-hostile dependency cannot land unnoticed.

@@ -241,7 +241,7 @@ Factory function returns an interface. The class is an implementation detail.
 
 ## Proto and Codegen
 
-`proto/photon/imessage/v1/*.proto` is the contract. `src/generated/` is also
+`proto/photon/imessage/v1/*.proto` is the contract. `packages/core/src/generated/` is also
 committed so the repo is clone-and-build with no codegen step required.
 
 We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-definitions`. ts-proto generates:
@@ -251,7 +251,7 @@ We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-defini
 - `Date` for Timestamp fields — no manual conversion
 - Code that compiles under full strict mode
 
-Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` bridges generated types to public types. Same Mapper pattern the server uses.
+Handwritten types in `packages/core/src/types/` are the public API. `packages/core/src/mapper.ts` bridges generated types to public types. Same Mapper pattern the server uses.
 
 ### When the server changes
 
