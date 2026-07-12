@@ -11,7 +11,7 @@ managed:
     - file_option: swift_prefix
 plugins:
   - local: protoc-gen-ts_proto
-    out: src/generated
+    out: packages/core/src/generated
     opt:
       - outputServices=nice-grpc,outputServices=generic-definitions
       - useExactTypes=false

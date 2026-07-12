@@ -1,0 +1,15 @@
+{
+  "name": "@photon-ai/aim-core",
+  "version": "2.0.0",
+  "description": "Shared types, errors, mapper, and utilities for @photon-ai/advanced-imessage. Private — bundled into the published package.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./internal": "./src/internal.ts",
+    "./generated/*": "./src/generated/*.ts"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.11.0"
+  }
+}

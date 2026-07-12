@@ -3,11 +3,11 @@
  * If the package (or any dependency) reaches for node:* APIs, gRPC, or
  * other Workers-hostile surface, this bundle or boot fails in CI.
  */
-import { createClient } from "../../src/index.ts";
+import { createHttpClient } from "../../packages/http/src/index.ts";
 
 export default {
   fetch(): Response {
-    const im = createClient({
+    const im = createHttpClient({
       address: "https://middleware.invalid",
       token: () => Promise.resolve("test-token"),
       retry: true,

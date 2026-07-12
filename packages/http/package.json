@@ -1,0 +1,13 @@
+{
+  "name": "@photon-ai/aim-http",
+  "version": "2.0.0",
+  "description": "Fetch-based HTTP transport for @photon-ai/advanced-imessage. Private — bundled into the published package.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@photon-ai/aim-core": "workspace:*"
+  }
+}
