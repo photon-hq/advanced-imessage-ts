@@ -20,6 +20,18 @@
         "wrangler": "^4.110.0",
       },
     },
+    "packages/advanced-imessage": {
+      "name": "@photon-ai/advanced-imessage",
+      "version": "2.0.0",
+      "dependencies": {
+        "@bufbuild/protobuf": "^2.11.0",
+      },
+      "devDependencies": {
+        "@photon-ai/aim-core": "workspace:*",
+        "@photon-ai/aim-http": "workspace:*",
+        "tsup": "^8.4.0",
+      },
+    },
     "packages/core": {
       "name": "@photon-ai/aim-core",
       "version": "2.0.0",
@@ -225,6 +237,8 @@
     "@jsdevtools/ono": ["@jsdevtools/ono@7.1.3", "", {}, "sha512-4JQNk+3mVzK3xh2rqd6RB4J46qUR19azEHBneZyTZM+c456qOrbbM/5xcR8huNCCcbVt7+UmizG6GuUvPvKUYg=="],
 
     "@lukeed/ms": ["@lukeed/ms@2.0.2", "", {}, "sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA=="],
+
+    "@photon-ai/advanced-imessage": ["@photon-ai/advanced-imessage@workspace:packages/advanced-imessage"],
 
     "@photon-ai/aim-core": ["@photon-ai/aim-core@workspace:packages/core"],
 

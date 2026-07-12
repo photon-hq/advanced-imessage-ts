@@ -1,0 +1,56 @@
+{
+  "name": "@photon-ai/advanced-imessage",
+  "version": "2.0.0",
+  "description": "TypeScript SDK for Advanced iMessage API",
+  "author": "Photon",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/photon-hq/advanced-imessage-ts.git",
+    "directory": "packages/advanced-imessage"
+  },
+  "bugs": {
+    "url": "https://github.com/photon-hq/advanced-imessage-ts/issues"
+  },
+  "keywords": [
+    "imessage",
+    "agent",
+    "ai",
+    "typescript",
+    "apple"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "bun": "./dist/http.js",
+      "import": "./dist/http.js",
+      "default": "./dist/http.js"
+    }
+  },
+  "files": [
+    "dist",
+    "proto"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepublishOnly": "rm -rf proto && cp -R ../../proto ./proto && bun run build"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.11.0"
+  },
+  "devDependencies": {
+    "@photon-ai/aim-core": "workspace:*",
+    "@photon-ai/aim-http": "workspace:*",
+    "tsup": "^8.4.0"
+  }
+}
