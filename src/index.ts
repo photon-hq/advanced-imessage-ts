@@ -23,6 +23,13 @@ export {
   RateLimitError,
   ValidationError,
 } from "./errors/imessage-error.js";
+// Event parsing (proto3-JSON → public event types, for Fusor envelopes)
+export {
+  parseChatChangeEvent,
+  parseGroupChangeEvent,
+  parseMessageChangeEvent,
+  parsePollChangeEvent,
+} from "./events/parse.js";
 // Resource type re-exports
 export type { GroupIcon } from "./resources/groups.js";
 // Streaming
