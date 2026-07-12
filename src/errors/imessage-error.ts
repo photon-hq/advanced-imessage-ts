@@ -24,8 +24,18 @@ export interface IMessageErrorOptions {
   readonly context?: Record<string, string>;
   /** Numeric gRPC status code (mirrors `nice-grpc-common` Status enum). */
   readonly grpcCode: number;
+  /** Server-requested retry delay in milliseconds (`Retry-After`). */
+  readonly retryAfter?: number;
   /** Whether the caller should retry the request. */
   readonly retryable: boolean;
+  /**
+   * Where the error originated: `"upstream"` (a Mac backend),
+   * `"spectrum-imessage"` (the proxy), `"middleware"` (the HTTP
+   * transcoder), or `"intermediary"` (a load balancer/gateway that
+   * answered without the middleware's error contract — the status code is
+   * approximate and the error is infrastructure, not semantics).
+   */
+  readonly source?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,6 +52,8 @@ export class IMessageError extends Error {
   readonly retryable: boolean;
   readonly grpcCode: number;
   readonly context: Record<string, string>;
+  readonly retryAfter?: number;
+  readonly source?: string;
 
   constructor(message: string, options: IMessageErrorOptions) {
     super(message, { cause: options.cause });
@@ -50,6 +62,8 @@ export class IMessageError extends Error {
     this.retryable = options.retryable;
     this.grpcCode = options.grpcCode;
     this.context = options.context ?? {};
+    this.retryAfter = options.retryAfter;
+    this.source = options.source;
   }
 }
 

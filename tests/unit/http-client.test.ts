@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import {
   ConnectionError,
+  IMessageError,
   NotFoundError,
   ValidationError,
 } from "../../src/errors/imessage-error.ts";
@@ -222,6 +223,134 @@ describe("http transport", () => {
     const second = captured[1]?.headers.get("x-idempotency-key");
     expect(first).toBeTruthy();
     expect(second).toBe(first ?? "");
+  });
+
+  it("retries body-less 5xx responses from intermediaries", async () => {
+    // No contract body — an LB answered. 503 defaults to retryable now.
+    const captured = mockFetch([
+      { status: 503, body: {} },
+      { status: 200, body: { message: { guid: "m-3" } } },
+    ]);
+    const response = await clients({
+      retry: { initialDelay: 1, maxDelay: 2 },
+    }).messages.sendTextMessage({ chatGuid: "x", text: "y" });
+    expect(captured.length).toBe(2);
+    expect(response.message?.guid).toBe("m-3");
+  });
+
+  it("does not retry a body-less 500 and tags it intermediary", async () => {
+    const captured = mockFetch([{ status: 500, body: {} }]);
+    let caught: unknown;
+    try {
+      await clients({ retry: true }).messages.sendTextMessage({
+        chatGuid: "x",
+        text: "y",
+      });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(IMessageError);
+    expect((caught as IMessageError).retryable).toBe(false);
+    expect((caught as IMessageError).source).toBe("intermediary");
+    expect(captured.length).toBe(1);
+  });
+
+  it("honors Retry-After over the client backoff", async () => {
+    let call = 0;
+    globalThis.fetch = (async () => {
+      call += 1;
+      if (call === 1) {
+        return new Response("{}", {
+          status: 503,
+          headers: {
+            "content-type": "application/json",
+            "retry-after": "1",
+          },
+        });
+      }
+      return new Response(JSON.stringify({ message: { guid: "m-4" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+    const started = Date.now();
+    // Client backoff would sleep at most ~2ms; Retry-After demands 1000ms.
+    const response = await clients({
+      retry: { initialDelay: 1, maxDelay: 2 },
+    }).messages.sendTextMessage({ chatGuid: "x", text: "y" });
+    expect(call).toBe(2);
+    expect(response.message?.guid).toBe("m-4");
+    expect(Date.now() - started).toBeGreaterThanOrEqual(900);
+  });
+
+  it("retries raw-route failures that arrive before the body streams", async () => {
+    let dataCalls = 0;
+    globalThis.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      const path = new URL(request.url).pathname;
+      if (path === "/v1/attachments/att-r") {
+        return new Response(JSON.stringify({ attachment: { guid: "att-r" } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      dataCalls += 1;
+      if (dataCalls === 1) {
+        // Plain-text 502 — an intermediary, no contract body.
+        return new Response("bad gateway", {
+          status: 502,
+          headers: { "content-type": "text/plain" },
+        });
+      }
+      return new Response(new Uint8Array([5]), { status: 200 });
+    }) as typeof fetch;
+
+    const frames: unknown[] = [];
+    for await (const frame of clients({
+      retry: { initialDelay: 1, maxDelay: 2 },
+    }).attachments.downloadAttachment({ attachmentGuid: "att-r" })) {
+      frames.push(frame);
+    }
+    expect(dataCalls).toBe(2);
+    expect(frames.length).toBe(2); // header + the one chunk
+  });
+
+  it("reuses one idempotency key across raw upload retries", async () => {
+    const keys: (string | null)[] = [];
+    let call = 0;
+    globalThis.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      keys.push(request.headers.get("x-idempotency-key"));
+      call += 1;
+      if (call === 1) {
+        return new Response("busy", {
+          status: 503,
+          headers: { "content-type": "text/plain" },
+        });
+      }
+      return new Response(JSON.stringify({ attachment: { guid: "att-1" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+    await clients({
+      autoIdempotency: true,
+      retry: { initialDelay: 1, maxDelay: 2 },
+    }).attachments.uploadAttachment({
+      fileName: "a.txt",
+      data: new Uint8Array([1]),
+    });
+    expect(keys.length).toBe(2);
+    expect(keys[0]).toBeTruthy();
+    expect(keys[1]).toBe(keys[0] ?? "");
   });
 
   it("omits the idempotency key on reads", async () => {

@@ -17,7 +17,16 @@
  * ```
  *
  * The subclass mapping matches `fromGrpcError` exactly, so callers see the
- * identical error surface over HTTP that they saw over gRPC.
+ * identical error surface over HTTP that they saw over gRPC. `source` is
+ * carried onto the error, along with a `retryAfter` (ms) parsed from the
+ * `Retry-After` response header when the server sent one.
+ *
+ * A response WITHOUT a usable contract body never came from the middleware
+ * (it stamps `x-spectrum-middleware` on everything and always emits the
+ * contract) — a load balancer or gateway answered. Those errors get
+ * `source: "intermediary"`, transient statuses (408/429/502/503/504)
+ * default to `retryable: true` (gRPC UNAVAILABLE semantics), and a bare
+ * 500 stays non-retryable (gRPC INTERNAL semantics).
  */
 
 import type { ErrorCode } from "../types/errors.ts";
@@ -59,8 +68,15 @@ const NOT_FOUND = 5;
 const PERMISSION_DENIED = 7;
 const RESOURCE_EXHAUSTED = 8;
 const FAILED_PRECONDITION = 9;
+const INTERNAL = 13;
 const UNAVAILABLE = 14;
 const UNAUTHENTICATED = 16;
+
+/** Stamped by the middleware on every response it produces. */
+export const MIDDLEWARE_MARKER_HEADER = "x-spectrum-middleware";
+
+const MS_PER_SECOND = 1000;
+const BODYLESS_RETRYABLE_STATUSES = new Set([408, 429, 502, 503, 504]);
 
 /** Parsed shape of the middleware's JSON error body. */
 export interface HttpErrorBody {
@@ -72,31 +88,28 @@ export interface HttpErrorBody {
   readonly source?: string;
 }
 
-/**
- * Build the `IMessageError` subclass for a non-2xx middleware response.
- *
- * @param body - The parsed JSON error body (fields may be missing if the
- *               response didn't come from the middleware, e.g. a proxy 502).
- * @param httpStatus - The HTTP status, used only as a fallback when the body
- *                     carries no usable `code`.
- */
-export function fromHttpErrorBody(
-  body: HttpErrorBody,
-  httpStatus: number
+/** `Retry-After` header (integer seconds or HTTP-date) → milliseconds. */
+function parseRetryAfter(headers: Headers | undefined): number | undefined {
+  const raw = headers?.get("retry-after");
+  if (!raw) {
+    return;
+  }
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * MS_PER_SECOND;
+  }
+  const dateMs = Date.parse(raw);
+  if (Number.isNaN(dateMs)) {
+    return;
+  }
+  return Math.max(dateMs - Date.now(), 0);
+}
+
+function toErrorSubclass(
+  grpcCode: number,
+  details: string,
+  options: IMessageErrorOptions
 ): IMessageError {
-  const grpcCode =
-    (body.code ? GRPC_CODE_BY_NAME[body.code] : undefined) ??
-    grpcCodeFromHttpStatus(httpStatus);
-  const details =
-    body.message ?? `HTTP ${httpStatus} without a middleware error body`;
-
-  const options: IMessageErrorOptions = {
-    code: (body.errorCode as ErrorCode | undefined) ?? "internalError",
-    context: body.context ?? {},
-    retryable: body.retryable ?? false,
-    grpcCode,
-  };
-
   switch (grpcCode) {
     case UNAUTHENTICATED:
     case PERMISSION_DENIED:
@@ -119,6 +132,80 @@ export function fromHttpErrorBody(
     default:
       return new IMessageError(details, options);
   }
+}
+
+/** Best-fit `ErrorCode` for a status-only (contract-less) error. */
+function bodylessErrorCode(httpStatus: number): ErrorCode {
+  switch (httpStatus) {
+    case 408:
+    case 504:
+      return "timeout";
+    case 502:
+    case 503:
+      return "serviceUnavailable";
+    default:
+      return "internalError";
+  }
+}
+
+/**
+ * Classify a response that carried no usable contract body: the status is
+ * all we have, and it likely came from an intermediary, not the middleware.
+ */
+function fromBodylessStatus(
+  body: HttpErrorBody,
+  httpStatus: number,
+  headers: Headers | undefined,
+  retryAfter: number | undefined
+): IMessageError {
+  const grpcCode = grpcCodeFromHttpStatus(httpStatus);
+  const details =
+    body.message ?? `HTTP ${httpStatus} without a middleware error body`;
+  const options: IMessageErrorOptions = {
+    code: bodylessErrorCode(httpStatus),
+    context: body.context ?? {},
+    grpcCode,
+    retryAfter,
+    retryable: body.retryable ?? BODYLESS_RETRYABLE_STATUSES.has(httpStatus),
+    source: headers?.has(MIDDLEWARE_MARKER_HEADER)
+      ? "middleware"
+      : "intermediary",
+  };
+  return toErrorSubclass(grpcCode, details, options);
+}
+
+/**
+ * Build the `IMessageError` subclass for a non-2xx middleware response.
+ *
+ * @param body - The parsed JSON error body (fields may be missing if the
+ *               response didn't come from the middleware, e.g. a proxy 502).
+ * @param httpStatus - The HTTP status, used only as a fallback when the body
+ *                     carries no usable `code`.
+ * @param headers - Response headers, for `Retry-After` and the middleware
+ *                  marker.
+ */
+export function fromHttpErrorBody(
+  body: HttpErrorBody,
+  httpStatus: number,
+  headers?: Headers
+): IMessageError {
+  const retryAfter = parseRetryAfter(headers);
+  const contractCode = body.code ? GRPC_CODE_BY_NAME[body.code] : undefined;
+  if (contractCode === undefined) {
+    return fromBodylessStatus(body, httpStatus, headers, retryAfter);
+  }
+
+  const details =
+    body.message ?? `HTTP ${httpStatus} without a middleware error body`;
+  const options: IMessageErrorOptions = {
+    code: (body.errorCode as ErrorCode | undefined) ?? "internalError",
+    context: body.context ?? {},
+    grpcCode: contractCode,
+    retryAfter,
+    retryable: body.retryable ?? false,
+    source: body.source,
+  };
+  return toErrorSubclass(contractCode, details, options);
 }
 
 /**
@@ -156,8 +243,12 @@ function grpcCodeFromHttpStatus(status: number): number {
       return PERMISSION_DENIED;
     case 404:
       return NOT_FOUND;
+    case 408:
+      return DEADLINE_EXCEEDED;
     case 429:
       return RESOURCE_EXHAUSTED;
+    case 500:
+      return INTERNAL;
     case 502:
     case 503:
       return UNAVAILABLE;

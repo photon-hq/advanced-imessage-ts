@@ -24,6 +24,7 @@ import {
   fromTransportFailure,
   type HttpErrorBody,
 } from "../errors/http-error-handler.ts";
+import type { IMessageError } from "../errors/imessage-error.ts";
 import { ValidationError } from "../errors/imessage-error.ts";
 import {
   type Client,
@@ -331,11 +332,40 @@ async function authHeaders(
 }
 
 /**
+ * Ceiling on honoring a server's `Retry-After`: long enough to respect real
+ * rate-limit windows, short enough that a pathological header can't stall a
+ * call for minutes.
+ */
+const RETRY_AFTER_CAP_MS = 30_000;
+
+/**
+ * Sleep before retry attempt N: the server's `Retry-After` when it sent
+ * one (capped), else exponential backoff with full jitter.
+ */
+async function retryDelay(
+  retry: NonNullable<CallContext["retry"]>,
+  attempt: number,
+  lastError: IMessageError | undefined,
+  signal: AbortSignal | undefined
+): Promise<void> {
+  if (lastError?.retryAfter !== undefined) {
+    await sleep(Math.min(lastError.retryAfter, RETRY_AFTER_CAP_MS), signal);
+    return;
+  }
+  const capped = Math.min(
+    retry.initialDelay * 2 ** (attempt - 1),
+    retry.maxDelay
+  );
+  await sleep(Math.random() * capped, signal);
+}
+
+/**
  * Run one SDK operation with auth, timeout, and retry. Retries follow the
- * gRPC transport's contract: only when the server explicitly marked the
- * error retryable, with exponential backoff and full jitter. The
- * idempotency key (when enabled) is generated once and reused across
- * attempts so retries dedupe server-side.
+ * gRPC transport's contract: only when the error is marked retryable —
+ * explicitly by the server, or by status for body-less intermediary
+ * failures — honoring `Retry-After`, else exponential backoff with full
+ * jitter. The idempotency key (when enabled) is generated once and reused
+ * across attempts so retries dedupe server-side.
  */
 async function callWithRetry(
   ctx: CallContext,
@@ -345,13 +375,10 @@ async function callWithRetry(
 ): Promise<unknown> {
   const headers = await authHeaders(ctx, mutating);
   const maxAttempts = ctx.retry?.maxAttempts ?? 1;
+  let lastError: IMessageError | undefined;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (attempt > 0 && ctx.retry) {
-      const capped = Math.min(
-        ctx.retry.initialDelay * 2 ** (attempt - 1),
-        ctx.retry.maxDelay
-      );
-      await sleep(Math.random() * capped, signal);
+      await retryDelay(ctx.retry, attempt, lastError, signal);
     }
     let outcome: Awaited<SdkResult>;
     try {
@@ -369,11 +396,13 @@ async function callWithRetry(
     }
     const error = fromHttpErrorBody(
       (outcome.error ?? {}) as HttpErrorBody,
-      outcome.response.status
+      outcome.response.status,
+      outcome.response.headers
     );
     if (!(error.retryable && ctx.retry) || attempt === maxAttempts - 1) {
       throw error;
     }
+    lastError = error;
   }
   throw fromTransportFailure(new Error("retry budget exhausted"));
 }
@@ -449,6 +478,13 @@ function serviceClient<T>(
 // spec — these mirror the middleware's hand-mounted routes)
 // ---------------------------------------------------------------------------
 
+/**
+ * Fetch a raw route with auth, timeout, and the same retry contract as the
+ * JSON ops. Only status-level failures retry — a retryable error here means
+ * no body byte was ever consumed, so re-issuing is safe (uploads reuse one
+ * idempotency key across attempts). Failures while streaming a body happen
+ * after this returns and are never retried.
+ */
 async function rawFetch(
   ctx: CallContext,
   url: string,
@@ -463,27 +499,43 @@ async function rawFetch(
 ): Promise<Response> {
   const headers = await authHeaders(ctx, init.mutating ?? false);
   const signal = combineSignals(init.signal, ctx.timeout);
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: init.method,
-      headers,
-      body: init.body as never,
-      signal: signal ?? null,
-    });
-  } catch (error) {
-    throw fromTransportFailure(error);
-  }
-  if (!response.ok) {
+  const maxAttempts = ctx.retry?.maxAttempts ?? 1;
+  let lastError: IMessageError | undefined;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0 && ctx.retry) {
+      await retryDelay(ctx.retry, attempt, lastError, signal);
+    }
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: init.method,
+        headers,
+        body: init.body as never,
+        signal: signal ?? null,
+      });
+    } catch (error) {
+      throw fromTransportFailure(error);
+    }
+    if (response.ok) {
+      return response;
+    }
     let errorBody: HttpErrorBody = {};
     try {
       errorBody = (await response.json()) as HttpErrorBody;
     } catch {
       // non-JSON error body (e.g. a proxy) — fall back to the status code
     }
-    throw fromHttpErrorBody(errorBody, response.status);
+    const error = fromHttpErrorBody(
+      errorBody,
+      response.status,
+      response.headers
+    );
+    if (!(error.retryable && ctx.retry) || attempt === maxAttempts - 1) {
+      throw error;
+    }
+    lastError = error;
   }
-  return response;
+  throw fromTransportFailure(new Error("retry budget exhausted"));
 }
 
 function embeddedMediaMethod(ctx: CallContext) {

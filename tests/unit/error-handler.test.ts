@@ -59,11 +59,80 @@ describe("fromHttpErrorBody", () => {
     expect(error.context).toEqual({ chatGuid: "spc-1" });
   });
 
-  it("falls back to the HTTP status when the body is not from the middleware", () => {
-    const error = fromHttpErrorBody({}, 503);
-    expect(error).toBeInstanceOf(ConnectionError);
-    expect(error.grpcCode).toBe(14);
-    expect(error.code).toBe("internalError");
+  it("carries the body's source onto the error", () => {
+    const error = fromHttpErrorBody(
+      { code: "unavailable", message: "down", source: "upstream" },
+      503
+    );
+    expect(error.source).toBe("upstream");
+  });
+
+  it("classifies body-less statuses conservatively", () => {
+    // [status, class, retryable, errorCode]
+    const cases: [number, unknown, boolean, string][] = [
+      [408, ConnectionError, true, "timeout"],
+      [429, RateLimitError, true, "internalError"],
+      [500, IMessageError, false, "internalError"],
+      [502, ConnectionError, true, "serviceUnavailable"],
+      [503, ConnectionError, true, "serviceUnavailable"],
+      [504, ConnectionError, true, "timeout"],
+      [400, ValidationError, false, "internalError"],
+      [404, NotFoundError, false, "internalError"],
+    ];
+    for (const [status, cls, retryable, code] of cases) {
+      const error = fromHttpErrorBody({}, status);
+      expect(error).toBeInstanceOf(cls as never);
+      expect(error.retryable).toBe(retryable);
+      expect(error.code).toBe(code as never);
+      expect(error.source).toBe("intermediary");
+    }
+  });
+
+  it("keeps a body-less 500 as the non-retryable base class", () => {
+    const error = fromHttpErrorBody({}, 500);
+    expect(error.constructor).toBe(IMessageError);
+    expect(error.retryable).toBe(false);
+    expect(error.grpcCode).toBe(13);
+  });
+
+  it("tags body-less errors as middleware when the marker header is present", () => {
+    const headers = new Headers({ "x-spectrum-middleware": "0.1.0" });
+    const error = fromHttpErrorBody({}, 503, headers);
+    expect(error.source).toBe("middleware");
+  });
+
+  it("parses Retry-After seconds into milliseconds", () => {
+    const headers = new Headers({ "retry-after": "2" });
+    const error = fromHttpErrorBody({}, 429, headers);
+    expect(error.retryAfter).toBe(2000);
+    expect(error).toBeInstanceOf(RateLimitError);
+  });
+
+  it("parses an HTTP-date Retry-After into a forward delay", () => {
+    const headers = new Headers({
+      "retry-after": new Date(Date.now() + 5000).toUTCString(),
+    });
+    const error = fromHttpErrorBody({}, 503, headers);
+    expect(error.retryAfter).toBeGreaterThan(0);
+    expect(error.retryAfter).toBeLessThanOrEqual(5000);
+  });
+
+  it("ignores an unparseable Retry-After", () => {
+    const headers = new Headers({ "retry-after": "soonish" });
+    const error = fromHttpErrorBody({}, 503, headers);
+    expect(error.retryAfter).toBeUndefined();
+  });
+
+  it("attaches Retry-After to contract errors too", () => {
+    const headers = new Headers({ "retry-after": "1" });
+    const error = fromHttpErrorBody(
+      { code: "resource_exhausted", message: "slow down", retryable: true },
+      429,
+      headers
+    );
+    expect(error).toBeInstanceOf(RateLimitError);
+    expect(error.retryAfter).toBe(1000);
+    expect(error.retryable).toBe(true);
   });
 });
 
