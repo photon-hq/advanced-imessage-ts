@@ -145,9 +145,11 @@ for await (const frame of im.attachments.downloadStream(uploaded.attachment.guid
 }
 ```
 
-**Live Photo companions are not supported over the HTTP transport yet.**
-`attachments.upload(...)` with a `companion` throws a `ValidationError`
-(`operationNotSupported`), and downloads carry the primary payload only.
+Live Photo companions transfer over HTTP: `attachments.upload(...)` with a
+`companion` sends `multipart/form-data` (`file` + `companion` parts), and
+`downloadStream(...)` yields the v1 frame sequence — a header frame carrying
+`companionInfo`, the primary chunks, then the `companionChunk` frames fetched
+from the middleware's `/v1/attachments/{guid}/companion` route.
 
 `7z` and `rar` are not currently listed as tested formats because the current
 server test workspace does not include real encoders for those archive types.

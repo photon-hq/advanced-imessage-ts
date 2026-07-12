@@ -80,6 +80,8 @@ import type {
   AttachmentServiceClient as GenAttachmentServiceClient,
 } from "../generated/photon/imessage/v1/attachment_service.ts";
 import { AttachmentServiceDefinition } from "../generated/photon/imessage/v1/attachment_service.ts";
+import type { CompanionInfo } from "../generated/photon/imessage/v1/attachment_types.ts";
+import { CompanionKind } from "../generated/photon/imessage/v1/attachment_types.ts";
 import type { ChatServiceClient as GenChatServiceClient } from "../generated/photon/imessage/v1/chat_service.ts";
 import { ChatServiceDefinition } from "../generated/photon/imessage/v1/chat_service.ts";
 import type { GroupServiceClient as GenGroupServiceClient } from "../generated/photon/imessage/v1/group_service.ts";
@@ -452,7 +454,9 @@ async function rawFetch(
   url: string,
   init: {
     method: "GET" | "POST";
-    body?: Uint8Array;
+    // FormData bodies rely on fetch setting the multipart content-type —
+    // the boundary is lost if we ever set that header ourselves.
+    body?: Uint8Array | FormData;
     mutating?: boolean;
     signal?: AbortSignal | undefined;
   }
@@ -508,17 +512,6 @@ function uploadAttachmentMethod(
 ): AttachmentServiceClient["uploadAttachment"] {
   const codec = AttachmentServiceDefinition.methods.uploadAttachment;
   return async (request, options?: CallOptions) => {
-    if (request.companion) {
-      throw new ValidationError(
-        "Live Photo companion uploads are not supported over the HTTP transport yet",
-        {
-          code: "operationNotSupported",
-          context: {},
-          retryable: false,
-          grpcCode: 3,
-        }
-      );
-    }
     if (!request.fileName) {
       throw new ValidationError("fileName is required", {
         code: "invalidArgument",
@@ -527,18 +520,77 @@ function uploadAttachmentMethod(
         grpcCode: 3,
       });
     }
+    // A companion (Live Photo video) turns the raw-body POST into
+    // multipart/form-data — the middleware branches on content-type and
+    // populates UploadAttachmentRequest.companion from the extra parts.
+    let body: Uint8Array | FormData;
+    if (request.companion) {
+      // The cast mirrors rawFetch's `as never` body cast: lib.dom's BlobPart
+      // rejects Uint8Array<ArrayBufferLike> over SharedArrayBuffer variance,
+      // which never occurs here.
+      const blobOf = (bytes: Uint8Array | undefined): Blob =>
+        new Blob([(bytes ?? new Uint8Array()) as unknown as BlobPart]);
+      const form = new FormData();
+      form.append("file", blobOf(request.data));
+      form.append("companion", blobOf(request.companion.data));
+      form.append("companionKind", String(request.companion.kind));
+      body = form;
+    } else {
+      body = request.data ?? new Uint8Array();
+    }
     const queryParams = new URLSearchParams({ fileName: request.fileName });
     const response = await rawFetch(
       ctx,
       `${ctx.baseUrl}/v1/attachments:upload?${queryParams}`,
       {
         method: "POST",
-        body: request.data ?? new Uint8Array(),
+        body,
         mutating: true,
         signal: options?.signal ?? undefined,
       }
     );
     return codec.responseType.fromJSON(await response.json());
+  };
+}
+
+/** Non-empty chunks of a raw route's streamed response body. */
+async function* bodyChunks(response: Response): AsyncGenerator<Uint8Array> {
+  const responseBody = response.body;
+  if (!responseBody) {
+    return;
+  }
+  const reader = responseBody.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (value && value.length > 0) {
+        yield value;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+const CONTENT_DISPOSITION_FILENAME = /filename="([^"]*)"/;
+
+/**
+ * The companion raw route carries `CompanionInfo` as HTTP headers (the
+ * metadata route does not expose the companion at all).
+ */
+function companionInfoFromHeaders(headers: Headers): CompanionInfo {
+  const disposition = headers.get("content-disposition") ?? "";
+  return {
+    fileName: CONTENT_DISPOSITION_FILENAME.exec(disposition)?.[1] ?? "",
+    kind: Number(
+      headers.get("x-companion-kind") ??
+        CompanionKind.COMPANION_KIND_UNSPECIFIED
+    ) as CompanionKind,
+    mimeType: headers.get("content-type") ?? "application/octet-stream",
+    totalBytes: Number(headers.get("x-companion-total-bytes") ?? 0),
   };
 }
 
@@ -549,44 +601,60 @@ function downloadAttachmentMethod(
   return (request, options?: CallOptions) => {
     async function* frames(): AsyncGenerator<DownloadAttachmentResponse> {
       // Frame 0 (header): built from the metadata route — the raw download
-      // route carries metadata only as HTTP headers. Companion bytes are not
-      // available over HTTP (raw route forwards the primary payload only).
+      // route carries metadata only as HTTP headers.
       const info = await getInfo(
         { attachmentGuid: request.attachmentGuid },
         options
       );
+      const guid = encodeURIComponent(request.attachmentGuid ?? "");
+
+      // A companion (Live Photo video) rides its own raw route. Open it
+      // before the header frame is emitted so the frame can carry the
+      // CompanionInfo built from its response headers; its body is drained
+      // after the primary chunks, preserving the gRPC frame order.
+      const hasCompanion =
+        info.attachment?.companionKind !== undefined &&
+        info.attachment.companionKind !==
+          CompanionKind.COMPANION_KIND_UNSPECIFIED;
+      let companionResponse: Response | undefined;
+      if (hasCompanion) {
+        companionResponse = await rawFetch(
+          ctx,
+          `${ctx.baseUrl}/v1/attachments/${guid}/companion`,
+          { method: "GET", signal: options?.signal ?? undefined }
+        );
+      }
       yield {
-        header: { attachment: info.attachment, companion: undefined },
+        header: {
+          attachment: info.attachment,
+          companion: companionResponse
+            ? companionInfoFromHeaders(companionResponse.headers)
+            : undefined,
+        },
         primaryChunk: undefined,
         companionChunk: undefined,
       } as DownloadAttachmentResponse;
 
       const response = await rawFetch(
         ctx,
-        `${ctx.baseUrl}/v1/attachments/${encodeURIComponent(request.attachmentGuid ?? "")}/data`,
+        `${ctx.baseUrl}/v1/attachments/${guid}/data`,
         { method: "GET", signal: options?.signal ?? undefined }
       );
-      const responseBody = response.body;
-      if (!responseBody) {
-        return;
+      for await (const chunk of bodyChunks(response)) {
+        yield {
+          header: undefined,
+          primaryChunk: chunk,
+          companionChunk: undefined,
+        } as DownloadAttachmentResponse;
       }
-      const reader = responseBody.getReader();
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
-          }
-          if (value && value.length > 0) {
-            yield {
-              header: undefined,
-              primaryChunk: value,
-              companionChunk: undefined,
-            } as DownloadAttachmentResponse;
-          }
+      if (companionResponse) {
+        for await (const chunk of bodyChunks(companionResponse)) {
+          yield {
+            header: undefined,
+            primaryChunk: undefined,
+            companionChunk: chunk,
+          } as DownloadAttachmentResponse;
         }
-      } finally {
-        reader.releaseLock();
       }
     }
     return frames();

@@ -271,14 +271,58 @@ describe("http transport", () => {
     expect(result.attachment?.guid).toBe("att-1");
   });
 
-  it("rejects companion uploads with a clear error", async () => {
-    await expect(
-      clients().attachments.uploadAttachment({
-        fileName: "a.heic",
-        data: new Uint8Array([1]),
-        companion: { data: new Uint8Array([2]), kind: 1 },
-      })
-    ).rejects.toBeInstanceOf(ValidationError);
+  it("uploads a companion as multipart/form-data", async () => {
+    const captured: Array<{
+      contentType: string | null;
+      form: FormData;
+      url: URL;
+    }> = [];
+    globalThis.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      captured.push({
+        contentType: request.headers.get("content-type"),
+        form: await request.formData(),
+        url: new URL(request.url),
+      });
+      return new Response(
+        JSON.stringify({
+          attachment: { guid: "att-2", fileName: "a.heic" },
+          companion: {
+            fileName: "a.mov",
+            kind: "COMPANION_KIND_LIVE_PHOTO_VIDEO",
+            mimeType: "video/quicktime",
+            totalBytes: 2,
+          },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    }) as typeof fetch;
+
+    const result = await clients().attachments.uploadAttachment({
+      fileName: "a.heic",
+      data: new Uint8Array([1]),
+      companion: { data: new Uint8Array([2, 2]), kind: 1 },
+    });
+    const call = captured[0];
+    expect(call?.url.pathname).toBe("/v1/attachments:upload");
+    expect(call?.url.searchParams.get("fileName")).toBe("a.heic");
+    // fetch must own the multipart boundary — the SDK never sets the
+    // content-type itself.
+    expect(call?.contentType).toStartWith("multipart/form-data; boundary=");
+    const file = call?.form.get("file");
+    const companion = call?.form.get("companion");
+    expect(new Uint8Array(await (file as Blob).arrayBuffer())).toEqual(
+      new Uint8Array([1])
+    );
+    expect(new Uint8Array(await (companion as Blob).arrayBuffer())).toEqual(
+      new Uint8Array([2, 2])
+    );
+    expect(call?.form.get("companionKind")).toBe("1");
+    expect(result.companion?.kind).toBe(1);
   });
 
   it("streams downloads as header + primary chunks", async () => {
@@ -326,6 +370,93 @@ describe("http transport", () => {
     expect((frames[2] as { primaryChunk?: Uint8Array }).primaryChunk).toEqual(
       new Uint8Array([3])
     );
+  });
+
+  it("streams companion chunks after the primary payload", async () => {
+    let call = 0;
+    globalThis.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit
+    ) => {
+      const request =
+        input instanceof Request ? input : new Request(input, init);
+      call += 1;
+      if (call === 1) {
+        expect(new URL(request.url).pathname).toBe("/v1/attachments/att-live");
+        return new Response(
+          JSON.stringify({
+            attachment: {
+              companionKind: "COMPANION_KIND_LIVE_PHOTO_VIDEO",
+              guid: "att-live",
+              mimeType: "image/heic",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+      if (call === 2) {
+        // The companion route opens before the header frame is emitted so
+        // its headers can populate the frame's CompanionInfo.
+        expect(new URL(request.url).pathname).toBe(
+          "/v1/attachments/att-live/companion"
+        );
+        return new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new Uint8Array([7, 7]));
+              controller.close();
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-disposition": 'attachment; filename="cat.mov"',
+              "content-type": "video/quicktime",
+              "x-companion-kind": "1",
+              "x-companion-total-bytes": "2",
+            },
+          }
+        );
+      }
+      expect(new URL(request.url).pathname).toBe(
+        "/v1/attachments/att-live/data"
+      );
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1, 2]));
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { "content-type": "image/heic" } }
+      );
+    }) as typeof fetch;
+
+    const frames: unknown[] = [];
+    for await (const frame of clients().attachments.downloadAttachment({
+      attachmentGuid: "att-live",
+    })) {
+      frames.push(frame);
+    }
+    expect(call).toBe(3);
+    expect(frames.length).toBe(3);
+    const header = (
+      frames[0] as {
+        header?: { companion?: Record<string, unknown> };
+      }
+    ).header;
+    expect(header?.companion).toEqual({
+      fileName: "cat.mov",
+      kind: 1,
+      mimeType: "video/quicktime",
+      totalBytes: 2,
+    });
+    expect((frames[1] as { primaryChunk?: Uint8Array }).primaryChunk).toEqual(
+      new Uint8Array([1, 2])
+    );
+    expect(
+      (frames[2] as { companionChunk?: Uint8Array }).companionChunk
+    ).toEqual(new Uint8Array([7, 7]));
   });
 
   it("returns embedded media bytes with their mime type", async () => {
