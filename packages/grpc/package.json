@@ -1,0 +1,13 @@
+{
+  "name": "@photon-ai/aim-grpc",
+  "version": "2.0.0",
+  "description": "Frozen v1 gRPC transport for @photon-ai/advanced-imessage. Private — bundled into the published package; nice-grpc peers load lazily.",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@photon-ai/aim-core": "workspace:*"
+  }
+}

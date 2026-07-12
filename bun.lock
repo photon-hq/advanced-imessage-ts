@@ -39,6 +39,13 @@
         "@bufbuild/protobuf": "^2.11.0",
       },
     },
+    "packages/grpc": {
+      "name": "@photon-ai/aim-grpc",
+      "version": "2.0.0",
+      "dependencies": {
+        "@photon-ai/aim-core": "workspace:*",
+      },
+    },
     "packages/http": {
       "name": "@photon-ai/aim-http",
       "version": "2.0.0",
@@ -241,6 +248,8 @@
     "@photon-ai/advanced-imessage": ["@photon-ai/advanced-imessage@workspace:packages/advanced-imessage"],
 
     "@photon-ai/aim-core": ["@photon-ai/aim-core@workspace:packages/core"],
+
+    "@photon-ai/aim-grpc": ["@photon-ai/aim-grpc@workspace:packages/grpc"],
 
     "@photon-ai/aim-http": ["@photon-ai/aim-http@workspace:packages/http"],
 
