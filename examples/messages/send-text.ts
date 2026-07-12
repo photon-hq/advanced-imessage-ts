@@ -1,6 +1,6 @@
-import { createClient } from "@photon-ai/advanced-imessage";
+import { createHttpClient } from "@photon-ai/advanced-imessage";
 
-const im = createClient({
+const im = createHttpClient({
   address: "127.0.0.1:50051",
   token: "dev-token",
   tls: false,
