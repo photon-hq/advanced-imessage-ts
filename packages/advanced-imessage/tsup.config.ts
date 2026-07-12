@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
     http: "src/http.ts",
+    grpc: "src/grpc.ts",
   },
   format: ["esm"],
   dts: true,

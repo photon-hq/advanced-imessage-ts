@@ -28,9 +28,20 @@
       },
       "devDependencies": {
         "@photon-ai/aim-core": "workspace:*",
+        "@photon-ai/aim-grpc": "workspace:*",
         "@photon-ai/aim-http": "workspace:*",
         "tsup": "^8.4.0",
       },
+      "peerDependencies": {
+        "@grpc/grpc-js": "^1.12.6",
+        "nice-grpc": "^2.1.11",
+        "nice-grpc-common": "^2.0.2",
+      },
+      "optionalPeers": [
+        "@grpc/grpc-js",
+        "nice-grpc",
+        "nice-grpc-common",
+      ],
     },
     "packages/core": {
       "name": "@photon-ai/aim-core",
