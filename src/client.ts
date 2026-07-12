@@ -52,6 +52,13 @@ export interface ClientOptions {
   readonly autoIdempotency?: boolean;
   /** Retries calls the server explicitly marked retryable. */
   readonly retry?: boolean | RetryOptions;
+  /**
+   * Dedicated iMessage instance id (sent as `x-photon-server`): the
+   * middleware routes every call to that instance instead of the shared
+   * proxy. Requires a dedicated-mode token the instance accepts. Omit to
+   * stay on the shared proxy.
+   */
+  readonly server?: string;
   /** Default per-call timeout in milliseconds. */
   readonly timeout?: number;
   /** Use HTTPS for bare addresses. Defaults to `true`; set `false` for local development. */
@@ -437,6 +444,7 @@ export function createClient(options: ClientOptions): AdvancedIMessage {
     address: options.address,
     autoIdempotency: options.autoIdempotency,
     retry: options.retry,
+    server: options.server,
     timeout: options.timeout,
     tls: options.tls,
     token: options.token,

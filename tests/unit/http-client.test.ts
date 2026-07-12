@@ -107,6 +107,29 @@ describe("http transport", () => {
     expect(captured[0]?.headers.get("authorization")).toBe("Bearer fresh-1");
   });
 
+  it("sends x-photon-server on every call when `server` is set", async () => {
+    const captured = mockFetch([
+      { status: 200, body: { message: {} } },
+      { status: 200, body: { attachment: { guid: "spc-att-1" } } },
+    ]);
+    const dedicated = clients({ server: "instance-abc" });
+    await dedicated.messages.sendTextMessage({ chatGuid: "x", text: "y" });
+    await dedicated.attachments.uploadAttachment({
+      fileName: "a.jpg",
+      data: new Uint8Array([1]),
+      companion: undefined,
+    });
+    // Both the generated JSON routes and the raw-bytes routes carry it.
+    expect(captured[0]?.headers.get("x-photon-server")).toBe("instance-abc");
+    expect(captured[1]?.headers.get("x-photon-server")).toBe("instance-abc");
+  });
+
+  it("omits x-photon-server by default (shared mode)", async () => {
+    const captured = mockFetch([{ status: 200, body: { message: {} } }]);
+    await clients().messages.sendTextMessage({ chatGuid: "x", text: "y" });
+    expect(captured[0]?.headers.get("x-photon-server")).toBeNull();
+  });
+
   it("maps GET requests to query params with proto3-JSON scalars", async () => {
     const captured = mockFetch([
       { status: 200, body: { messages: [], nextPageToken: "tok" } },

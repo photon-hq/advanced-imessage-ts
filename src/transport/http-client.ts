@@ -138,6 +138,12 @@ export interface HttpClientOptions {
   readonly address: string;
   readonly autoIdempotency?: boolean;
   readonly retry?: boolean | RetryOptions;
+  /**
+   * Dedicated iMessage instance id, sent as `x-photon-server` on every call
+   * so the middleware routes to that instance instead of the shared proxy.
+   * Requires a token the instance accepts (dedicated mode). Omit for shared.
+   */
+  readonly server?: string;
   readonly timeout?: number;
   readonly tls?: boolean;
   readonly token: string | (() => Promise<string>);
@@ -274,6 +280,7 @@ interface CallContext {
   readonly retry: Required<
     Pick<RetryOptions, "initialDelay" | "maxAttempts" | "maxDelay">
   > | null;
+  readonly server: string | undefined;
   readonly timeout: number | undefined;
   readonly token: string | (() => Promise<string>);
 }
@@ -312,6 +319,9 @@ async function authHeaders(
   const headers: Record<string, string> = {
     authorization: `Bearer ${token}`,
   };
+  if (ctx.server) {
+    headers["x-photon-server"] = ctx.server;
+  }
   if (mutating && ctx.autoIdempotency) {
     headers["x-idempotency-key"] = generateIdempotencyKey();
   }
@@ -604,6 +614,7 @@ export function createHttpClients(options: HttpClientOptions): HttpClients {
     baseUrl,
     client: createHeyApiClient(createConfig({ baseUrl })),
     retry,
+    server: options.server,
     timeout: options.timeout,
     token: options.token,
   };
