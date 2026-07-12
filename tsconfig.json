@@ -32,6 +32,8 @@
     "dist",
     "packages/*/dist",
     "packages/core/src/generated",
-    "packages/http/src/generated"
+    "packages/http/src/generated",
+    // Post-build gate: imports dist output, which `check` must not require.
+    "tests/dist"
   ]
 }

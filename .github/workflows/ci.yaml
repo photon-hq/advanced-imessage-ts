@@ -14,8 +14,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun run lint
-      - run: bun test
+      - run: bun test packages
       - run: bun run build
+      # Post-build gates: entrypoint chunk identity, lazy grpc peer loading,
+      # and a publishable exports map.
+      - run: bun test tests/dist
+      - run: bun x publint packages/advanced-imessage
+      - run: bun x @arethetypeswrong/cli --pack packages/advanced-imessage --profile esm-only
 
   # The SDK's reason to exist is running where gRPC can't. This job bundles
   # the package for Cloudflare's workerd and boots it there — any node:*,

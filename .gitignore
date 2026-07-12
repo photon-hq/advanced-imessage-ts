@@ -3,6 +3,8 @@ node_modules/
 
 # output
 dist/
+# ...but the post-build smoke gate is source, not output
+!tests/dist/
 *.tgz
 *.tar.gz
 
