@@ -169,7 +169,6 @@ export interface GroupsResource {
  * - `list()` returns every friend currently sharing a location.
  * - `get(address)` fetches the latest snapshot for one friend.
  * - `request(chat, address)` sends a visible Find My request card.
- * - `watch(address?)` streams location updates outside the durable event log.
  */
 export interface LocationsResource {
   get(address: string): Promise<SharedFriendLocation>;
@@ -375,6 +374,7 @@ export interface AdvancedIMessage extends AsyncDisposable {
    *
    * - `list()` returns every friend currently sharing a location.
    * - `get(address)` fetches the latest snapshot for one friend.
+   * - `request(chat, address)` sends a visible Find My request card.
    */
   readonly locations: LocationsResource;
   /**
