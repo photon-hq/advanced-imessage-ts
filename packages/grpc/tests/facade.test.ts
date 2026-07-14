@@ -128,6 +128,22 @@ describe("createGrpcClient façade — working transport", () => {
     expect(closed).toBe(true);
   });
 
+  it("close() before the v1 client resolves never opens the inner stream", async () => {
+    const client = createGrpcClient({ address: "localhost:50051", token: "t" });
+    const stream =
+      client.messages.subscribeEvents() as TypedEventStream<unknown>;
+    const before = calls.length;
+    const iter = stream[Symbol.asyncIterator]();
+    // Starts the lazy generator, which suspends awaiting the v1 client load.
+    const first = iter.next();
+    await stream.close();
+    await first;
+    // Let the suspended generator resume past the client load; it must see
+    // the stream is closed and never call the v1 stream method.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls.length).toBe(before);
+  });
+
   it("close() reaches the v1 client and asyncDispose aliases it", async () => {
     closed = false;
     const client = createGrpcClient({ address: "localhost:50051", token: "t" });
@@ -155,6 +171,6 @@ describe("createGrpcClient façade — working transport", () => {
     const chats = client.chats as unknown as {
       teleport: (x: string) => Promise<void>;
     };
-    expect(chats.teleport("nope")).rejects.toThrow(TypeError);
+    await expect(chats.teleport("nope")).rejects.toThrow(TypeError);
   });
 });

@@ -129,8 +129,15 @@ function lazyStream(
   args: readonly unknown[]
 ): TypedEventStream<unknown> {
   let inner: TypedEventStream<unknown> | undefined;
+  let closed = false;
   async function* run(): AsyncGenerator<unknown, void, undefined> {
     const resource: object = (await client)[key];
+    // close() during the client load can't stop this generator (a queued
+    // return only lands at the next yield), so re-check before opening the
+    // real stream — otherwise it would linger until its first event.
+    if (closed) {
+      return;
+    }
     inner = invokeMember(
       resource,
       key,
@@ -140,6 +147,7 @@ function lazyStream(
     yield* inner;
   }
   return new TypedEventStream(run(), async () => {
+    closed = true;
     if (inner) {
       await inner.close();
     }
