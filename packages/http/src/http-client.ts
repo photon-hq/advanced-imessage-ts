@@ -594,7 +594,11 @@ async function* bodyChunks(response: Response): AsyncGenerator<Uint8Array> {
       }
     }
   } finally {
-    reader.releaseLock();
+    // cancel() also releases the lock, and — unlike releaseLock() alone —
+    // closes the underlying stream when the consumer stops early, so edge
+    // runtimes don't hold the connection against subrequest limits. It
+    // rejects if the stream already errored; there is nothing left to free.
+    await reader.cancel().catch(() => undefined);
   }
 }
 
@@ -615,6 +619,20 @@ function companionInfoFromHeaders(headers: Headers): CompanionInfo {
     mimeType: headers.get("content-type") ?? "application/octet-stream",
     totalBytes: Number(headers.get("x-companion-total-bytes") ?? 0),
   };
+}
+
+/** Wrap a raw route's body chunks as single-field download frames. */
+async function* chunkFrames(
+  response: Response,
+  field: "companionChunk" | "primaryChunk"
+): AsyncGenerator<DownloadAttachmentResponse> {
+  for await (const chunk of bodyChunks(response)) {
+    yield {
+      header: undefined,
+      primaryChunk: field === "primaryChunk" ? chunk : undefined,
+      companionChunk: field === "companionChunk" ? chunk : undefined,
+    } as DownloadAttachmentResponse;
+  }
 }
 
 function downloadAttachmentMethod(
@@ -640,44 +658,39 @@ function downloadAttachmentMethod(
         info.attachment.companionKind !==
           CompanionKind.COMPANION_KIND_UNSPECIFIED;
       let companionResponse: Response | undefined;
-      if (hasCompanion) {
-        companionResponse = await rawFetch(
-          ctx,
-          `${ctx.baseUrl}/v1/attachments/${guid}/companion`,
-          { method: "GET", signal: options?.signal ?? undefined }
-        );
-      }
-      yield {
-        header: {
-          attachment: info.attachment,
-          companion: companionResponse
-            ? companionInfoFromHeaders(companionResponse.headers)
-            : undefined,
-        },
-        primaryChunk: undefined,
-        companionChunk: undefined,
-      } as DownloadAttachmentResponse;
-
-      const response = await rawFetch(
-        ctx,
-        `${ctx.baseUrl}/v1/attachments/${guid}/data`,
-        { method: "GET", signal: options?.signal ?? undefined }
-      );
-      for await (const chunk of bodyChunks(response)) {
+      try {
+        if (hasCompanion) {
+          companionResponse = await rawFetch(
+            ctx,
+            `${ctx.baseUrl}/v1/attachments/${guid}/companion`,
+            { method: "GET", signal: options?.signal ?? undefined }
+          );
+        }
         yield {
-          header: undefined,
-          primaryChunk: chunk,
+          header: {
+            attachment: info.attachment,
+            companion: companionResponse
+              ? companionInfoFromHeaders(companionResponse.headers)
+              : undefined,
+          },
+          primaryChunk: undefined,
           companionChunk: undefined,
         } as DownloadAttachmentResponse;
-      }
-      if (companionResponse) {
-        for await (const chunk of bodyChunks(companionResponse)) {
-          yield {
-            header: undefined,
-            primaryChunk: undefined,
-            companionChunk: chunk,
-          } as DownloadAttachmentResponse;
+
+        const response = await rawFetch(
+          ctx,
+          `${ctx.baseUrl}/v1/attachments/${guid}/data`,
+          { method: "GET", signal: options?.signal ?? undefined }
+        );
+        yield* chunkFrames(response, "primaryChunk");
+        if (companionResponse) {
+          yield* chunkFrames(companionResponse, "companionChunk");
         }
+      } finally {
+        // The companion opens before the header frame is emitted; if the
+        // consumer stops early or the primary fetch throws, its body still
+        // holds a connection until cancelled. A no-op once fully drained.
+        await companionResponse?.body?.cancel().catch(() => undefined);
       }
     }
     return frames();

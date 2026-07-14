@@ -607,6 +607,95 @@ describe("http transport", () => {
     ).toEqual(new Uint8Array([7, 7]));
   });
 
+  it("cancels the primary stream when the consumer stops early", async () => {
+    let primaryCancelled = false;
+    let call = 0;
+    globalThis.fetch = (async () => {
+      call += 1;
+      if (call === 1) {
+        return new Response(
+          JSON.stringify({
+            attachment: { guid: "att-stop", mimeType: "image/heic" },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            // Never closed — a consumer that stops early must cancel the
+            // stream rather than wait for it to drain.
+            controller.enqueue(new Uint8Array([1, 2]));
+          },
+          cancel() {
+            primaryCancelled = true;
+          },
+        }),
+        { status: 200, headers: { "content-type": "image/heic" } }
+      );
+    }) as unknown as typeof fetch;
+
+    for await (const frame of clients().attachments.downloadAttachment({
+      attachmentGuid: "att-stop",
+    })) {
+      if ((frame as { primaryChunk?: Uint8Array }).primaryChunk) {
+        break;
+      }
+    }
+    expect(primaryCancelled).toBe(true);
+  });
+
+  it("cancels the companion stream when the consumer stops at the header", async () => {
+    let companionCancelled = false;
+    let call = 0;
+    globalThis.fetch = (async () => {
+      call += 1;
+      if (call === 1) {
+        return new Response(
+          JSON.stringify({
+            attachment: {
+              companionKind: "COMPANION_KIND_LIVE_PHOTO_VIDEO",
+              guid: "att-head",
+              mimeType: "image/heic",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([7, 7]));
+          },
+          cancel() {
+            companionCancelled = true;
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-disposition": 'attachment; filename="cat.mov"',
+            "content-type": "video/quicktime",
+            "x-companion-kind": "1",
+            "x-companion-total-bytes": "2",
+          },
+        }
+      );
+    }) as unknown as typeof fetch;
+
+    for await (const frame of clients().attachments.downloadAttachment({
+      attachmentGuid: "att-head",
+    })) {
+      if ((frame as { header?: unknown }).header) {
+        break;
+      }
+    }
+    // The companion route opened for the header frame's CompanionInfo, so
+    // its body must be cancelled when the frames are never drained.
+    expect(call).toBe(2);
+    expect(companionCancelled).toBe(true);
+  });
+
   it("returns embedded media bytes with their mime type", async () => {
     globalThis.fetch = (async () =>
       new Response(new Uint8Array([9, 9]), {
