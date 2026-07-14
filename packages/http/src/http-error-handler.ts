@@ -12,7 +12,8 @@
  *   "source": "upstream",             // upstream | spectrum-imessage | middleware
  *   "errorCode": "messageNotFound",   // canonical ErrorCode (error-code trailer)
  *   "retryable": false,               // x-retryable trailer
- *   "context": { "chatGuid": "..." }  // error-context-* trailers
+ *   "context": { "chatGuid": "..." }, // error-context-* trailers
+ *   "requestId": "..."                // correlation id (also x-request-id header)
  * }
  * ```
  *
@@ -75,6 +76,9 @@ const UNAUTHENTICATED = 16;
 /** Stamped by the middleware on every response it produces. */
 export const MIDDLEWARE_MARKER_HEADER = "x-spectrum-middleware";
 
+/** The middleware's correlation id, stamped on every response. */
+export const REQUEST_ID_HEADER = "x-request-id";
+
 const MS_PER_SECOND = 1000;
 const BODYLESS_RETRYABLE_STATUSES = new Set([408, 429, 502, 503, 504]);
 
@@ -84,8 +88,22 @@ export interface HttpErrorBody {
   readonly context?: Record<string, string>;
   readonly errorCode?: string;
   readonly message?: string;
+  readonly requestId?: string;
   readonly retryable?: boolean;
   readonly source?: string;
+}
+
+/**
+ * Correlation id for the failed request: the body's `requestId` wins (it is
+ * stamped by the same middleware that built the body), the `x-request-id`
+ * header is the fallback — an intermediary may rewrite the body but usually
+ * passes response headers through.
+ */
+function resolveRequestId(
+  body: HttpErrorBody,
+  headers: Headers | undefined
+): string | undefined {
+  return body.requestId ?? headers?.get(REQUEST_ID_HEADER) ?? undefined;
 }
 
 /** `Retry-After` header (integer seconds or HTTP-date) → milliseconds. */
@@ -165,6 +183,7 @@ function fromBodylessStatus(
     code: bodylessErrorCode(httpStatus),
     context: body.context ?? {},
     grpcCode,
+    requestId: resolveRequestId(body, headers),
     retryAfter,
     retryable: body.retryable ?? BODYLESS_RETRYABLE_STATUSES.has(httpStatus),
     source: headers?.has(MIDDLEWARE_MARKER_HEADER)
@@ -201,6 +220,7 @@ export function fromHttpErrorBody(
     code: (body.errorCode as ErrorCode | undefined) ?? "internalError",
     context: body.context ?? {},
     grpcCode: contractCode,
+    requestId: resolveRequestId(body, headers),
     retryAfter,
     retryable: body.retryable ?? false,
     source: body.source,

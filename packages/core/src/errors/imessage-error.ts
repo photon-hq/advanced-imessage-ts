@@ -24,6 +24,12 @@ export interface IMessageErrorOptions {
   readonly context?: Record<string, string>;
   /** Numeric gRPC status code (mirrors `nice-grpc-common` Status enum). */
   readonly grpcCode: number;
+  /**
+   * Correlation id assigned by the HTTP middleware (`x-request-id` header /
+   * body `requestId`) — quote it when reporting issues; operators can look
+   * up the request's logs and trace from it.
+   */
+  readonly requestId?: string;
   /** Server-requested retry delay in milliseconds (`Retry-After`). */
   readonly retryAfter?: number;
   /** Whether the caller should retry the request. */
@@ -54,6 +60,7 @@ export class IMessageError extends Error {
   readonly context: Record<string, string>;
   readonly retryAfter?: number;
   readonly source?: string;
+  readonly requestId?: string;
 
   constructor(message: string, options: IMessageErrorOptions) {
     super(message, { cause: options.cause });
@@ -64,6 +71,7 @@ export class IMessageError extends Error {
     this.context = options.context ?? {};
     this.retryAfter = options.retryAfter;
     this.source = options.source;
+    this.requestId = options.requestId;
   }
 }
 

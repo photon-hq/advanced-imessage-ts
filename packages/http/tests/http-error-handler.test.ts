@@ -133,6 +133,46 @@ describe("fromHttpErrorBody", () => {
     expect(error.retryAfter).toBe(1000);
     expect(error.retryable).toBe(true);
   });
+
+  it("carries the body's requestId onto the error", () => {
+    const error = fromHttpErrorBody(
+      { code: "not_found", message: "gone", requestId: "req-abc-1" },
+      404
+    );
+    expect(error.requestId).toBe("req-abc-1");
+  });
+
+  it("falls back to the x-request-id header when the body has none", () => {
+    const headers = new Headers({ "x-request-id": "req-from-header" });
+    const error = fromHttpErrorBody(
+      { code: "internal", message: "boom" },
+      500,
+      headers
+    );
+    expect(error.requestId).toBe("req-from-header");
+  });
+
+  it("prefers the body requestId over the header", () => {
+    const headers = new Headers({ "x-request-id": "req-from-header" });
+    const error = fromHttpErrorBody(
+      { code: "internal", message: "boom", requestId: "req-from-body" },
+      500,
+      headers
+    );
+    expect(error.requestId).toBe("req-from-body");
+  });
+
+  it("picks the header requestId up on bodyless errors too", () => {
+    const headers = new Headers({ "x-request-id": "req-intermediary" });
+    const error = fromHttpErrorBody({}, 503, headers);
+    expect(error.source).toBe("intermediary");
+    expect(error.requestId).toBe("req-intermediary");
+  });
+
+  it("leaves requestId undefined when neither body nor header carry one", () => {
+    const error = fromHttpErrorBody({ code: "internal", message: "boom" }, 500);
+    expect(error.requestId).toBeUndefined();
+  });
 });
 
 describe("fromTransportFailure", () => {

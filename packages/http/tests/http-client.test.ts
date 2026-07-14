@@ -176,6 +176,25 @@ describe("http transport", () => {
     ).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it("surfaces the middleware's requestId on thrown errors", async () => {
+    mockFetch([
+      {
+        status: 404,
+        body: {
+          code: "not_found",
+          message: "Message does not exist",
+          errorCode: "messageNotFound",
+          retryable: false,
+          source: "upstream",
+          requestId: "req-e2e-1",
+        },
+      },
+    ]);
+    await expect(
+      clients().messages.getMessage({ messageGuid: "spc-gone" })
+    ).rejects.toMatchObject({ requestId: "req-e2e-1" });
+  });
+
   it("retries only when the server marked the error retryable", async () => {
     const captured = mockFetch([
       {
