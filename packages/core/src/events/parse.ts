@@ -1,4 +1,5 @@
 import { ChatChangeEvent as ProtoChatChangeEvent } from "../generated/photon/imessage/v1/chat_types.ts";
+import { CatchUpEventsResponse } from "../generated/photon/imessage/v1/event_service.ts";
 import { GroupChangeEvent as ProtoGroupChangeEvent } from "../generated/photon/imessage/v1/group_types.ts";
 import { MessageChangeEvent as ProtoMessageChangeEvent } from "../generated/photon/imessage/v1/message_types.ts";
 import { PollChangeEvent as ProtoPollChangeEvent } from "../generated/photon/imessage/v1/poll_types.ts";
@@ -9,6 +10,7 @@ import {
   mapPollEvent,
 } from "../mapper.ts";
 import type {
+  CatchUpEvent,
   ChatEvent,
   GroupEvent,
   MessageEvent,
@@ -64,4 +66,47 @@ export function parseChatChangeEvent(
   sequence: number
 ): ChatEvent | undefined {
   return mapChatEvent(sequence, ProtoChatChangeEvent.fromJSON(json));
+}
+
+/**
+ * Decode one binary protobuf `CatchUpEventsResponse` frame into the same
+ * high-level event shape the v1 `events.catchUp()` stream produced.
+ *
+ * Heartbeats, sequence-only frames, and frames without a recognized event
+ * payload return `undefined`. Errors from the generated protobuf decoder
+ * propagate to the caller.
+ */
+export function decodeCatchUpEvent(
+  bytes: Uint8Array
+): CatchUpEvent | undefined {
+  const frame = CatchUpEventsResponse.decode(bytes);
+
+  if (frame.complete) {
+    return {
+      type: "catchup.complete",
+      headSequence: frame.complete.headSequence,
+    };
+  }
+
+  if (frame.sequence === undefined) {
+    return undefined;
+  }
+
+  if (frame.messageChanged) {
+    return mapMessageEvent(frame.sequence, frame.messageChanged);
+  }
+
+  if (frame.chatChanged) {
+    return mapChatEvent(frame.sequence, frame.chatChanged);
+  }
+
+  if (frame.groupChanged) {
+    return mapGroupEvent(frame.sequence, frame.groupChanged);
+  }
+
+  if (frame.pollChanged) {
+    return mapPollEvent(frame.sequence, frame.pollChanged);
+  }
+
+  return undefined;
 }

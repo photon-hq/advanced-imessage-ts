@@ -297,6 +297,22 @@ export default {
 };
 ```
 
+Transport adapters that already receive an encoded
+`CatchUpEventsResponse` frame can map it through the same public event model
+without importing generated protobuf internals:
+
+```ts
+import { decodeCatchUpEvent } from "@photon-ai/advanced-imessage";
+
+const event = decodeCatchUpEvent(frameBytes);
+if (event?.type === "message.received") {
+  console.log(event.message.guid);
+}
+```
+
+Heartbeat and payload-less frames return `undefined`; errors reported by the
+generated protobuf decoder propagate to the caller.
+
 Write responses remain authoritative: use the return value of a send/mutate
 call as the result of that write, not a later event.
 

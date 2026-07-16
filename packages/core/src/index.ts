@@ -11,6 +11,7 @@ export {
 } from "./errors/imessage-error.ts";
 // Event parsing (proto3-JSON → public event types, for Fusor envelopes)
 export {
+  decodeCatchUpEvent,
   parseChatChangeEvent,
   parseGroupChangeEvent,
   parseMessageChangeEvent,
