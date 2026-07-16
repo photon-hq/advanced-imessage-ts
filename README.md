@@ -277,6 +277,22 @@ for await (const event of im.messages.subscribeEvents({ chat: chatGuid })) {
 }
 ```
 
+Transport adapters that already receive an encoded
+`CatchUpEventsResponse` frame can map it through the same public event model
+without importing generated protobuf internals:
+
+```ts
+import { decodeCatchUpEvent } from "@photon-ai/advanced-imessage";
+
+const event = decodeCatchUpEvent(frameBytes);
+if (event?.type === "message.received") {
+  console.log(event.message.guid);
+}
+```
+
+Heartbeat and payload-less frames return `undefined`; errors reported by the
+generated protobuf decoder propagate to the caller.
+
 Every `subscribeEvents(...)`, `downloadStream(...)`, and `locations.watch(...)`
 call returns a `TypedEventStream<T>`. Streams support `for await`, `.on(...)`,
 `.filter(...)`, `.map(...)`, `.take(...)`, `.close()`, and `await using`.

@@ -25,6 +25,7 @@ export {
   ValidationError,
 } from "./errors/imessage-error.js";
 // Resource type re-exports
+export { decodeCatchUpEvent } from "./resources/events.js";
 export type { GroupIcon } from "./resources/groups.js";
 // Streaming
 export { TypedEventStream } from "./streaming/event-stream.js";

@@ -1,5 +1,6 @@
 import { fromGrpcError } from "../errors/error-handler.ts";
 import { ValidationError } from "../errors/imessage-error.ts";
+import { CatchUpEventsResponse } from "../generated/photon/imessage/v1/event_service.ts";
 import { TypedEventStream } from "../streaming/event-stream.ts";
 import type { EventServiceClient } from "../transport/grpc-client.ts";
 import {
@@ -30,14 +31,9 @@ function normalizeSequenceCursor(
   return cursor;
 }
 
-function mapCatchUpFrame(frame: {
-  complete?: { headSequence: number };
-  sequence?: number;
-  messageChanged?: Parameters<typeof mapMessageEvent>[1];
-  chatChanged?: Parameters<typeof mapChatEvent>[1];
-  groupChanged?: Parameters<typeof mapGroupEvent>[1];
-  pollChanged?: Parameters<typeof mapPollEvent>[1];
-}): CatchUpEvent | undefined {
+function mapCatchUpFrame(
+  frame: CatchUpEventsResponse
+): CatchUpEvent | undefined {
   if (frame.complete) {
     return {
       type: "catchup.complete",
@@ -66,6 +62,20 @@ function mapCatchUpFrame(frame: {
   }
 
   return undefined;
+}
+
+/**
+ * Decode one protobuf `CatchUpEventsResponse` frame into the same high-level
+ * event shape returned by `events.catchUp()`.
+ *
+ * Heartbeats, sequence-only frames, and frames without a recognized event
+ * payload return `undefined`. Errors from the generated protobuf decoder
+ * propagate to the caller.
+ */
+export function decodeCatchUpEvent(
+  bytes: Uint8Array
+): CatchUpEvent | undefined {
+  return mapCatchUpFrame(CatchUpEventsResponse.decode(bytes));
 }
 
 /**
