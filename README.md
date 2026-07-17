@@ -123,6 +123,33 @@ const im = createHttpClient({
 Bare addresses default to `https`; set `tls: false` only for local
 development.
 
+### Shared and dedicated routing
+
+The HTTP client uses the shared proxy by default. Omit `server` and the SDK
+will not send an `x-photon-server` header:
+
+```ts
+const im = createHttpClient({
+  address: "imessage.example.com",
+  token: process.env.IMESSAGE_TOKEN!,
+});
+```
+
+To route requests to a dedicated iMessage instance, set `server` to the
+instance ID assigned by Photon and use a token that instance accepts:
+
+```ts
+const im = createHttpClient({
+  address: "imessage.example.com",
+  token: process.env.IMESSAGE_TOKEN!,
+  server: "instance-abc",
+});
+```
+
+This sends `x-photon-server: instance-abc` on every request. The `server`
+value is the dedicated instance ID, not the middleware address or bearer
+token.
+
 ## Chat GUIDs
 
 Methods that take `chat` expect a server chat guid:
