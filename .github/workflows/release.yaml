@@ -7,16 +7,17 @@ on:
 jobs:
   # NOTE(monorepo): since the core/http/grpc split, the publishable package
   # lives in packages/advanced-imessage (the repo root is a private workspace
-  # manifest). The shared workflow must publish from that directory — it needs
-  # a package-path/working-directory input (or an equivalent change) in
-  # photon-hq/buildspace before the next release.
+  # manifest), so the shared workflow must bump and publish from that
+  # directory via working-directory.
   release:
     uses: photon-hq/buildspace/.github/workflows/typescript-service-release.yaml@main
     permissions:
       contents: write
       pull-requests: read
       id-token: write
+      packages: write
     with:
       service-name: advanced-imessage
       use-oidc: true
+      working-directory: packages/advanced-imessage
     secrets: inherit
