@@ -52,3 +52,6 @@ tests/workerd/dist/
 
 # published-package proto copy (created by prepublishOnly)
 packages/advanced-imessage/proto/
+# published-package README/LICENSE copies (created by prepublishOnly)
+packages/advanced-imessage/README.md
+packages/advanced-imessage/LICENSE
