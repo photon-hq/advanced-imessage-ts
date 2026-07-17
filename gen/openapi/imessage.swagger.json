@@ -1,0 +1,2952 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "photon/imessage/v1/address_types.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "AddressService"
+    },
+    {
+      "name": "AttachmentService"
+    },
+    {
+      "name": "ChatService"
+    },
+    {
+      "name": "EventService"
+    },
+    {
+      "name": "GroupService"
+    },
+    {
+      "name": "LocationService"
+    },
+    {
+      "name": "MessageService"
+    },
+    {
+      "name": "PollService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/addresses:focusStatus": {
+      "get": {
+        "summary": "Returns whether Messages currently reports this address as Focus-silenced.",
+        "operationId": "AddressService_GetFocusStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetFocusStatusResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AddressService"
+        ]
+      }
+    },
+    "/v1/addresses:imessageAvailability": {
+      "get": {
+        "summary": "Returns whether the address is reachable via iMessage at query time.",
+        "operationId": "AddressService_GetIMessageAvailability",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetIMessageAvailabilityResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AddressService"
+        ]
+      }
+    },
+    "/v1/addresses:info": {
+      "get": {
+        "summary": "Returns services seen and country for the address.",
+        "description": "Errors: NOT_FOUND when the address has never been seen in this device's\niMessage history.\n\nOver HTTP, `address` is a query parameter (addresses contain `+`, which\nis path-hostile) — remember to URL-encode it (`%2B`).",
+        "operationId": "AddressService_GetAddressInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetAddressInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AddressService"
+        ]
+      }
+    },
+    "/v1/attachments/{attachmentGuid}": {
+      "get": {
+        "summary": "Metadata-only lookup. Cheap; never touches attachment bytes.",
+        "operationId": "AttachmentService_GetAttachmentInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetAttachmentInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "attachmentGuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AttachmentService"
+        ]
+      }
+    },
+    "/v1/chats": {
+      "post": {
+        "summary": "Writes",
+        "operationId": "ChatService_CreateChat",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateChatResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateChatRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:count": {
+      "get": {
+        "operationId": "ChatService_GetChatCount",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetChatCountResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "includeArchived",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:get": {
+      "get": {
+        "summary": "Reads (chat_guid is path-hostile, so these are :customVerb GETs with\nquery parameters rather than resource paths).",
+        "operationId": "ChatService_GetChat",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetChatResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "chatGuid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:hasBackground": {
+      "get": {
+        "operationId": "ChatService_HasBackground",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1HasBackgroundResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "chatGuid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:markRead": {
+      "post": {
+        "operationId": "ChatService_MarkChatRead",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1MarkChatReadRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:removeBackground": {
+      "post": {
+        "operationId": "ChatService_RemoveBackground",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RemoveBackgroundRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:setBackground": {
+      "post": {
+        "summary": "Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON\n`bytes` representation).",
+        "operationId": "ChatService_SetBackground",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SetBackgroundRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:setTyping": {
+      "post": {
+        "summary": "Transient typing-indicator write. No persisted state.",
+        "operationId": "ChatService_SetTyping",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SetTypingRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/chats:shareContactInfo": {
+      "post": {
+        "summary": "Pushes the local user's name-and-photo card into the target chat so\nthe recipient sees it in their contact suggestions. No observable\nlocal state change.",
+        "operationId": "ChatService_ShareContactInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1ShareContactInfoRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
+    "/v1/groups:addParticipants": {
+      "post": {
+        "operationId": "GroupService_AddParticipants",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AddParticipantsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Adds one or more participants. An empty `addresses` list\nis rejected with `INVALID_ARGUMENT`.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AddParticipantsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GroupService"
+        ]
+      }
+    },
+    "/v1/groups:icon": {
+      "get": {
+        "summary": "Reads. Over HTTP the icon bytes come back base64-encoded in JSON —\nacceptable at group-icon sizes.",
+        "operationId": "GroupService_GetIcon",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetIconResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "chatGuid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GroupService"
+        ]
+      }
+    },
+    "/v1/groups:leave": {
+      "post": {
+        "summary": "Local user voluntarily leaves the group. The chat ceases to be\nvisible from this device, hence no Chat snapshot.",
+        "operationId": "GroupService_LeaveGroup",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1LeaveGroupRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GroupService"
+        ]
+      }
+    },
+    "/v1/groups:removeIcon": {
+      "post": {
+        "operationId": "GroupService_RemoveIcon",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RemoveIconRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GroupService"
+        ]
+      }
+    },
+    "/v1/groups:removeParticipants": {
+      "post": {
+        "operationId": "GroupService_RemoveParticipants",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RemoveParticipantsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Removes one or more participants. An empty `addresses`\nlist is rejected with `INVALID_ARGUMENT`.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RemoveParticipantsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GroupService"
+        ]
+      }
+    },
+    "/v1/groups:setDisplayName": {
+      "post": {
+        "summary": "Writes",
+        "operationId": "GroupService_SetDisplayName",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SetDisplayNameResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SetDisplayNameRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GroupService"
+        ]
+      }
+    },
+    "/v1/groups:setIcon": {
+      "post": {
+        "summary": "Over HTTP, `data` rides base64-encoded in the JSON body (proto3-JSON\n`bytes` representation).",
+        "operationId": "GroupService_SetIcon",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SetIconRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GroupService"
+        ]
+      }
+    },
+    "/v1/locations:requestSharing": {
+      "post": {
+        "operationId": "LocationService_RequestFriendLocationSharing",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RequestFriendLocationSharingResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Sends a visible Find My request card to `address` in `chat_guid`.\n`address` must be a participant in the chat.\n\nErrors:\n  INVALID_ARGUMENT  malformed address/chat_guid, or address is not in chat\n  NOT_FOUND         chat is not visible to the current account",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1RequestFriendLocationSharingRequest"
+            }
+          }
+        ],
+        "tags": [
+          "LocationService"
+        ]
+      }
+    },
+    "/v1/locations:sharedFriend": {
+      "get": {
+        "operationId": "LocationService_GetSharedFriendLocation",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetSharedFriendLocationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "LocationService"
+        ]
+      }
+    },
+    "/v1/locations:sharedFriends": {
+      "get": {
+        "operationId": "LocationService_ListSharedFriendLocations",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListSharedFriendLocationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "LocationService"
+        ]
+      }
+    },
+    "/v1/messages/{messageGuid}": {
+      "get": {
+        "summary": "Reads",
+        "operationId": "MessageService_GetMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetMessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "messageGuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:edit": {
+      "post": {
+        "operationId": "MessageService_EditMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1EditMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:listByChat": {
+      "get": {
+        "summary": "Same query-parameter shapes as `ListRecentMessages`, plus `chatGuid`.",
+        "operationId": "MessageService_ListChatMessages",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListChatMessagesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "chatGuid",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "isFromMe",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "isRead",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:listRecent": {
+      "get": {
+        "summary": "Query parameters over HTTP: `pageSize` (int), `isFromMe`/`isRead`\n(true|false), `before`/`after` (RFC 3339 timestamps, the proto3-JSON\nform of `google.protobuf.Timestamp`).",
+        "operationId": "MessageService_ListRecentMessages",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListRecentMessagesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageToken",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "isFromMe",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "isRead",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:notifySilenced": {
+      "post": {
+        "summary": "Triggers Apple's per-message \"Notify Anyway\" action.",
+        "operationId": "MessageService_NotifySilencedMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1NotifySilencedMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:placeSticker": {
+      "post": {
+        "operationId": "MessageService_PlaceSticker",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1PlaceStickerRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:sendAttachment": {
+      "post": {
+        "operationId": "MessageService_SendAttachmentMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Single-attachment send. The attachment is referenced either by GUID\n(already uploaded via `AttachmentService.UploadAttachment`) or by an\nabsolute filesystem path readable by the local mutation process.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SendAttachmentMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:sendCustomizedMiniApp": {
+      "post": {
+        "summary": "Sends an iMessage mini-app card backed by the caller's own extension.",
+        "operationId": "MessageService_SendCustomizedMiniAppMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Request for `SendCustomizedMiniAppMessage`.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SendCustomizedMiniAppMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:sendMultipart": {
+      "post": {
+        "operationId": "MessageService_SendMultipartMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Multipart send: multiple bubbles delivered atomically.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SendMultipartMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:sendText": {
+      "post": {
+        "summary": "Writes",
+        "description": "HTTP mapping convention (governs all annotations in this package):\n- `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL\n  paths and never appear in one — they ride in the request body, or in\n  query parameters for reads.\n- `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are\n  path-safe and map to resource paths.\n- Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).",
+        "operationId": "MessageService_SendTextMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Plain-text or rich-text send.\n\n`enable_data_detection` enables Apple's data-detector pass.\n`enable_link_preview` enables URL-preview generation.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SendTextMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:setReaction": {
+      "post": {
+        "operationId": "MessageService_SetReaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SetReactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:unsend": {
+      "post": {
+        "summary": "Retracts an existing message and returns Empty after helper success.",
+        "operationId": "MessageService_UnsendMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UnsendMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/messages:updateCustomizedMiniApp": {
+      "post": {
+        "summary": "Updates an iMessage mini-app card backed by the caller's own extension.",
+        "operationId": "MessageService_UpdateCustomizedMiniAppMessage",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MessageResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UpdateCustomizedMiniAppMessageRequest"
+            }
+          }
+        ],
+        "tags": [
+          "MessageService"
+        ]
+      }
+    },
+    "/v1/polls": {
+      "post": {
+        "summary": "Writes",
+        "operationId": "PollService_CreatePoll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PollResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreatePollRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PollService"
+        ]
+      }
+    },
+    "/v1/polls/{pollMessageGuid}": {
+      "get": {
+        "summary": "Reads (poll message GUIDs are path-safe)",
+        "operationId": "PollService_GetPoll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PollResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "pollMessageGuid",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "PollService"
+        ]
+      }
+    },
+    "/v1/polls:addOption": {
+      "post": {
+        "operationId": "PollService_AddPollOption",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PollResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AddPollOptionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PollService"
+        ]
+      }
+    },
+    "/v1/polls:unvote": {
+      "post": {
+        "operationId": "PollService_UnvotePoll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PollResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1UnvotePollRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PollService"
+        ]
+      }
+    },
+    "/v1/polls:vote": {
+      "post": {
+        "operationId": "PollService_VotePoll",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PollResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1VotePollRequest"
+            }
+          }
+        ],
+        "tags": [
+          "PollService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1AddParticipantsRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      },
+      "description": "Adds one or more participants. An empty `addresses` list\nis rejected with `INVALID_ARGUMENT`."
+    },
+    "v1AddParticipantsResponse": {
+      "type": "object",
+      "properties": {
+        "chat": {
+          "$ref": "#/definitions/v1Chat"
+        }
+      }
+    },
+    "v1AddPollOptionRequest": {
+      "type": "object",
+      "properties": {
+        "pollMessageGuid": {
+          "type": "string"
+        },
+        "optionText": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1AttachmentInfo": {
+      "type": "object",
+      "properties": {
+        "guid": {
+          "type": "string"
+        },
+        "originalGuid": {
+          "type": "string",
+          "description": "Set on attachments superseded by an edit. Points to the original\nattachment GUID this row replaced."
+        },
+        "fileName": {
+          "type": "string"
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "uti": {
+          "type": "string",
+          "description": "Apple Uniform Type Identifier (e.g. `public.jpeg`, `com.apple.live-photo`)."
+        },
+        "totalBytes": {
+          "type": "string",
+          "format": "int64"
+        },
+        "isOutgoing": {
+          "type": "boolean"
+        },
+        "transferState": {
+          "$ref": "#/definitions/v1TransferState"
+        },
+        "isHidden": {
+          "type": "boolean",
+          "description": "Mirrors chat.db `attachment.hide_attachment`. `true` when the\nattachment is hidden from the conversation surface (e.g. tapback\nsticker artifacts)."
+        },
+        "isSticker": {
+          "type": "boolean"
+        },
+        "companionKind": {
+          "$ref": "#/definitions/v1CompanionKind",
+          "description": "Set iff this attachment ships with a sidecar; the server never emits\n`COMPANION_KIND_UNSPECIFIED`."
+        }
+      }
+    },
+    "v1AttachmentRef": {
+      "type": "object",
+      "properties": {
+        "attachmentPath": {
+          "type": "string"
+        },
+        "attachmentGuid": {
+          "type": "string"
+        },
+        "attachmentName": {
+          "type": "string"
+        }
+      },
+      "description": "Reference to an attachment by either its server-local on-disk path or\nits GUID."
+    },
+    "v1Chat": {
+      "type": "object",
+      "properties": {
+        "guid": {
+          "type": "string",
+          "description": "System-assigned chat GUID. Stable across renames and participant\nchanges; the canonical key for every chat-scoped RPC."
+        },
+        "chatIdentifier": {
+          "type": "string",
+          "description": "Apple's `chat_identifier` column. For 1:1 chats this is the peer's\nE.164 phone or email; for group chats it is the synthetic group ID."
+        },
+        "groupId": {
+          "type": "string",
+          "description": "Stable iMessage group ID. Set on group chats only."
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "isGroup": {
+          "type": "boolean"
+        },
+        "service": {
+          "$ref": "#/definitions/v1ChatServiceType"
+        },
+        "isArchived": {
+          "type": "boolean"
+        },
+        "isFiltered": {
+          "type": "boolean",
+          "description": "`true` when Apple has routed the chat to \"Unknown Senders\" / the\njunk filter."
+        },
+        "unreadCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Absent when the underlying count is unavailable (e.g. chat row not\nyet hydrated). `0` is a real \"all read\" value, not \"unknown\"."
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SingleServiceAddressInfo"
+          }
+        },
+        "lastMessage": {
+          "$ref": "#/definitions/v1Message"
+        }
+      },
+      "description": "Canonical projection of a row in chat.db's `chat` table joined with its\nparticipants and (optionally) its most recent message."
+    },
+    "v1ChatServiceType": {
+      "type": "string",
+      "enum": [
+        "CHAT_SERVICE_TYPE_UNSPECIFIED",
+        "CHAT_SERVICE_TYPE_IMESSAGE",
+        "CHAT_SERVICE_TYPE_SMS",
+        "CHAT_SERVICE_TYPE_RCS"
+      ],
+      "default": "CHAT_SERVICE_TYPE_UNSPECIFIED"
+    },
+    "v1CompanionKind": {
+      "type": "string",
+      "enum": [
+        "COMPANION_KIND_UNSPECIFIED",
+        "COMPANION_KIND_LIVE_PHOTO_VIDEO"
+      ],
+      "default": "COMPANION_KIND_UNSPECIFIED",
+      "description": "Sidecar attachment kind. Today only Live Photo's `.mov` companion is\nmodelled."
+    },
+    "v1CreateChatInitialMessage": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "attributedBody": {
+          "type": "string",
+          "format": "byte"
+        },
+        "effectId": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateChatRequest": {
+      "type": "object",
+      "properties": {
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "service": {
+          "$ref": "#/definitions/v1ChatServiceType"
+        },
+        "initialMessage": {
+          "$ref": "#/definitions/v1CreateChatInitialMessage"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1CreateChatResponse": {
+      "type": "object",
+      "properties": {
+        "chat": {
+          "$ref": "#/definitions/v1Chat"
+        },
+        "initialMessage": {
+          "$ref": "#/definitions/v1Message"
+        }
+      }
+    },
+    "v1CreatePollRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1EditMessageRequest": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/v1MessageTarget"
+        },
+        "newText": {
+          "type": "string"
+        },
+        "backwardCompatText": {
+          "type": "string",
+          "description": "Plain-text fallback for recipients on older clients that cannot\nrender rich edits. Absent = derive from `new_text`."
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1FriendLocationType": {
+      "type": "string",
+      "enum": [
+        "FRIEND_LOCATION_TYPE_UNSPECIFIED",
+        "FRIEND_LOCATION_TYPE_LEGACY",
+        "FRIEND_LOCATION_TYPE_LIVE",
+        "FRIEND_LOCATION_TYPE_SHALLOW"
+      ],
+      "default": "FRIEND_LOCATION_TYPE_UNSPECIFIED",
+      "description": "LEGACY   stored last-known fix from Find My's cache\n  LIVE     real-time fix from an active sharing session\n  SHALLOW  approximate fix from a low-power background source",
+      "title": "Source / freshness of a friend's location, mirroring Apple's\n`FMFLocationType`:"
+    },
+    "v1GetAddressInfoResponse": {
+      "type": "object",
+      "properties": {
+        "info": {
+          "$ref": "#/definitions/v1MultiServiceAddressInfo"
+        }
+      }
+    },
+    "v1GetAttachmentInfoResponse": {
+      "type": "object",
+      "properties": {
+        "attachment": {
+          "$ref": "#/definitions/v1AttachmentInfo"
+        }
+      }
+    },
+    "v1GetChatCountResponse": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1GetChatResponse": {
+      "type": "object",
+      "properties": {
+        "chat": {
+          "$ref": "#/definitions/v1Chat"
+        }
+      }
+    },
+    "v1GetFocusStatusResponse": {
+      "type": "object",
+      "properties": {
+        "isSilencedByFocus": {
+          "type": "boolean",
+          "description": "True when Messages currently shows this address as silenced by Focus.\nFalse also covers unknown, not shared, and not silenced."
+        }
+      }
+    },
+    "v1GetIMessageAvailabilityResponse": {
+      "type": "object",
+      "properties": {
+        "isAvailable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1GetIconResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string",
+          "format": "byte"
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "MIME type of `data`. Always set on success; a missing icon returns\n`NOT_FOUND` instead of an empty payload."
+        }
+      }
+    },
+    "v1GetMessageResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "$ref": "#/definitions/v1Message"
+        }
+      }
+    },
+    "v1GetSharedFriendLocationResponse": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "$ref": "#/definitions/v1SharedFriendLocation"
+        }
+      }
+    },
+    "v1HasBackgroundResponse": {
+      "type": "object",
+      "properties": {
+        "backgroundPresent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1LeaveGroupRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListChatMessagesResponse": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Message"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListRecentMessagesResponse": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Message"
+          }
+        },
+        "nextPageToken": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListSharedFriendLocationsResponse": {
+      "type": "object",
+      "properties": {
+        "locations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1SharedFriendLocation"
+          }
+        }
+      }
+    },
+    "v1MarkChatReadRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Message": {
+      "type": "object",
+      "properties": {
+        "guid": {
+          "type": "string"
+        },
+        "content": {
+          "$ref": "#/definitions/v1MessageContent"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "dateCreated": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dateRead": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dateDelivered": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dateEdited": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dateRetracted": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "datePlayed": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "dateExpressiveSendPlayed": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sender": {
+          "$ref": "#/definitions/v1SingleServiceAddressInfo"
+        },
+        "isFromMe": {
+          "type": "boolean"
+        },
+        "isSent": {
+          "type": "boolean"
+        },
+        "isDelivered": {
+          "type": "boolean"
+        },
+        "isDeliveredQuietly": {
+          "type": "boolean",
+          "description": "Monterey+. Delivered without firing a recipient notification."
+        },
+        "didNotifyRecipient": {
+          "type": "boolean",
+          "description": "Monterey+. The recipient's device was actually woken to surface the\nmessage. Pair with `is_delivered_quietly` to distinguish silent vs\nnotified delivery."
+        },
+        "sendErrorCode": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Apple's internal send-error code (0 = no error). Distinct from any\ngRPC error returned for the RPC itself."
+        },
+        "isAudioMessage": {
+          "type": "boolean"
+        },
+        "isAutoReply": {
+          "type": "boolean"
+        },
+        "isSystemMessage": {
+          "type": "boolean",
+          "description": "Synthetic system row (e.g. \"iMessage activated\", group name change)."
+        },
+        "isForward": {
+          "type": "boolean",
+          "description": "Mirrors chat.db `message.is_forward`. Set on Continuity SMS-forwarded\nrows and a handful of Apple-internal forwarding paths; rarely true\non iMessage traffic."
+        },
+        "isDelayed": {
+          "type": "boolean",
+          "description": "Mirrors chat.db `message.is_delayed`. Set on rows queued for\nscheduled delivery (iOS 18 \"Send Later\"); cleared once Apple\ndispatches the send."
+        },
+        "isSpam": {
+          "type": "boolean",
+          "description": "Mirrors chat.db `message.is_spam`. Apple sets this on rows its\njunk filter has classified as spam; user-visible state is\ncontrolled at chat scope via `Chat.is_filtered`."
+        },
+        "dataDetectorResultsPresent": {
+          "type": "boolean",
+          "description": "Apple's data detectors found URLs / phone numbers / addresses in\nthe body."
+        },
+        "isArchived": {
+          "type": "boolean",
+          "description": "Mirrors chat.db `message.is_archive`. Per-row archival flag,\ndistinct from the chat-level `Chat.is_archived` view state. Set\non individual messages Apple has hidden from default queries."
+        },
+        "isServiceMessage": {
+          "type": "boolean",
+          "description": "Carrier or platform service message (e.g. SMS billing notice)."
+        },
+        "isCorrupt": {
+          "type": "boolean",
+          "description": "chat.db reports the row as corrupt; content fields may be partial."
+        },
+        "isExpirable": {
+          "type": "boolean",
+          "description": "Disappearing / ephemeral message that will expire client-side."
+        },
+        "shareStatus": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Name-and-photo sharing status. `0` = not shared, `1` = shared. Raw\nmirror of Apple's column; promoted to a typed enum is future work."
+        },
+        "shareDirection": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Name-and-photo sharing direction. `0` = received from peer, `1` =\nsent by local user."
+        },
+        "itemType": {
+          "$ref": "#/definitions/v1MessageItemType"
+        },
+        "groupTitle": {
+          "type": "string",
+          "description": "Set on `MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE` rows: the new group\ntitle."
+        },
+        "chatActionType": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Subtype for `MESSAGE_ITEM_TYPE_CHAT_ACTION` rows (Apple private\nschema). Promoted to a typed enum is future work; see\ndomain `ChatActionType`."
+        },
+        "threadOriginatorGuid": {
+          "type": "string",
+          "description": "Apple's `thread_originator_guid` (BigSur+): GUID of the message\nthat started this reply thread. Reliable indicator of a public\nthreaded reply."
+        },
+        "threadOriginatorPart": {
+          "type": "string",
+          "description": "Apple's `thread_originator_part`: opaque part locator within the\noriginator (string form, e.g. `0:0/0`)."
+        },
+        "replyToGuid": {
+          "type": "string",
+          "description": "Raw Apple `reply_to_guid` storage column. Frequently populated on\nordinary non-reply messages and may point at unrelated rows;\nsurface for diagnostics only. Prefer `reply_target_guid` to\ndetermine a real reply."
+        },
+        "replyTargetGuid": {
+          "type": "string",
+          "description": "Canonical public reply target. Set iff `thread_originator_guid` is\na reliable public threaded-reply target (non-self, non-empty)."
+        },
+        "destinationCallerId": {
+          "type": "string",
+          "description": "The local Caller ID (phone / email) the message was sent from or\ndelivered to. Apple uses `e:` / `p:` prefixes."
+        },
+        "partCount": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Ventura+. Number of bubble parts in a multipart message."
+        },
+        "cachedRoomNames": {
+          "type": "string",
+          "description": "Denormalized group chat name cached on the message row by Apple\n(\"room\" is Apple's internal term for what surface APIs call a\nchat)."
+        },
+        "reactionTargetGuid": {
+          "type": "string",
+          "description": "Tapback-row fields. Set iff this Message row is itself a tapback\nagainst another message (i.e. a synthetic associated row), in which\ncase `reaction_target_guid` points at the message being reacted to.\nPlain user messages leave all three absent."
+        },
+        "reactionTargetPartIndex": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "reaction": {
+          "$ref": "#/definitions/v1MessageReaction"
+        },
+        "reactionSelected": {
+          "type": "boolean",
+          "description": "`true` = reaction added; `false` = reaction removed."
+        },
+        "appliedReactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MessageAppliedReaction"
+          },
+          "description": "Aggregated current state from associated rows that target this message."
+        },
+        "placedStickers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MessagePlacedSticker"
+          }
+        },
+        "chatGuids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Canonical projection of a row in chat.db's `message` table, joined with\nits attachments and any associated tapback."
+    },
+    "v1MessageAppliedReaction": {
+      "type": "object",
+      "properties": {
+        "messageGuid": {
+          "type": "string"
+        },
+        "targetPartIndex": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "reaction": {
+          "$ref": "#/definitions/v1MessageReaction"
+        },
+        "sender": {
+          "$ref": "#/definitions/v1SingleServiceAddressInfo"
+        },
+        "isFromMe": {
+          "type": "boolean"
+        },
+        "dateCreated": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "One currently-applied reaction folded onto its target message from an\nassociated tapback row."
+    },
+    "v1MessageContent": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1AttachmentInfo"
+          }
+        },
+        "formatting": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TextFormat"
+          }
+        },
+        "mentions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MessageMention"
+          }
+        },
+        "balloonBundleId": {
+          "type": "string"
+        },
+        "expressiveSendStyleId": {
+          "type": "string"
+        }
+      },
+      "description": "Rendered content of an inbound or persisted message, with attachments,\nmentions, and effects."
+    },
+    "v1MessageItemType": {
+      "type": "string",
+      "enum": [
+        "MESSAGE_ITEM_TYPE_NORMAL",
+        "MESSAGE_ITEM_TYPE_PARTICIPANT_CHANGE",
+        "MESSAGE_ITEM_TYPE_GROUP_NAME_CHANGE",
+        "MESSAGE_ITEM_TYPE_CHAT_ACTION"
+      ],
+      "default": "MESSAGE_ITEM_TYPE_NORMAL",
+      "description": "Discriminates regular messages from the synthetic \"system\" rows Apple\nuses to record chat lifecycle changes.\n\nWire values mirror chat.db `message.item_type`.\n\n`0` is a real \"normal\" value, not \"unspecified\"."
+    },
+    "v1MessageMention": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "length": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "description": "`@`-mention into a UTF-16 range of the message text."
+    },
+    "v1MessagePart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "attachment": {
+          "$ref": "#/definitions/v1AttachmentRef"
+        },
+        "mentionedAddress": {
+          "type": "string"
+        },
+        "bubbleIndex": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "formatting": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TextFormat"
+          }
+        }
+      },
+      "description": "One bubble in an outgoing multipart send. Exactly one of `text` or\n`attachment` is set per part; mentions and formatting apply to `text`."
+    },
+    "v1MessagePlacedSticker": {
+      "type": "object",
+      "properties": {
+        "messageGuid": {
+          "type": "string"
+        },
+        "targetPartIndex": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "sender": {
+          "$ref": "#/definitions/v1SingleServiceAddressInfo"
+        },
+        "isFromMe": {
+          "type": "boolean"
+        },
+        "dateCreated": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "sticker": {
+          "$ref": "#/definitions/v1AttachmentInfo"
+        },
+        "placement": {
+          "$ref": "#/definitions/v1StickerPlacement"
+        }
+      },
+      "description": "One sticker currently placed onto its target message from an associated\nsticker row."
+    },
+    "v1MessageReaction": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/v1MessageReactionKind"
+        },
+        "emoji": {
+          "type": "string"
+        }
+      }
+    },
+    "v1MessageReactionKind": {
+      "type": "string",
+      "enum": [
+        "MESSAGE_REACTION_KIND_LOVE",
+        "MESSAGE_REACTION_KIND_LIKE",
+        "MESSAGE_REACTION_KIND_DISLIKE",
+        "MESSAGE_REACTION_KIND_LAUGH",
+        "MESSAGE_REACTION_KIND_EMPHASIZE",
+        "MESSAGE_REACTION_KIND_QUESTION",
+        "MESSAGE_REACTION_KIND_EMOJI",
+        "MESSAGE_REACTION_KIND_STICKER"
+      ],
+      "default": "MESSAGE_REACTION_KIND_LOVE",
+      "description": "Tapback families understood by Apple's Messages stack.\n\n`EMOJI` and `STICKER` are the post-iOS 18 generic carriers; the wrapped\nvalue is delivered out-of-band (`MessageReaction.emoji` for emoji\ntapbacks, the associated message itself for sticker tapbacks).\n\nWire values are transport-internal. Apple stores tapback kind in a composite\n`associated_message_type` column, not as a direct integer match for these\ntags.\n\n - MESSAGE_REACTION_KIND_STICKER: Carrier for sticker tapbacks.\n\nThe placed sticker arrives as its own attachment row, not as a\n`MessageReaction`. Servers reject `SetReaction` calls that pass\n`STICKER`; use `PlaceSticker` instead."
+    },
+    "v1MessageResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "$ref": "#/definitions/v1Message",
+          "description": "Snapshot of the persisted message after Apple has accepted the send\nand chat.db has been observed."
+        },
+        "miniAppCardSession": {
+          "$ref": "#/definitions/v1MiniAppCardSession",
+          "description": "Present for mini-app card sends/updates. Save this handle and pass it to\nthe matching update RPC to replace the original card in place."
+        }
+      }
+    },
+    "v1MessageTarget": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "messageGuid": {
+          "type": "string"
+        },
+        "targetPartIndex": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Selects a single bubble in a multipart message. Absent = the whole\nmessage root."
+        }
+      }
+    },
+    "v1MiniAppCardSession": {
+      "type": "object",
+      "properties": {
+        "messageGuid": {
+          "type": "string"
+        },
+        "chatGuid": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "targetMessageGuid": {
+          "type": "string"
+        }
+      },
+      "description": "Stable iMessage app-card handle returned by mini-app send/update RPCs.\nPass the latest session back to the matching update RPC. The `session_id`\nremains stable across updates; `target_message_guid` identifies the original\nbubble being replaced in place."
+    },
+    "v1MiniAppLayout": {
+      "type": "object",
+      "properties": {
+        "caption": {
+          "type": "string",
+          "description": "Top-left, bold. The most prominent text slot."
+        },
+        "subcaption": {
+          "type": "string",
+          "description": "Below `caption`, on the left."
+        },
+        "trailingCaption": {
+          "type": "string",
+          "description": "Top-right."
+        },
+        "trailingSubcaption": {
+          "type": "string",
+          "description": "Below `trailing_caption`, on the right."
+        },
+        "image": {
+          "type": "string",
+          "format": "byte",
+          "description": "JPEG preview image bytes. Server validates that the bytes decode as JPEG."
+        },
+        "imageTitle": {
+          "type": "string",
+          "description": "Overlay text shown above the image. Must be set together with `image`."
+        },
+        "imageSubtitle": {
+          "type": "string",
+          "description": "Overlay text shown below `image_title`, above the image edge.\nRequires `image`."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Fallback text shown on surfaces that cannot render the full card."
+        }
+      },
+      "description": "Visible content of a customized mini-app card. Field names match Apple's\n`MSMessageTemplateLayout` public API so callers do not need to translate\nbetween our names and Apple's docs.\n\nSlot map:\n  * caption/subcaption render on the left;\n  * trailing_caption/trailing_subcaption render on the right;\n  * image_title/image_subtitle overlay the image.\n\nValidation enforced by the server:\n  * at least one of {caption, subcaption, trailing_caption,\n    trailing_subcaption, image} must be non-empty; otherwise the\n    recipient would see an empty bubble;\n  * `image` and `image_title` must be set together;\n  * `image_subtitle` requires `image`."
+    },
+    "v1MultiServiceAddressInfo": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Canonical form: emails lowercased, phones E.164. May differ from the\nrequest value's casing or whitespace."
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1ChatServiceType"
+          }
+        },
+        "country": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-2, when known. The chat.db address lookup normalizes it\nto uppercase; mappers preserve the value they receive."
+        }
+      },
+      "description": "An address paired with every service observed for it.\n\n`services` is emitted in canonical (iMessage, SMS, RCS) order. Clients\nshould treat it as a set, not a sequence. GetAddressInfo returns NOT_FOUND\ninstead of this message when the address has no observed handle rows."
+    },
+    "v1NotifySilencedMessageRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "messageGuid": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PlaceStickerRequest": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/v1MessageTarget"
+        },
+        "sticker": {
+          "$ref": "#/definitions/v1AttachmentRef"
+        },
+        "placement": {
+          "$ref": "#/definitions/v1StickerPlacement"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1PollInfo": {
+      "type": "object",
+      "properties": {
+        "pollMessageGuid": {
+          "type": "string"
+        },
+        "chatGuid": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PollOption"
+          }
+        },
+        "votes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PollParticipantVote"
+          }
+        }
+      },
+      "description": "Full poll snapshot."
+    },
+    "v1PollOption": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "optionIdentifier": {
+          "type": "string"
+        },
+        "creatorHandle": {
+          "type": "string"
+        }
+      },
+      "description": "One option in a poll. `option_identifier` is Apple's stable opaque ID;\n`creator_handle` is the participant who introduced the option (poll\ncreator for original options, voter address for added options)."
+    },
+    "v1PollParticipantVote": {
+      "type": "object",
+      "properties": {
+        "participant": {
+          "$ref": "#/definitions/v1SingleServiceAddressInfo"
+        },
+        "optionIdentifier": {
+          "type": "string"
+        }
+      },
+      "description": "One selected option in a participant's current vote snapshot."
+    },
+    "v1PollResponse": {
+      "type": "object",
+      "properties": {
+        "poll": {
+          "$ref": "#/definitions/v1PollInfo"
+        }
+      }
+    },
+    "v1RemoveBackgroundRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RemoveIconRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1RemoveParticipantsRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "addresses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      },
+      "description": "Removes one or more participants. An empty `addresses`\nlist is rejected with `INVALID_ARGUMENT`."
+    },
+    "v1RemoveParticipantsResponse": {
+      "type": "object",
+      "properties": {
+        "chat": {
+          "$ref": "#/definitions/v1Chat"
+        }
+      }
+    },
+    "v1ReplyTarget": {
+      "type": "object",
+      "properties": {
+        "messageGuid": {
+          "type": "string"
+        },
+        "targetPartIndex": {
+          "type": "integer",
+          "format": "int32"
+        }
+      },
+      "description": "Pointer to the message being replied to. `target_part_index` selects a\nsingle bubble in a multipart message; absent means the whole message."
+    },
+    "v1RequestFriendLocationSharingRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      },
+      "description": "Sends a visible Find My request card to `address` in `chat_guid`.\n`address` must be a participant in the chat.\n\nErrors:\n  INVALID_ARGUMENT  malformed address/chat_guid, or address is not in chat\n  NOT_FOUND         chat is not visible to the current account"
+    },
+    "v1RequestFriendLocationSharingResponse": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "messageGuid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SendAttachmentMessageRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "attachment": {
+          "$ref": "#/definitions/v1AttachmentRef"
+        },
+        "replyTo": {
+          "$ref": "#/definitions/v1ReplyTarget"
+        },
+        "effectId": {
+          "type": "string"
+        },
+        "isAudioMessage": {
+          "type": "boolean"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      },
+      "description": "Single-attachment send. The attachment is referenced either by GUID\n(already uploaded via `AttachmentService.UploadAttachment`) or by an\nabsolute filesystem path readable by the local mutation process."
+    },
+    "v1SendCustomizedMiniAppMessageRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string",
+          "description": "Target chat GUID."
+        },
+        "teamId": {
+          "type": "string",
+          "description": "10-character uppercase alphanumeric Apple Team ID."
+        },
+        "extensionBundleId": {
+          "type": "string",
+          "description": "Bundle identifier of the iMessage extension target."
+        },
+        "appName": {
+          "type": "string",
+          "description": "Human-readable name of the owning app."
+        },
+        "url": {
+          "type": "string",
+          "description": "Absolute URL the recipient's installed extension receives on tap."
+        },
+        "layout": {
+          "$ref": "#/definitions/v1MiniAppLayout",
+          "description": "The visible layout of the card. Mirrors Apple's\n`MSMessageTemplateLayout`; see `MiniAppLayout` for the rendering map."
+        },
+        "appStoreId": {
+          "type": "string",
+          "format": "int64",
+          "description": "Apple App Store numeric id of the owning app. When set, must be \u003e 0."
+        },
+        "live": {
+          "type": "boolean",
+          "description": "Whether to include MSMessageLiveLayout metadata. When unset, defaults to\nfalse so the static layout remains visible."
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      },
+      "description": "Request for `SendCustomizedMiniAppMessage`."
+    },
+    "v1SendMultipartMessageRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MessagePart"
+          }
+        },
+        "replyTo": {
+          "$ref": "#/definitions/v1ReplyTarget"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "effectId": {
+          "type": "string"
+        },
+        "enableDataDetection": {
+          "type": "boolean"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      },
+      "description": "Multipart send: multiple bubbles delivered atomically."
+    },
+    "v1SendTextMessageRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "replyTo": {
+          "$ref": "#/definitions/v1ReplyTarget"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "effectId": {
+          "type": "string"
+        },
+        "enableDataDetection": {
+          "type": "boolean"
+        },
+        "enableLinkPreview": {
+          "type": "boolean"
+        },
+        "formatting": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TextFormat"
+          }
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      },
+      "description": "Plain-text or rich-text send.\n\n`enable_data_detection` enables Apple's data-detector pass.\n`enable_link_preview` enables URL-preview generation."
+    },
+    "v1SetBackgroundRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string",
+          "format": "byte"
+        }
+      }
+    },
+    "v1SetDisplayNameRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SetDisplayNameResponse": {
+      "type": "object",
+      "properties": {
+        "chat": {
+          "$ref": "#/definitions/v1Chat"
+        }
+      }
+    },
+    "v1SetIconRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string",
+          "format": "byte",
+          "description": "Server infers MIME type and file extension from `data`."
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SetReactionRequest": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/v1MessageTarget"
+        },
+        "reaction": {
+          "$ref": "#/definitions/v1MessageReaction"
+        },
+        "isSet": {
+          "type": "boolean",
+          "description": "`true` adds or replaces the caller's reaction of this kind on the target.\n`false` removes it."
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SetTypingRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "isTyping": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1ShareContactInfoRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        }
+      }
+    },
+    "v1SharedFriendLocation": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Canonical handle (E.164 phone or full email). Primary key for\nclient-side correlation."
+        },
+        "name": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number",
+          "format": "double"
+        },
+        "longitude": {
+          "type": "number",
+          "format": "double"
+        },
+        "accuracy": {
+          "type": "number",
+          "format": "double",
+          "description": "Horizontal accuracy in meters."
+        },
+        "longAddress": {
+          "type": "string",
+          "description": "Fully formatted reverse-geocoded address (e.g. street + city + region)."
+        },
+        "shortAddress": {
+          "type": "string",
+          "description": "Compact reverse-geocoded label (e.g. neighborhood or city only)."
+        },
+        "isLocatingInProgress": {
+          "type": "boolean"
+        },
+        "locationType": {
+          "$ref": "#/definitions/v1FriendLocationType"
+        },
+        "locationTimestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "A single currently shared friend location. Coordinates are absent while the\ndevice is acquiring a fix (`is_locating_in_progress = true`)."
+    },
+    "v1SingleServiceAddressInfo": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "service": {
+          "$ref": "#/definitions/v1ChatServiceType"
+        },
+        "country": {
+          "type": "string"
+        }
+      },
+      "description": "An address bound to one concrete transport service. Used when the server\nmust identify a specific (handle, service) pair: message sender, chat\nparticipant, etc."
+    },
+    "v1StickerPlacement": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "type": "number",
+          "format": "double"
+        },
+        "scale": {
+          "type": "number",
+          "format": "double"
+        },
+        "rotation": {
+          "type": "number",
+          "format": "double"
+        },
+        "width": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "description": "Spatial placement of a sticker on its target bubble. All values are in\nApple's normalised coordinate space."
+    },
+    "v1TextFormat": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "length": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "effectName": {
+          "type": "string"
+        }
+      },
+      "description": "Inline rich-text run (bold, italic, expressive effect) over a UTF-16\nrange of the parent text."
+    },
+    "v1TransferState": {
+      "type": "string",
+      "enum": [
+        "TRANSFER_STATE_PENDING",
+        "TRANSFER_STATE_UNAVAILABLE",
+        "TRANSFER_STATE_TRANSFERRING",
+        "TRANSFER_STATE_FAILED",
+        "TRANSFER_STATE_FINISHED",
+        "TRANSFER_STATE_UNKNOWN"
+      ],
+      "default": "TRANSFER_STATE_PENDING",
+      "description": "Mirrors chat.db `attachment.transfer_state` (Apple `IMTransferState`); wire\nvalues equal DB values, gaps included. Zero is `PENDING`, not\n`UNSPECIFIED`; the server always populates this field."
+    },
+    "v1UnsendMessageRequest": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "$ref": "#/definitions/v1MessageTarget"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1UnvotePollRequest": {
+      "type": "object",
+      "properties": {
+        "pollMessageGuid": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1UpdateCustomizedMiniAppMessageRequest": {
+      "type": "object",
+      "properties": {
+        "session": {
+          "$ref": "#/definitions/v1MiniAppCardSession"
+        },
+        "teamId": {
+          "type": "string",
+          "description": "10-character uppercase alphanumeric Apple Team ID."
+        },
+        "extensionBundleId": {
+          "type": "string",
+          "description": "Bundle identifier of the iMessage extension target."
+        },
+        "appName": {
+          "type": "string",
+          "description": "Human-readable name of the owning app."
+        },
+        "url": {
+          "type": "string",
+          "description": "Absolute URL the recipient's installed extension receives on tap."
+        },
+        "layout": {
+          "$ref": "#/definitions/v1MiniAppLayout",
+          "description": "The replacement visible layout for the card."
+        },
+        "appStoreId": {
+          "type": "string",
+          "format": "int64",
+          "description": "Apple App Store numeric id of the owning app. When set, must be \u003e 0."
+        },
+        "live": {
+          "type": "boolean",
+          "description": "Whether to include MSMessageLiveLayout metadata. When unset, defaults to\nfalse so the static layout remains visible."
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    },
+    "v1VotePollRequest": {
+      "type": "object",
+      "properties": {
+        "pollMessageGuid": {
+          "type": "string"
+        },
+        "optionIdentifier": {
+          "type": "string"
+        },
+        "clientMessageId": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

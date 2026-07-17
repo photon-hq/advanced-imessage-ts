@@ -1,43 +1,154 @@
 # @photon-ai/advanced-imessage
 
-TypeScript SDK for the v2 Advanced iMessage server.
+TypeScript SDK for the Advanced iMessage server. **Supports two transports:
+HTTP and gRPC** — pick per project, or mix them.
 
-The SDK is intentionally thin: each resource method maps to one server RPC,
-returns handwritten SDK types, and keeps reconnect / catch-up behavior explicit.
-Generated protobuf types are not part of the public API.
+- **HTTP** (default): the SDK talks `fetch` to the REST middleware
+  ([imessage-server-v2-http](https://github.com/photon-hq/imessage-server-v2-http)),
+  which forwards to the iMessage plane — no gRPC in the client, so it runs
+  wherever `fetch` exists: **Cloudflare Workers**, edge runtimes, browsers,
+  Node, Bun, Deno. Inbound events ride webhooks — see
+  [Inbound events](#inbound-events).
+- **gRPC**: the full v1 surface, including the live
+  `subscribeEvents`/`watch`/`events.catchUp` streams. Node/Bun only.
 
 ## Install
+
+### HTTP
 
 ```bash
 bun add @photon-ai/advanced-imessage
 ```
 
-Node.js `>=18.17` is supported. The package is ESM-only.
+```ts
+import { createHttpClient } from "@photon-ai/advanced-imessage";
+
+const im = createHttpClient({
+  address: "http://localhost:8080", // the HTTP middleware
+  token: process.env.IMESSAGE_TOKEN!,
+});
+
+const sent = await im.messages.sendText("any;-;alice@example.com", "hello");
+console.log(sent.guid);
+
+await im.close();
+```
+
+Runs on any runtime with `fetch` (Cloudflare Workers, Node `>=18.17`, Bun,
+Deno, browsers). The package is ESM-only. Workers compatibility is enforced
+in CI: every build bundles the SDK and boots it in workerd.
+
+### gRPC
+
+The gRPC transport needs its peer dependencies.
+
+```bash
+bun add @photon-ai/advanced-imessage nice-grpc nice-grpc-common @grpc/grpc-js
+```
+
+```ts
+import { createClient } from "@photon-ai/advanced-imessage/grpc";
+
+const im = createClient({
+  address: "127.0.0.1:50051", // the gRPC server
+  token: process.env.IMESSAGE_TOKEN!,
+  tls: false,
+});
+
+const sent = await im.messages.sendText("any;-;alice@example.com", "hello");
+console.log(sent.guid);
+
+// gRPC keeps client-held live event streams:
+for await (const event of im.messages.subscribeEvents()) {
+  console.log(event.type, event.sequence);
+}
+
+await im.close();
+```
+
+Node `>=18.17` or Bun (native gRPC — not available on fetch-only runtimes
+like Workers).
+
+## Entrypoints
+
+One package, three entrypoints:
+
+| Import | What you get |
+| --- | --- |
+| `@photon-ai/advanced-imessage` | `createHttpClient`, `createGrpcClient`, and every shared type. HTTP-flavored: `ClientOptions` etc. are the HTTP client's. |
+| `@photon-ai/advanced-imessage/http` | The HTTP transport only. Safe everywhere `fetch` exists. |
+| `@photon-ai/advanced-imessage/grpc` | The gRPC transport: the full v1 surface, including `events` and the live `subscribeEvents`/`watch` streams. Node/Bun only. |
+
+gRPC requires its optional peer dependencies (see [Install](#install)); HTTP-only installs never download or evaluate them.
+
+## Migrating from v1
+
+v1 of this package was gRPC-only, exported from the package root. Your code
+keeps working with two changes — an import specifier and the peer install
+above:
+
+```diff
+-import { createClient, type ClientOptions } from "@photon-ai/advanced-imessage";
++import { createClient, type ClientOptions } from "@photon-ai/advanced-imessage/grpc";
+```
+
+Every v1 export keeps its name on the `/grpc` subpath (`createClient` is an
+alias of `createGrpcClient`). Live event streams stay gRPC-only — over HTTP,
+inbound events ride webhooks instead (see [Inbound events](#inbound-events)).
 
 ## Connect
 
 ```ts
-import { createClient } from "@photon-ai/advanced-imessage";
+import { createHttpClient } from "@photon-ai/advanced-imessage";
 
-const im = createClient({
-  address: "127.0.0.1:50051",
+const im = createHttpClient({
+  address: "http://localhost:8080", // the HTTP middleware
   token: process.env.IMESSAGE_TOKEN!,
-  tls: false,
 });
 
 await im.close();
 ```
 
-`token` may also be an async function when credentials rotate:
+`address` is the imessage-server-v2-http middleware: a bare `host[:port]` or
+a full `http(s)://` URL. `token` may also be an async function when
+credentials rotate — it is resolved fresh for every call:
 
 ```ts
-const im = createClient({
-  address: "imessage.example.com:443",
+const im = createHttpClient({
+  address: "imessage.example.com",
   token: async () => process.env.IMESSAGE_TOKEN!,
 });
 ```
 
-`tls` defaults to `true`. Set `tls: false` only for local development.
+Bare addresses default to `https`; set `tls: false` only for local
+development.
+
+### Shared and dedicated routing
+
+The HTTP client uses the shared proxy by default. Omit `server` and the SDK
+will not send an `x-photon-server` header:
+
+```ts
+const im = createHttpClient({
+  address: "imessage.example.com",
+  token: process.env.IMESSAGE_TOKEN!,
+});
+```
+
+To route requests to a dedicated iMessage instance, set `server` to the
+instance ID assigned by Photon and use a token that instance accepts:
+
+```ts
+const im = createHttpClient({
+  address: "imessage.example.com",
+  token: process.env.IMESSAGE_TOKEN!,
+  server: "instance-abc",
+});
+```
+
+This sends `x-photon-server: instance-abc` on every request. The `server`
+value is the dedicated instance ID, not the middleware address or bearer
+token.
 
 ## Chat GUIDs
 
@@ -119,8 +230,7 @@ attachment formats:
   `tar.bz2`, `tar.xz`, `gz`, `bz2`, `xz`
 
 Downloads are streamed by GUID and preserve byte-for-byte content. The first
-frame is metadata, followed by primary payload chunks and, for Live Photos,
-companion payload chunks:
+frame is metadata, followed by primary payload chunks:
 
 ```ts
 for await (const frame of im.attachments.downloadStream(uploaded.attachment.guid)) {
@@ -130,37 +240,14 @@ for await (const frame of im.attachments.downloadStream(uploaded.attachment.guid
   if (frame.type === "primaryChunk") {
     // append frame.data
   }
-  if (frame.type === "companionChunk") {
-    // append Live Photo companion bytes
-  }
 }
 ```
 
-Live Photo upload uses the same `attachments.upload(...)` method with a
-companion. The supported and tested Live Photo shape is a HEIC/HEIF primary
-image plus a QuickTime MOV companion video:
-
-```ts
-const livePhoto = await im.attachments.upload({
-  fileName: "live_photo.HEIC",
-  data: await readFile("live_photo.HEIC"),
-  companion: {
-    data: await readFile("live_photo.MOV"),
-  },
-});
-
-await im.messages.sendAttachment(chatGuid, livePhoto.attachment.guid);
-```
-
-For Live Photos:
-
-- The primary should be a HEIC/HEIF image, normally `.HEIC`, `.heic`, `.HEIF`,
-  or `.heif`.
-- The companion must be a QuickTime `.MOV` / `.mov` video.
-- Do not use a `.mov` primary filename; the server stores the companion as a
-  sidecar with the same stem and a `.mov` extension, so that collides.
-- The SDK fixes the companion kind to `"live-photo-video"`; callers only pass
-  companion bytes.
+Live Photo companions transfer over HTTP: `attachments.upload(...)` with a
+`companion` sends `multipart/form-data` (`file` + `companion` parts), and
+`downloadStream(...)` yields the v1 frame sequence — a header frame carrying
+`companionInfo`, the primary chunks, then the `companionChunk` frames fetched
+from the middleware's `/v1/attachments/{guid}/companion` route.
 
 `7z` and `rar` are not currently listed as tested formats because the current
 server test workspace does not include real encoders for those archive types.
@@ -237,7 +324,7 @@ bubble.
 ## Read Messages
 
 ```ts
-const message = await im.messages.get(chatGuid, sent.guid);
+const message = await im.messages.get(sent.guid);
 
 const recent = await im.messages.listRecent({ pageSize: 25 });
 const inChat = await im.messages.listInChat(chatGuid, {
@@ -248,53 +335,56 @@ const inChat = await im.messages.listInChat(chatGuid, {
 
 `pageSize`, when provided, must be between `1` and `100`.
 
-## Streams and Catch-Up
+## Inbound events
 
-Live streams are observation APIs. They do not hide reconnect loops and they do
-not replace write responses. Use the response from a write call as the
-authoritative result for that write.
+The HTTP client is outbound-only. It has no client-held event streams —
+long-lived gRPC streams don't exist on `fetch`-only runtimes, so over HTTP
+inbound delivery is the platform's job, not the client's. (The
+`subscribeEvents(...)` / `watch(...)` / `events.catchUp(...)` streaming APIs
+remain available on the [gRPC transport](#grpc).)
 
-Persist the latest fully handled `event.sequence`. After a disconnect, replay
-missed durable events with `events.catchUp(since)` before opening a new live
-stream.
-
-```ts
-let since: number | undefined;
-
-for await (const event of im.events.catchUp(since)) {
-  if (event.type === "catchup.complete") {
-    since = event.headSequence;
-    break;
-  }
-
-  console.log("replayed", event.type, event.sequence);
-  since = event.sequence;
-}
-
-for await (const event of im.messages.subscribeEvents({ chat: chatGuid })) {
-  console.log("live", event.type, event.sequence);
-  since = event.sequence;
-}
-```
-
-Every `subscribeEvents(...)`, `downloadStream(...)`, and `locations.watch(...)`
-call returns a `TypedEventStream<T>`. Streams support `for await`, `.on(...)`,
-`.filter(...)`, `.map(...)`, `.take(...)`, `.close()`, and `await using`.
+Over HTTP, to receive messages and other events, register a **webhook** for
+your project (via Spectrum) and reply from your handler using this SDK. A
+typical Cloudflare Worker:
 
 ```ts
-const stream = im.messages.subscribeEvents();
-
-const stop = stream.on(
-  (event) => {
-    console.log(event.type, event.sequence);
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const event = await request.json();
+    if (event.type === "message.received") {
+      const im = createHttpClient({
+        address: env.IMESSAGE_HTTP_ADDRESS,
+        token: () => mintToken(env),
+      });
+      await im.messages.sendText(event.chat.guid, "got it!");
+    }
+    return new Response("ok");
   },
-  (error) => {
-    console.error(error);
-  }
-);
-
-stop();
+};
 ```
+
+Transport adapters that already receive an encoded
+`CatchUpEventsResponse` frame can map it through the same public event model
+without importing generated protobuf internals:
+
+```ts
+import { decodeCatchUpEvent } from "@photon-ai/advanced-imessage";
+
+const event = decodeCatchUpEvent(frameBytes);
+if (event?.type === "message.received") {
+  console.log(event.message.guid);
+}
+```
+
+Heartbeat and payload-less frames return `undefined`; errors reported by the
+generated protobuf decoder propagate to the caller.
+
+Write responses remain authoritative: use the return value of a send/mutate
+call as the result of that write, not a later event.
+
+`downloadStream(...)` still returns a `TypedEventStream<T>` (backed by the
+HTTP response stream). Streams support `for await`, `.on(...)`,
+`.filter(...)`, `.map(...)`, `.take(...)`, `.close()`, and `await using`.
 
 ## Other Resources
 
@@ -360,19 +450,24 @@ try {
 ## Client Options
 
 ```ts
-const im = createClient({
-  address: "127.0.0.1:50051",
+const im = createHttpClient({
+  address: "http://localhost:8080",
   token: "api-token",
-  tls: false,
   timeout: 10_000,
   retry: { maxAttempts: 4, initialDelay: 200, maxDelay: 5_000 },
   autoIdempotency: true,
 });
 ```
 
-`timeout` and `retry` apply to unary RPCs. Streaming RPCs are left open and are
-not retried automatically. `autoIdempotency` adds an idempotency key only to
-mutating RPCs.
+`timeout` applies per call. `retry` retries only failures the server
+explicitly marked retryable, with exponential backoff and jitter; the
+idempotency key (when enabled) is generated once per logical call and reused
+across attempts, so retries dedupe server-side. `autoIdempotency` adds the
+key only to mutating calls.
+
+For dedupe across *client* restarts, pass `clientMessageId` in a send's
+options — the server rejects a repeated `clientMessageId` with a
+`duplicateMessage` error, which means the original send succeeded.
 
 ## Development
 
@@ -384,4 +479,24 @@ bun test
 bun run build
 ```
 
-`bun run build` regenerates protobuf output and builds `dist/`.
+The repo is a bun-workspaces monorepo; only `packages/advanced-imessage`
+publishes to npm — it bundles the private workspace packages:
+
+- `packages/core` — shared types, errors, streaming, proto↔public mapper,
+  generated proto codecs
+- `packages/http` — the fetch transport and the live resources
+- `packages/grpc` — the v1-compatible gRPC transport behind a lazy façade
+
+`bun run build` regenerates protobuf output from
+[`buf.build/photon-hq/imessage`](https://buf.build/photon-hq/imessage), the
+canonical source published by the server's CI — pinned to a BSR commit in
+`buf.gen.yaml`; CI fails if committed codegen drifts from the pin — and
+builds `packages/advanced-imessage/dist/`.
+
+`bun run generate:http` regenerates the
+HTTP route client (`packages/http/src/generated/http`) from the middleware's
+OpenAPI spec (`gen/openapi/imessage.swagger.json`). After a build,
+`bun test tests/dist` gates the published artifact: single class identity
+across entrypoints and no static `nice-grpc` in the index/http graphs.
+CI also bundles the SDK for workerd and boots it (`tests/workerd`), so a
+Workers-hostile dependency cannot land unnoticed.

@@ -1,9 +1,40 @@
 version: v2
+# The contract lives on the BSR as buf.build/photon-hq/imessage, published by
+# advanced-imessage-server-v2's CI (the canonical home — this repo never
+# `buf push`es). `bun run generate` pulls the module straight from the BSR;
+# no protos are vendored here.
+#
+# The input is PINNED to a BSR commit so codegen is reproducible and a server
+# push can't change our output. To take a contract update: bump the pin here
+# AND the matching `buf export` ref in packages/advanced-imessage's
+# prepublishOnly, run `bun run generate && bun run generate:http`, and commit
+# the regenerated files (CI's `verify:codegen` diffs them against the pin).
+inputs:
+  - module: buf.build/photon-hq/imessage:3a73262f18f2485e868bc708ef35f51a
+managed:
+  enabled: true
+  # Only used by the Go-based openapiv2 plugin to resolve import paths at
+  # generation time; nothing Go is ever emitted or committed.
+  override:
+    - file_option: go_package_prefix
+      value: github.com/photon-hq/advanced-imessage-ts/gen/go
+  # Keep the source-defined swift_prefix untouched for Swift consumers.
+  disable:
+    - file_option: swift_prefix
 plugins:
   - local: protoc-gen-ts_proto
-    out: src/generated
+    out: packages/core/src/generated
+    # Also emit the imported google/api + google/protobuf types the module
+    # references (the openapiv2 plugin below must NOT include imports — the
+    # merged swagger would take its title from the first google file).
+    include_imports: true
     opt:
       - outputServices=nice-grpc,outputServices=generic-definitions
       - useExactTypes=false
       - esModuleInterop=true
       - importSuffix=.js
+  - remote: buf.build/grpc-ecosystem/openapiv2
+    out: gen/openapi
+    opt:
+      - allow_merge=true
+      - merge_file_name=imessage

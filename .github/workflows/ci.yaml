@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run lint
+      - run: bun test packages
+      - run: bun run build
+      # Regenerate everything from the pinned BSR commit — proto codecs,
+      # swagger, and the hey-api HTTP route client — and require committed
+      # codegen to match exactly (a pin bump without full regen fails here).
+      - run: bun run verify:codegen
+      # Post-build gates: entrypoint chunk identity, lazy grpc peer loading,
+      # and a publishable exports map.
+      - run: bun test tests/dist
+      - run: bun x publint packages/advanced-imessage
+      - run: bun x @arethetypeswrong/cli --pack packages/advanced-imessage --profile esm-only
+
+  # The SDK's reason to exist is running where gRPC can't. This job bundles
+  # the package for Cloudflare's workerd and boots it there — any node:*,
+  # gRPC, or otherwise Workers-hostile dependency fails the build.
+  workerd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: Bundle for workerd
+        working-directory: tests/workerd
+        run: bun x wrangler deploy --dry-run --outdir dist
+      - name: Boot in workerd and assert the client constructs
+        working-directory: tests/workerd
+        run: |
+          bun x wrangler dev --port 8799 --local &
+          for i in $(seq 1 45); do
+            body=$(curl -s -m 2 http://127.0.0.1:8799/ 2>/dev/null) && break
+            sleep 2
+          done
+          echo "workerd response: $body"
+          [ "$body" = '{"ok":true}' ]

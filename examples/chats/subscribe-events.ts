@@ -1,6 +1,6 @@
-import { createClient } from "@photon-ai/advanced-imessage";
+import { createGrpcClient } from "@photon-ai/advanced-imessage/grpc";
 
-const im = createClient({
+const im = createGrpcClient({
   address: "127.0.0.1:50051",
   token: "dev-token",
   tls: false,

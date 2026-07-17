@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "lib": ["ESNext"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "target": "ES2022",
     "module": "ESNext",
     "moduleDetection": "force",
@@ -17,9 +17,23 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": false,
-    "outDir": "dist",
-    "rootDir": "src"
+    "baseUrl": ".",
+    "paths": {
+      "@photon-ai/aim-core": ["packages/core/src/index.ts"],
+      "@photon-ai/aim-core/internal": ["packages/core/src/internal.ts"],
+      "@photon-ai/aim-core/generated/*": ["packages/core/src/generated/*.ts"],
+      "@photon-ai/aim-http": ["packages/http/src/index.ts"],
+      "@photon-ai/aim-grpc": ["packages/grpc/src/index.ts"]
+    }
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "src/generated"]
+  "include": ["packages/*/src", "packages/*/tests", "tests"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "packages/*/dist",
+    "packages/core/src/generated",
+    "packages/http/src/generated",
+    // Post-build gate: imports dist output, which `check` must not require.
+    "tests/dist"
+  ]
 }

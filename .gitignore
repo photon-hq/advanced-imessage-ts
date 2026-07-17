@@ -3,6 +3,8 @@ node_modules/
 
 # output
 dist/
+# ...but the post-build smoke gate is source, not output
+!tests/dist/
 *.tgz
 *.tar.gz
 
@@ -43,3 +45,10 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # Local testing scratch (not part of repo)
 .scratch/
+
+# workerd gate bundle output
+tests/workerd/dist/
+.wrangler/
+
+# published-package proto copy (created by prepublishOnly)
+packages/advanced-imessage/proto/

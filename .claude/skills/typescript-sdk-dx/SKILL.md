@@ -51,7 +51,7 @@ Every API: one-liner -> options object -> builder. Never force tier 3 complexity
 
 ### 8. Handwritten types over generated types
 
-`src/types/` is the public API. `src/transport/mapper.ts` bridges generated -> public. Generated types have wrong shapes (numeric enums, verbose names, no brands). We wrap them, never expose them.
+`packages/core/src/types/` is the public API. `packages/core/src/mapper.ts` bridges generated -> public. Generated types have wrong shapes (numeric enums, verbose names, no brands). We wrap them, never expose them.
 
 ### 9. Strict by default
 
@@ -63,7 +63,7 @@ Use `unwrap(value, "fieldName")` — a typed guard that throws a clear error. No
 
 ### 11. Generated code is committed
 
-Both `.proto` files and `src/generated/` are in git. Clone-and-build with no codegen step. Proto changes show their TypeScript impact in the diff.
+Both `.proto` files and `packages/core/src/generated/` are in git. Clone-and-build with no codegen step. Proto changes show their TypeScript impact in the diff.
 
 ### 12. ts-proto for codegen
 

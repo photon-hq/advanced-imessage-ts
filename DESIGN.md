@@ -241,8 +241,11 @@ Factory function returns an interface. The class is an implementation detail.
 
 ## Proto and Codegen
 
-`proto/photon/imessage/v1/*.proto` is the contract. `src/generated/` is also
-committed so the repo is clone-and-build with no codegen step required.
+The contract is the BSR module [`buf.build/photon-hq/imessage`](https://buf.build/photon-hq/imessage),
+published by advanced-imessage-server-v2's CI (the canonical home — this repo never pushes it and
+vendors no protos; `buf generate` pulls the module from the BSR, pinned to a specific module commit
+in `buf.gen.yaml` for reproducibility). `packages/core/src/generated/` is committed so the repo is
+clone-and-build with no codegen step required, and CI fails if it drifts from the pin.
 
 We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-definitions`. ts-proto generates:
 - Native nice-grpc `ServiceDefinition` objects
@@ -251,7 +254,7 @@ We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-defini
 - `Date` for Timestamp fields — no manual conversion
 - Code that compiles under full strict mode
 
-Handwritten types in `src/types/` are the public API. `src/transport/mapper.ts` bridges generated types to public types. Same Mapper pattern the server uses.
+Handwritten types in `packages/core/src/types/` are the public API. `packages/core/src/mapper.ts` bridges generated types to public types. Same Mapper pattern the server uses.
 
 ### When the server changes
 

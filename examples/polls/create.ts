@@ -1,9 +1,8 @@
-import { createClient } from "@photon-ai/advanced-imessage";
+import { createHttpClient } from "@photon-ai/advanced-imessage";
 
-const im = createClient({
-  address: "127.0.0.1:50051",
+const im = createHttpClient({
+  address: "http://localhost:8080", // the HTTP middleware
   token: "dev-token",
-  tls: false,
 });
 
 const chat = "any;+;group-guid";
