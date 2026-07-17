@@ -289,7 +289,8 @@ export const messageServiceSendMultipartMessage = <ThrowOnError extends boolean 
  *
  * HTTP mapping convention (governs all annotations in this package):
  * - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
- * paths and never appear in one — they ride in the request body.
+ * paths and never appear in one — they ride in the request body, or in
+ * query parameters for reads.
  * - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
  * path-safe and map to resource paths.
  * - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).

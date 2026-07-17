@@ -460,8 +460,10 @@ publishes to npm — it bundles the private workspace packages:
 - `packages/http` — the fetch transport and the live resources
 - `packages/grpc` — the v1-compatible gRPC transport behind a lazy façade
 
-`bun run build` regenerates protobuf output and builds
-`packages/advanced-imessage/dist/`. `bun run generate:http` regenerates the
+`bun run build` regenerates protobuf output
+[`buf.build/photon-hq/imessage`](https://buf.build/photon-hq/imessage), the
+canonical source published by the server's CI and builds `packages/advanced-imessage/dist/`. 
+`bun run generate:http` regenerates the
 HTTP route client (`packages/http/src/generated/http`) from the middleware's
 OpenAPI spec (`gen/openapi/imessage.swagger.json`). After a build,
 `bun test tests/dist` gates the published artifact: single class identity

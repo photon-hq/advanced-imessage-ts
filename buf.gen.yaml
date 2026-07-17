@@ -1,4 +1,10 @@
 version: v2
+# The contract lives on the BSR as buf.build/photon-hq/imessage, published by
+# advanced-imessage-server-v2's CI (the canonical home — this repo never
+# `buf push`es). `bun run generate` pulls the module straight from the BSR;
+# no protos are vendored here.
+inputs:
+  - module: buf.build/photon-hq/imessage
 managed:
   enabled: true
   # Only used by the Go-based openapiv2 plugin to resolve import paths at
@@ -12,6 +18,10 @@ managed:
 plugins:
   - local: protoc-gen-ts_proto
     out: packages/core/src/generated
+    # Also emit the imported google/api + google/protobuf types the module
+    # references (the openapiv2 plugin below must NOT include imports — the
+    # merged swagger would take its title from the first google file).
+    include_imports: true
     opt:
       - outputServices=nice-grpc,outputServices=generic-definitions
       - useExactTypes=false

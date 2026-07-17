@@ -140,7 +140,7 @@ export interface SendCustomizedMiniAppMessageRequest {
   extensionBundleId: string;
   /** Human-readable name of the owning app. */
   appName: string;
-  /** Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap. */
+  /** Absolute URL the recipient's installed extension receives on tap. */
   url: string;
   /**
    * The visible layout of the card. Mirrors Apple's
@@ -184,7 +184,7 @@ export interface UpdateCustomizedMiniAppMessageRequest {
   extensionBundleId: string;
   /** Human-readable name of the owning app. */
   appName: string;
-  /** Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap. */
+  /** Absolute URL the recipient's installed extension receives on tap. */
   url: string;
   /** The replacement visible layout for the card. */
   layout:
@@ -3372,7 +3372,8 @@ export const MessageServiceDefinition = {
      *
      * HTTP mapping convention (governs all annotations in this package):
      * - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
-     *   paths and never appear in one — they ride in the request body.
+     *   paths and never appear in one — they ride in the request body, or in
+     *   query parameters for reads.
      * - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
      *   path-safe and map to resource paths.
      * - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).
@@ -4016,7 +4017,8 @@ export interface MessageServiceImplementation<CallContextExt = {}> {
    *
    * HTTP mapping convention (governs all annotations in this package):
    * - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
-   *   paths and never appear in one — they ride in the request body.
+   *   paths and never appear in one — they ride in the request body, or in
+   *   query parameters for reads.
    * - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
    *   path-safe and map to resource paths.
    * - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).
@@ -4107,7 +4109,8 @@ export interface MessageServiceClient<CallOptionsExt = {}> {
    *
    * HTTP mapping convention (governs all annotations in this package):
    * - `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL
-   *   paths and never appear in one — they ride in the request body.
+   *   paths and never appear in one — they ride in the request body, or in
+   *   query parameters for reads.
    * - `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are
    *   path-safe and map to resource paths.
    * - Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).

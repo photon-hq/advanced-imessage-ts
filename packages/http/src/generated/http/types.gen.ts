@@ -729,7 +729,7 @@ export type V1SendCustomizedMiniAppMessageRequest = {
      */
     appName?: string;
     /**
-     * Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap.
+     * Absolute URL the recipient's installed extension receives on tap.
      */
     url?: string;
     layout?: V1MiniAppLayout;
@@ -917,7 +917,7 @@ export type V1UpdateCustomizedMiniAppMessageRequest = {
      */
     appName?: string;
     /**
-     * Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap.
+     * Absolute URL the recipient's installed extension receives on tap.
      */
     url?: string;
     layout?: V1MiniAppLayout;

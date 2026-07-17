@@ -1136,7 +1136,7 @@
     "/v1/messages:sendText": {
       "post": {
         "summary": "Writes",
-        "description": "HTTP mapping convention (governs all annotations in this package):\n- `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL\n  paths and never appear in one — they ride in the request body.\n- `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are\n  path-safe and map to resource paths.\n- Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).",
+        "description": "HTTP mapping convention (governs all annotations in this package):\n- `chat_guid` values (e.g. `iMessage;-;+15551234567`) are hostile to URL\n  paths and never appear in one — they ride in the request body, or in\n  query parameters for reads.\n- `message_guid` values (UUID-shaped, or proxy-virtual `spc-*`) are\n  path-safe and map to resource paths.\n- Non-CRUD mutations use the `:customVerb` suffix style (AIP-136).",
         "operationId": "MessageService_SendTextMessage",
         "responses": {
           "200": {
@@ -2574,7 +2574,7 @@
         },
         "url": {
           "type": "string",
-          "description": "Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap."
+          "description": "Absolute URL the recipient's installed extension receives on tap."
         },
         "layout": {
           "$ref": "#/definitions/v1MiniAppLayout",
@@ -2914,7 +2914,7 @@
         },
         "url": {
           "type": "string",
-          "description": "Absolute HTTP or HTTPS URL the recipient's installed extension receives on tap."
+          "description": "Absolute URL the recipient's installed extension receives on tap."
         },
         "layout": {
           "$ref": "#/definitions/v1MiniAppLayout",

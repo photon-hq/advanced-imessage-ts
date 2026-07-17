@@ -49,7 +49,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "prepublishOnly": "rm -rf proto && cp -R ../../proto ./proto && bun run build"
+    "prepublishOnly": "rm -rf proto && PATH=../../node_modules/.bin:$PATH buf export buf.build/photon-hq/imessage -o proto && bun run build"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0"

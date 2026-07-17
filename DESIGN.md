@@ -241,7 +241,9 @@ Factory function returns an interface. The class is an implementation detail.
 
 ## Proto and Codegen
 
-`proto/photon/imessage/v1/*.proto` is the contract. `packages/core/src/generated/` is also
+The contract is the BSR module [`buf.build/photon-hq/imessage`](https://buf.build/photon-hq/imessage),
+published by advanced-imessage-server-v2's CI (the canonical home — this repo never pushes it and
+vendors no protos; `buf generate` pulls the module from the BSR). `packages/core/src/generated/` is
 committed so the repo is clone-and-build with no codegen step required.
 
 We use **ts-proto** with `outputServices=nice-grpc,outputServices=generic-definitions`. ts-proto generates:
