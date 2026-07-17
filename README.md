@@ -1,29 +1,73 @@
 # @photon-ai/advanced-imessage
 
-TypeScript SDK for the v2 Advanced iMessage server, over plain HTTP.
+TypeScript SDK for the Advanced iMessage server. **Supports two transports:
+HTTP and gRPC** — pick per project, or mix them.
 
-The SDK talks `fetch` to the REST middleware
-([imessage-server-v2-http](https://github.com/photon-hq/imessage-server-v2-http)),
-which forwards to the iMessage plane — no gRPC anywhere in the client, so it
-runs wherever `fetch` exists: **Cloudflare Workers**, edge runtimes, browsers,
-Node, Bun, Deno.
-
-The SDK is intentionally thin: each resource method maps to one HTTP endpoint,
-returns handwritten SDK types, and keeps behavior explicit. Generated types
-are not part of the public API.
-
-Outbound (sending, reading, mutating) lives here. **Inbound events ride
-webhooks**, not client streams — see [Inbound events](#inbound-events).
+- **HTTP** (default): the SDK talks `fetch` to the REST middleware
+  ([imessage-server-v2-http](https://github.com/photon-hq/imessage-server-v2-http)),
+  which forwards to the iMessage plane — no gRPC in the client, so it runs
+  wherever `fetch` exists: **Cloudflare Workers**, edge runtimes, browsers,
+  Node, Bun, Deno. Inbound events ride webhooks — see
+  [Inbound events](#inbound-events).
+- **gRPC**: the full v1 surface, including the live
+  `subscribeEvents`/`watch`/`events.catchUp` streams. Node/Bun only.
 
 ## Install
+
+### HTTP
 
 ```bash
 bun add @photon-ai/advanced-imessage
 ```
 
+```ts
+import { createHttpClient } from "@photon-ai/advanced-imessage";
+
+const im = createHttpClient({
+  address: "http://localhost:8080", // the HTTP middleware
+  token: process.env.IMESSAGE_TOKEN!,
+});
+
+const sent = await im.messages.sendText("any;-;alice@example.com", "hello");
+console.log(sent.guid);
+
+await im.close();
+```
+
 Runs on any runtime with `fetch` (Cloudflare Workers, Node `>=18.17`, Bun,
 Deno, browsers). The package is ESM-only. Workers compatibility is enforced
 in CI: every build bundles the SDK and boots it in workerd.
+
+### gRPC
+
+The gRPC transport needs its peer dependencies.
+
+```bash
+bun add @photon-ai/advanced-imessage nice-grpc nice-grpc-common @grpc/grpc-js
+```
+
+```ts
+import { createClient } from "@photon-ai/advanced-imessage/grpc";
+
+const im = createClient({
+  address: "127.0.0.1:50051", // the gRPC server
+  token: process.env.IMESSAGE_TOKEN!,
+  tls: false,
+});
+
+const sent = await im.messages.sendText("any;-;alice@example.com", "hello");
+console.log(sent.guid);
+
+// gRPC keeps client-held live event streams:
+for await (const event of im.messages.subscribeEvents()) {
+  console.log(event.type, event.sequence);
+}
+
+await im.close();
+```
+
+Node `>=18.17` or Bun (native gRPC — not available on fetch-only runtimes
+like Workers).
 
 ## Entrypoints
 
@@ -33,30 +77,24 @@ One package, three entrypoints:
 | --- | --- |
 | `@photon-ai/advanced-imessage` | `createHttpClient`, `createGrpcClient`, and every shared type. HTTP-flavored: `ClientOptions` etc. are the HTTP client's. |
 | `@photon-ai/advanced-imessage/http` | The HTTP transport only. Safe everywhere `fetch` exists. |
-| `@photon-ai/advanced-imessage/grpc` | The legacy v1 gRPC transport: the full v1 surface, including `events` and the live `subscribeEvents`/`watch` streams. Node/Bun only. |
+| `@photon-ai/advanced-imessage/grpc` | The gRPC transport: the full v1 surface, including `events` and the live `subscribeEvents`/`watch` streams. Node/Bun only. |
 
-The gRPC transport is frozen at its v1 behavior and exists for backwards
-compatibility; new code should use HTTP. Using it requires its optional peer
-dependencies (never installed, downloaded, or evaluated otherwise):
+gRPC requires its optional peer dependencies (see [Install](#install)); HTTP-only installs never download or evaluate them.
 
-```bash
-bun add nice-grpc nice-grpc-common @grpc/grpc-js
-```
+## Migrating from v1
 
-## Migrating from v1 (gRPC)
-
-v1 of this package *was* the gRPC SDK. Your code keeps working with two
-changes — an import specifier and the peer install above:
+v1 of this package was gRPC-only, exported from the package root. Your code
+keeps working with two changes — an import specifier and the peer install
+above:
 
 ```diff
 -import { createClient, type ClientOptions } from "@photon-ai/advanced-imessage";
 +import { createClient, type ClientOptions } from "@photon-ai/advanced-imessage/grpc";
 ```
 
-Every v1 export keeps its name on the `/grpc` subpath (`createClient` is a
-deprecated alias of `createGrpcClient`). Live event streams stay
-gRPC-only — over HTTP, inbound events ride webhooks instead (see
-[Inbound events](#inbound-events)).
+Every v1 export keeps its name on the `/grpc` subpath (`createClient` is an
+alias of `createGrpcClient`). Live event streams stay gRPC-only — over HTTP,
+inbound events ride webhooks instead (see [Inbound events](#inbound-events)).
 
 ## Connect
 
@@ -272,14 +310,15 @@ const inChat = await im.messages.listInChat(chatGuid, {
 
 ## Inbound events
 
-This SDK is outbound-only. There are no client-held event streams: the
-`subscribeEvents(...)` / `watch(...)` / `events.catchUp(...)` APIs from v1
-are gone, because long-lived gRPC streams don't exist on `fetch`-only
-runtimes and inbound delivery is the platform's job, not the client's.
+The HTTP client is outbound-only. It has no client-held event streams —
+long-lived gRPC streams don't exist on `fetch`-only runtimes, so over HTTP
+inbound delivery is the platform's job, not the client's. (The
+`subscribeEvents(...)` / `watch(...)` / `events.catchUp(...)` streaming APIs
+remain available on the [gRPC transport](#grpc).)
 
-To receive messages and other events, register a **webhook** for your
-project (via Spectrum) and reply from your handler using this SDK. A typical
-Cloudflare Worker:
+Over HTTP, to receive messages and other events, register a **webhook** for
+your project (via Spectrum) and reply from your handler using this SDK. A
+typical Cloudflare Worker:
 
 ```ts
 export default {
@@ -419,7 +458,7 @@ publishes to npm — it bundles the private workspace packages:
 - `packages/core` — shared types, errors, streaming, proto↔public mapper,
   generated proto codecs
 - `packages/http` — the fetch transport and the live resources
-- `packages/grpc` — the frozen v1 gRPC transport behind a lazy façade
+- `packages/grpc` — the v1-compatible gRPC transport behind a lazy façade
 
 `bun run build` regenerates protobuf output and builds
 `packages/advanced-imessage/dist/`. `bun run generate:http` regenerates the
