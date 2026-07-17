@@ -7,8 +7,8 @@ version: v2
 # The input is PINNED to a BSR commit so codegen is reproducible and a server
 # push can't change our output. To take a contract update: bump the pin here
 # AND the matching `buf export` ref in packages/advanced-imessage's
-# prepublishOnly, run `bun run generate`, and commit the regenerated files
-# (CI diffs them against the pin).
+# prepublishOnly, run `bun run generate && bun run generate:http`, and commit
+# the regenerated files (CI's `verify:codegen` diffs them against the pin).
 inputs:
   - module: buf.build/photon-hq/imessage:3a73262f18f2485e868bc708ef35f51a
 managed:
