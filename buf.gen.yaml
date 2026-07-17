@@ -3,8 +3,14 @@ version: v2
 # advanced-imessage-server-v2's CI (the canonical home — this repo never
 # `buf push`es). `bun run generate` pulls the module straight from the BSR;
 # no protos are vendored here.
+#
+# The input is PINNED to a BSR commit so codegen is reproducible and a server
+# push can't change our output. To take a contract update: bump the pin here
+# AND the matching `buf export` ref in packages/advanced-imessage's
+# prepublishOnly, run `bun run generate`, and commit the regenerated files
+# (CI diffs them against the pin).
 inputs:
-  - module: buf.build/photon-hq/imessage
+  - module: buf.build/photon-hq/imessage:3a73262f18f2485e868bc708ef35f51a
 managed:
   enabled: true
   # Only used by the Go-based openapiv2 plugin to resolve import paths at

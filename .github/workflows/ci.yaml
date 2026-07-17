@@ -18,6 +18,9 @@ jobs:
       - run: bun run lint
       - run: bun test packages
       - run: bun run build
+      # The build regenerates from the pinned BSR commit; committed codegen
+      # must match it exactly (a pin bump without regen fails here).
+      - run: git diff --exit-code -- gen packages/core/src/generated
       # Post-build gates: entrypoint chunk identity, lazy grpc peer loading,
       # and a publishable exports map.
       - run: bun test tests/dist
