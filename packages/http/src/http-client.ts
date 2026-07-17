@@ -285,14 +285,15 @@ function combineSignals(
   return signals.length === 1 ? signals[0] : AbortSignal.any(signals);
 }
 
-async function authHeaders(
+/**
+ * Headers that must stay identical across retry attempts: instance routing
+ * and the idempotency key the server uses to dedupe re-issued mutations.
+ */
+function stableHeaders(
   ctx: CallContext,
   mutating: boolean
-): Promise<Record<string, string>> {
-  const token = typeof ctx.token === "function" ? await ctx.token() : ctx.token;
-  const headers: Record<string, string> = {
-    authorization: `Bearer ${token}`,
-  };
+): Record<string, string> {
+  const headers: Record<string, string> = {};
   if (ctx.server) {
     headers["x-photon-server"] = ctx.server;
   }
@@ -300,6 +301,19 @@ async function authHeaders(
     headers["x-idempotency-key"] = generateIdempotencyKey();
   }
   return headers;
+}
+
+/**
+ * Per-attempt headers: the token is resolved fresh for every attempt, so a
+ * credential rotated during backoff reaches the retry instead of the bearer
+ * minted before it.
+ */
+async function attemptHeaders(
+  ctx: CallContext,
+  stable: Record<string, string>
+): Promise<Record<string, string>> {
+  const token = typeof ctx.token === "function" ? await ctx.token() : ctx.token;
+  return { ...stable, authorization: `Bearer ${token}` };
 }
 
 /**
@@ -336,7 +350,8 @@ async function retryDelay(
  * explicitly by the server, or by status for body-less intermediary
  * failures — honoring `Retry-After`, else exponential backoff with full
  * jitter. The idempotency key (when enabled) is generated once and reused
- * across attempts so retries dedupe server-side.
+ * across attempts so retries dedupe server-side; the token is re-resolved
+ * on every attempt so rotated credentials reach retries.
  */
 async function callWithRetry(
   ctx: CallContext,
@@ -344,13 +359,14 @@ async function callWithRetry(
   mutating: boolean,
   signal: AbortSignal | undefined
 ): Promise<unknown> {
-  const headers = await authHeaders(ctx, mutating);
+  const stable = stableHeaders(ctx, mutating);
   const maxAttempts = ctx.retry?.maxAttempts ?? 1;
   let lastError: IMessageError | undefined;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (attempt > 0 && ctx.retry) {
       await retryDelay(ctx.retry, attempt, lastError, signal);
     }
+    const headers = await attemptHeaders(ctx, stable);
     let outcome: Awaited<SdkResult>;
     try {
       outcome = await attemptCall(headers);
@@ -468,7 +484,7 @@ async function rawFetch(
     signal?: AbortSignal | undefined;
   }
 ): Promise<Response> {
-  const headers = await authHeaders(ctx, init.mutating ?? false);
+  const stable = stableHeaders(ctx, init.mutating ?? false);
   const signal = combineSignals(init.signal, ctx.timeout);
   const maxAttempts = ctx.retry?.maxAttempts ?? 1;
   let lastError: IMessageError | undefined;
@@ -476,6 +492,7 @@ async function rawFetch(
     if (attempt > 0 && ctx.retry) {
       await retryDelay(ctx.retry, attempt, lastError, signal);
     }
+    const headers = await attemptHeaders(ctx, stable);
     let response: Response;
     try {
       response = await fetch(url, {

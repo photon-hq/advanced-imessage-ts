@@ -244,6 +244,26 @@ describe("http transport", () => {
     expect(second).toBe(first ?? "");
   });
 
+  it("re-resolves a token function on each retry attempt", async () => {
+    const captured = mockFetch([
+      {
+        status: 503,
+        body: { code: "unavailable", message: "busy", retryable: true },
+      },
+      { status: 200, body: { message: {} } },
+    ]);
+    let minted = 0;
+    await clients({
+      retry: { initialDelay: 1, maxDelay: 2 },
+      token: () => {
+        minted += 1;
+        return Promise.resolve(`rotating-${minted}`);
+      },
+    }).messages.sendTextMessage({ chatGuid: "x", text: "y" });
+    expect(captured[0]?.headers.get("authorization")).toBe("Bearer rotating-1");
+    expect(captured[1]?.headers.get("authorization")).toBe("Bearer rotating-2");
+  });
+
   it("retries body-less 5xx responses from intermediaries", async () => {
     // No contract body — an LB answered. 503 defaults to retryable now.
     const captured = mockFetch([

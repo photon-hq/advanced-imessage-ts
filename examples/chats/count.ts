@@ -1,9 +1,8 @@
 import { createHttpClient } from "@photon-ai/advanced-imessage";
 
 const im = createHttpClient({
-  address: "127.0.0.1:50051",
+  address: "http://localhost:8080", // the HTTP middleware
   token: "dev-token",
-  tls: false,
 });
 
 const active = await im.chats.count();
