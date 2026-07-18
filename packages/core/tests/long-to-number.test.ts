@@ -5,8 +5,8 @@ import { SubscribePollEventsResponse } from "../src/generated/photon/imessage/v1
 // Far past Number.MAX_SAFE_INTEGER (2^53 - 1). ts-proto types these fields as
 // `number`, but the wire format can carry the full signed/unsigned 64-bit
 // range, so the cast is required to construct a regression fixture for #23.
-const OVERSIZED_UINT64 = "18446744073709551615" as unknown as number; // 2^64 - 1 (max uint64)
-const OVERSIZED_INT64 = "9223372036854775807" as unknown as number; // 2^63 - 1 (max int64)
+const OVERSIZED_UINT64 = Number("18446744073709551615"); // 2^64 - 1 (max uint64)
+const OVERSIZED_INT64 = Number("9223372036854775807"); // 2^63 - 1 (max int64)
 
 describe("longToNumber overflow handling (issue #23)", () => {
   it("decodes a top-level oversized uint64 sequence without throwing", () => {
