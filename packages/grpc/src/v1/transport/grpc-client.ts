@@ -170,6 +170,13 @@ const KEEPALIVE_PERMIT_WITHOUT_CALLS = 1;
 const KEEPALIVE_MAX_PINGS_WITHOUT_DATA = 0;
 
 /**
+ * Preserve grpc-js's effectively unlimited default within Bun's `u32` storage.
+ * Bun 1.3.14 converts grpc-js's Number.MAX_SAFE_INTEGER default to a 1 MiB
+ * limit; the largest `u32` avoids that conversion failure on Bun and Node.
+ */
+const MAX_SESSION_MEMORY_MB = 4_294_967_295;
+
+/**
  * Create a gRPC channel and all service clients with the configured
  * middleware.
  *
@@ -193,7 +200,7 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
   // Keepalive lets clients detect a half-open connection (failure mode 2 of
   // ENG-1688): a silent gateway drop that sends no RST/GOAWAY would otherwise
   // leave the event `for await` blocked forever. Applied to BOTH channels.
-  // Caller-supplied `channelOptions` win, so liveness stays tunable.
+  // Caller-supplied `channelOptions` win, so SDK defaults stay tunable.
   const channelOptions: ChannelOptions = {
     "grpc.max_receive_message_length": MAX_MESSAGE_BYTES,
     "grpc.max_send_message_length": MAX_MESSAGE_BYTES,
@@ -201,6 +208,7 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
     "grpc.keepalive_timeout_ms": KEEPALIVE_TIMEOUT_MS,
     "grpc.keepalive_permit_without_calls": KEEPALIVE_PERMIT_WITHOUT_CALLS,
     "grpc.http2.max_pings_without_data": KEEPALIVE_MAX_PINGS_WITHOUT_DATA,
+    "grpc-node.max_session_memory": MAX_SESSION_MEMORY_MB,
     ...options.channelOptions,
   };
 
