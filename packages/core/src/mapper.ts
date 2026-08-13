@@ -38,6 +38,8 @@ import {
   type MessageRead as ProtoMessageRead,
   type MessageReceived as ProtoMessageReceived,
   type MessageUnsent as ProtoMessageUnsent,
+  type MiniAppContent as ProtoMiniAppContent,
+  type MiniAppLayoutInfo as ProtoMiniAppLayoutInfo,
   type ReplyTarget as ProtoReplyTarget,
   type StickerPlaced as ProtoStickerPlaced,
   type StickerPlacement as ProtoStickerPlacement,
@@ -83,6 +85,8 @@ import type {
   MessagePart,
   MessagePlacedSticker,
   MessageReaction,
+  MiniAppContent,
+  MiniAppLayoutInfo,
   StickerPlacement,
   TextFormat,
   TextFormatInput,
@@ -276,6 +280,45 @@ export function mapStickerPlacement(
   };
 }
 
+/**
+ * Maps protobuf Mini App layout data to the public domain type.
+ *
+ * @param proto - The protobuf {@link ProtoMiniAppLayoutInfo} to map.
+ * @returns The mapped {@link MiniAppLayoutInfo}.
+ */
+export function mapMiniAppLayoutInfo(
+  proto: ProtoMiniAppLayoutInfo
+): MiniAppLayoutInfo {
+  return {
+    caption: proto.caption,
+    imageSubtitle: proto.imageSubtitle,
+    imageTitle: proto.imageTitle,
+    subcaption: proto.subcaption,
+    summary: proto.summary,
+    trailingCaption: proto.trailingCaption,
+    trailingSubcaption: proto.trailingSubcaption,
+  };
+}
+
+/**
+ * Maps protobuf Mini App content to the public domain type.
+ *
+ * @param proto - The protobuf {@link ProtoMiniAppContent} to map.
+ * @returns The mapped {@link MiniAppContent}.
+ */
+export function mapMiniAppContent(proto: ProtoMiniAppContent): MiniAppContent {
+  return {
+    appName: proto.appName,
+    appStoreId: proto.appStoreId,
+    extensionBundleId: proto.extensionBundleId,
+    layout: proto.layout ? mapMiniAppLayoutInfo(proto.layout) : undefined,
+    live: proto.live,
+    sessionId: proto.sessionId,
+    teamId: proto.teamId,
+    url: proto.url,
+  };
+}
+
 export function mapMessageContent(proto: ProtoMessageContent): MessageContent {
   return {
     attachments: proto.attachments.map(mapAttachmentInfo),
@@ -283,6 +326,7 @@ export function mapMessageContent(proto: ProtoMessageContent): MessageContent {
     expressiveSendStyleId: proto.expressiveSendStyleId,
     formatting: proto.formatting.map(mapTextFormat),
     mentions: proto.mentions.map(mapMessageMention),
+    miniApp: proto.miniApp ? mapMiniAppContent(proto.miniApp) : undefined,
     text: proto.text,
   };
 }

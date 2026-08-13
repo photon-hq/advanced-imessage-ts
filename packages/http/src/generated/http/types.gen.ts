@@ -421,6 +421,7 @@ export type V1MessageContent = {
     mentions?: Array<V1MessageMention>;
     balloonBundleId?: string;
     expressiveSendStyleId?: string;
+    miniApp?: V1MiniAppContent;
 };
 
 /**
@@ -521,6 +522,42 @@ export type V1MiniAppCardSession = {
 };
 
 /**
+ * Public, decoded fields from an iMessage app-extension balloon. The opaque
+ * Apple payload archive intentionally remains server-internal.
+ */
+export type V1MiniAppContent = {
+    /**
+     * Apple Team ID parsed from `balloon_bundle_id`.
+     */
+    teamId?: string;
+    /**
+     * iMessage extension bundle identifier parsed from `balloon_bundle_id`.
+     */
+    extensionBundleId?: string;
+    /**
+     * Display name embedded by the sending extension.
+     */
+    appName?: string;
+    /**
+     * URL delivered to the extension when the recipient opens the card.
+     */
+    url?: string;
+    /**
+     * Stable session identifier shared by updates to the same card.
+     */
+    sessionId?: string;
+    /**
+     * App Store identifier when supplied by the sender.
+     */
+    appStoreId?: string;
+    /**
+     * Whether the payload carries `MSMessageLiveLayout` metadata.
+     */
+    live?: boolean;
+    layout?: V1MiniAppLayoutInfo;
+};
+
+/**
  * Visible content of a customized mini-app card. Field names match Apple's
  * `MSMessageTemplateLayout` public API so callers do not need to translate
  * between our names and Apple's docs.
@@ -565,6 +602,42 @@ export type V1MiniAppLayout = {
     /**
      * Overlay text shown below `image_title`, above the image edge.
      * Requires `image`.
+     */
+    imageSubtitle?: string;
+    /**
+     * Fallback text shown on surfaces that cannot render the full card.
+     */
+    summary?: string;
+};
+
+/**
+ * Visible fields decoded from an inbound `MSMessageTemplateLayout`. Apple
+ * stores card media as a separate attachment, so this observed layout does not
+ * duplicate image bytes.
+ */
+export type V1MiniAppLayoutInfo = {
+    /**
+     * Top-left, bold. The most prominent text slot.
+     */
+    caption?: string;
+    /**
+     * Below `caption`, on the left.
+     */
+    subcaption?: string;
+    /**
+     * Top-right.
+     */
+    trailingCaption?: string;
+    /**
+     * Below `trailing_caption`, on the right.
+     */
+    trailingSubcaption?: string;
+    /**
+     * Overlay text shown above the image.
+     */
+    imageTitle?: string;
+    /**
+     * Overlay text shown below `image_title`, above the image edge.
      */
     imageSubtitle?: string;
     /**

@@ -219,6 +219,71 @@ export interface MessagePart {
 }
 
 /**
+ * Visible fields decoded from an inbound `MSMessageTemplateLayout`. Apple
+ * stores card media as a separate attachment, so this observed layout does not
+ * duplicate image bytes.
+ */
+export interface MiniAppLayoutInfo {
+  /** Top-left, bold. The most prominent text slot. */
+  caption?:
+    | string
+    | undefined;
+  /** Below `caption`, on the left. */
+  subcaption?:
+    | string
+    | undefined;
+  /** Top-right. */
+  trailingCaption?:
+    | string
+    | undefined;
+  /** Below `trailing_caption`, on the right. */
+  trailingSubcaption?:
+    | string
+    | undefined;
+  /** Overlay text shown above the image. */
+  imageTitle?:
+    | string
+    | undefined;
+  /** Overlay text shown below `image_title`, above the image edge. */
+  imageSubtitle?:
+    | string
+    | undefined;
+  /** Fallback text shown on surfaces that cannot render the full card. */
+  summary?: string | undefined;
+}
+
+/**
+ * Public, decoded fields from an iMessage app-extension balloon. The opaque
+ * Apple payload archive intentionally remains server-internal.
+ */
+export interface MiniAppContent {
+  /** Apple Team ID parsed from `balloon_bundle_id`. */
+  teamId: string;
+  /** iMessage extension bundle identifier parsed from `balloon_bundle_id`. */
+  extensionBundleId: string;
+  /** Display name embedded by the sending extension. */
+  appName?:
+    | string
+    | undefined;
+  /** URL delivered to the extension when the recipient opens the card. */
+  url?:
+    | string
+    | undefined;
+  /** Stable session identifier shared by updates to the same card. */
+  sessionId?:
+    | string
+    | undefined;
+  /** App Store identifier when supplied by the sender. */
+  appStoreId?:
+    | number
+    | undefined;
+  /** Whether the payload carries `MSMessageLiveLayout` metadata. */
+  live: boolean;
+  /** Visible template fields decoded from the payload archive. */
+  layout?: MiniAppLayoutInfo | undefined;
+}
+
+/**
  * Rendered content of an inbound or persisted message, with attachments,
  * mentions, and effects.
  */
@@ -229,6 +294,7 @@ export interface MessageContent {
   mentions: MessageMention[];
   balloonBundleId?: string | undefined;
   expressiveSendStyleId?: string | undefined;
+  miniApp?: MiniAppContent | undefined;
 }
 
 /**
@@ -1229,6 +1295,389 @@ export const MessagePart: MessageFns<MessagePart> = {
   },
 };
 
+function createBaseMiniAppLayoutInfo(): MiniAppLayoutInfo {
+  return {
+    caption: undefined,
+    subcaption: undefined,
+    trailingCaption: undefined,
+    trailingSubcaption: undefined,
+    imageTitle: undefined,
+    imageSubtitle: undefined,
+    summary: undefined,
+  };
+}
+
+export const MiniAppLayoutInfo: MessageFns<MiniAppLayoutInfo> = {
+  encode(message: MiniAppLayoutInfo, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.caption !== undefined) {
+      writer.uint32(10).string(message.caption);
+    }
+    if (message.subcaption !== undefined) {
+      writer.uint32(18).string(message.subcaption);
+    }
+    if (message.trailingCaption !== undefined) {
+      writer.uint32(26).string(message.trailingCaption);
+    }
+    if (message.trailingSubcaption !== undefined) {
+      writer.uint32(34).string(message.trailingSubcaption);
+    }
+    if (message.imageTitle !== undefined) {
+      writer.uint32(42).string(message.imageTitle);
+    }
+    if (message.imageSubtitle !== undefined) {
+      writer.uint32(50).string(message.imageSubtitle);
+    }
+    if (message.summary !== undefined) {
+      writer.uint32(58).string(message.summary);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MiniAppLayoutInfo {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMiniAppLayoutInfo();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.caption = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.subcaption = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.trailingCaption = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.trailingSubcaption = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.imageTitle = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
+            break;
+          }
+
+          message.imageSubtitle = reader.string();
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.summary = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MiniAppLayoutInfo {
+    return {
+      caption: isSet(object.caption) ? globalThis.String(object.caption) : undefined,
+      subcaption: isSet(object.subcaption) ? globalThis.String(object.subcaption) : undefined,
+      trailingCaption: isSet(object.trailingCaption)
+        ? globalThis.String(object.trailingCaption)
+        : isSet(object.trailing_caption)
+        ? globalThis.String(object.trailing_caption)
+        : undefined,
+      trailingSubcaption: isSet(object.trailingSubcaption)
+        ? globalThis.String(object.trailingSubcaption)
+        : isSet(object.trailing_subcaption)
+        ? globalThis.String(object.trailing_subcaption)
+        : undefined,
+      imageTitle: isSet(object.imageTitle)
+        ? globalThis.String(object.imageTitle)
+        : isSet(object.image_title)
+        ? globalThis.String(object.image_title)
+        : undefined,
+      imageSubtitle: isSet(object.imageSubtitle)
+        ? globalThis.String(object.imageSubtitle)
+        : isSet(object.image_subtitle)
+        ? globalThis.String(object.image_subtitle)
+        : undefined,
+      summary: isSet(object.summary) ? globalThis.String(object.summary) : undefined,
+    };
+  },
+
+  toJSON(message: MiniAppLayoutInfo): unknown {
+    const obj: any = {};
+    if (message.caption !== undefined) {
+      obj.caption = message.caption;
+    }
+    if (message.subcaption !== undefined) {
+      obj.subcaption = message.subcaption;
+    }
+    if (message.trailingCaption !== undefined) {
+      obj.trailingCaption = message.trailingCaption;
+    }
+    if (message.trailingSubcaption !== undefined) {
+      obj.trailingSubcaption = message.trailingSubcaption;
+    }
+    if (message.imageTitle !== undefined) {
+      obj.imageTitle = message.imageTitle;
+    }
+    if (message.imageSubtitle !== undefined) {
+      obj.imageSubtitle = message.imageSubtitle;
+    }
+    if (message.summary !== undefined) {
+      obj.summary = message.summary;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MiniAppLayoutInfo>): MiniAppLayoutInfo {
+    return MiniAppLayoutInfo.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MiniAppLayoutInfo>): MiniAppLayoutInfo {
+    const message = createBaseMiniAppLayoutInfo();
+    message.caption = object.caption ?? undefined;
+    message.subcaption = object.subcaption ?? undefined;
+    message.trailingCaption = object.trailingCaption ?? undefined;
+    message.trailingSubcaption = object.trailingSubcaption ?? undefined;
+    message.imageTitle = object.imageTitle ?? undefined;
+    message.imageSubtitle = object.imageSubtitle ?? undefined;
+    message.summary = object.summary ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMiniAppContent(): MiniAppContent {
+  return {
+    teamId: "",
+    extensionBundleId: "",
+    appName: undefined,
+    url: undefined,
+    sessionId: undefined,
+    appStoreId: undefined,
+    live: false,
+    layout: undefined,
+  };
+}
+
+export const MiniAppContent: MessageFns<MiniAppContent> = {
+  encode(message: MiniAppContent, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.teamId !== "") {
+      writer.uint32(10).string(message.teamId);
+    }
+    if (message.extensionBundleId !== "") {
+      writer.uint32(18).string(message.extensionBundleId);
+    }
+    if (message.appName !== undefined) {
+      writer.uint32(26).string(message.appName);
+    }
+    if (message.url !== undefined) {
+      writer.uint32(34).string(message.url);
+    }
+    if (message.sessionId !== undefined) {
+      writer.uint32(42).string(message.sessionId);
+    }
+    if (message.appStoreId !== undefined) {
+      writer.uint32(48).int64(message.appStoreId);
+    }
+    if (message.live !== false) {
+      writer.uint32(56).bool(message.live);
+    }
+    if (message.layout !== undefined) {
+      MiniAppLayoutInfo.encode(message.layout, writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MiniAppContent {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseMiniAppContent();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.teamId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.extensionBundleId = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.appName = reader.string();
+          continue;
+        }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.url = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.sessionId = reader.string();
+          continue;
+        }
+        case 6: {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.appStoreId = longToNumber(reader.int64());
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.live = reader.bool();
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
+            break;
+          }
+
+          message.layout = MiniAppLayoutInfo.decode(reader, reader.uint32());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): MiniAppContent {
+    return {
+      teamId: isSet(object.teamId)
+        ? globalThis.String(object.teamId)
+        : isSet(object.team_id)
+        ? globalThis.String(object.team_id)
+        : "",
+      extensionBundleId: isSet(object.extensionBundleId)
+        ? globalThis.String(object.extensionBundleId)
+        : isSet(object.extension_bundle_id)
+        ? globalThis.String(object.extension_bundle_id)
+        : "",
+      appName: isSet(object.appName)
+        ? globalThis.String(object.appName)
+        : isSet(object.app_name)
+        ? globalThis.String(object.app_name)
+        : undefined,
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      sessionId: isSet(object.sessionId)
+        ? globalThis.String(object.sessionId)
+        : isSet(object.session_id)
+        ? globalThis.String(object.session_id)
+        : undefined,
+      appStoreId: isSet(object.appStoreId)
+        ? globalThis.Number(object.appStoreId)
+        : isSet(object.app_store_id)
+        ? globalThis.Number(object.app_store_id)
+        : undefined,
+      live: isSet(object.live) ? globalThis.Boolean(object.live) : false,
+      layout: isSet(object.layout) ? MiniAppLayoutInfo.fromJSON(object.layout) : undefined,
+    };
+  },
+
+  toJSON(message: MiniAppContent): unknown {
+    const obj: any = {};
+    if (message.teamId !== "") {
+      obj.teamId = message.teamId;
+    }
+    if (message.extensionBundleId !== "") {
+      obj.extensionBundleId = message.extensionBundleId;
+    }
+    if (message.appName !== undefined) {
+      obj.appName = message.appName;
+    }
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.sessionId !== undefined) {
+      obj.sessionId = message.sessionId;
+    }
+    if (message.appStoreId !== undefined) {
+      obj.appStoreId = Math.round(message.appStoreId);
+    }
+    if (message.live !== false) {
+      obj.live = message.live;
+    }
+    if (message.layout !== undefined) {
+      obj.layout = MiniAppLayoutInfo.toJSON(message.layout);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MiniAppContent>): MiniAppContent {
+    return MiniAppContent.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MiniAppContent>): MiniAppContent {
+    const message = createBaseMiniAppContent();
+    message.teamId = object.teamId ?? "";
+    message.extensionBundleId = object.extensionBundleId ?? "";
+    message.appName = object.appName ?? undefined;
+    message.url = object.url ?? undefined;
+    message.sessionId = object.sessionId ?? undefined;
+    message.appStoreId = object.appStoreId ?? undefined;
+    message.live = object.live ?? false;
+    message.layout = (object.layout !== undefined && object.layout !== null)
+      ? MiniAppLayoutInfo.fromPartial(object.layout)
+      : undefined;
+    return message;
+  },
+};
+
 function createBaseMessageContent(): MessageContent {
   return {
     text: undefined,
@@ -1237,6 +1686,7 @@ function createBaseMessageContent(): MessageContent {
     mentions: [],
     balloonBundleId: undefined,
     expressiveSendStyleId: undefined,
+    miniApp: undefined,
   };
 }
 
@@ -1259,6 +1709,9 @@ export const MessageContent: MessageFns<MessageContent> = {
     }
     if (message.expressiveSendStyleId !== undefined) {
       writer.uint32(50).string(message.expressiveSendStyleId);
+    }
+    if (message.miniApp !== undefined) {
+      MiniAppContent.encode(message.miniApp, writer.uint32(58).fork()).join();
     }
     return writer;
   },
@@ -1318,6 +1771,14 @@ export const MessageContent: MessageFns<MessageContent> = {
           message.expressiveSendStyleId = reader.string();
           continue;
         }
+        case 7: {
+          if (tag !== 58) {
+            break;
+          }
+
+          message.miniApp = MiniAppContent.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1349,6 +1810,11 @@ export const MessageContent: MessageFns<MessageContent> = {
         : isSet(object.expressive_send_style_id)
         ? globalThis.String(object.expressive_send_style_id)
         : undefined,
+      miniApp: isSet(object.miniApp)
+        ? MiniAppContent.fromJSON(object.miniApp)
+        : isSet(object.mini_app)
+        ? MiniAppContent.fromJSON(object.mini_app)
+        : undefined,
     };
   },
 
@@ -1372,6 +1838,9 @@ export const MessageContent: MessageFns<MessageContent> = {
     if (message.expressiveSendStyleId !== undefined) {
       obj.expressiveSendStyleId = message.expressiveSendStyleId;
     }
+    if (message.miniApp !== undefined) {
+      obj.miniApp = MiniAppContent.toJSON(message.miniApp);
+    }
     return obj;
   },
 
@@ -1386,6 +1855,9 @@ export const MessageContent: MessageFns<MessageContent> = {
     message.mentions = object.mentions?.map((e) => MessageMention.fromPartial(e)) || [];
     message.balloonBundleId = object.balloonBundleId ?? undefined;
     message.expressiveSendStyleId = object.expressiveSendStyleId ?? undefined;
+    message.miniApp = (object.miniApp !== undefined && object.miniApp !== null)
+      ? MiniAppContent.fromPartial(object.miniApp)
+      : undefined;
     return message;
   },
 };
@@ -3836,6 +4308,17 @@ function fromJsonTimestamp(o: any): Date {
   } else {
     return fromTimestamp(Timestamp.fromJSON(o));
   }
+}
+
+function longToNumber(int64: { toString(): string }): number {
+  const num = globalThis.Number(int64.toString());
+  if (num > globalThis.Number.MAX_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is larger than Number.MAX_SAFE_INTEGER");
+  }
+  if (num < globalThis.Number.MIN_SAFE_INTEGER) {
+    throw new globalThis.Error("Value is smaller than Number.MIN_SAFE_INTEGER");
+  }
+  return num;
 }
 
 function isSet(value: any): boolean {
