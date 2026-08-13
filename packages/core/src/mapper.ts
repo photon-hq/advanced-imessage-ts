@@ -280,6 +280,12 @@ export function mapStickerPlacement(
   };
 }
 
+/**
+ * Maps protobuf Mini App layout data to the public domain type.
+ *
+ * @param proto - The protobuf {@link ProtoMiniAppLayoutInfo} to map.
+ * @returns The mapped {@link MiniAppLayoutInfo}.
+ */
 export function mapMiniAppLayoutInfo(
   proto: ProtoMiniAppLayoutInfo
 ): MiniAppLayoutInfo {
@@ -294,6 +300,12 @@ export function mapMiniAppLayoutInfo(
   };
 }
 
+/**
+ * Maps protobuf Mini App content to the public domain type.
+ *
+ * @param proto - The protobuf {@link ProtoMiniAppContent} to map.
+ * @returns The mapped {@link MiniAppContent}.
+ */
 export function mapMiniAppContent(proto: ProtoMiniAppContent): MiniAppContent {
   return {
     appName: proto.appName,
