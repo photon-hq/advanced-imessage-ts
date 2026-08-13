@@ -2,12 +2,16 @@ import { describe, expect, it } from "bun:test";
 import { ChatServiceType } from "@photon-ai/aim-core/generated/photon/imessage/v1/address_types";
 import { CompanionKind } from "@photon-ai/aim-core/generated/photon/imessage/v1/attachment_types";
 import { GroupChangeEvent } from "@photon-ai/aim-core/generated/photon/imessage/v1/group_types";
-import { MessageReactionKind } from "@photon-ai/aim-core/generated/photon/imessage/v1/message_types";
+import {
+  MessageContent,
+  MessageReactionKind,
+} from "@photon-ai/aim-core/generated/photon/imessage/v1/message_types";
 import { PollChangeEvent } from "@photon-ai/aim-core/generated/photon/imessage/v1/poll_types";
 import {
   mapChatServiceType,
   mapCompanionKind,
   mapGroupEvent,
+  mapMessageContent,
   mapMessageReaction,
   mapPollEvent,
 } from "../src/mapper.ts";
@@ -36,6 +40,50 @@ describe("mapper", () => {
         emoji: undefined,
       }).kind
     ).toBe("unknown");
+  });
+
+  it("preserves inbound mini-app content across protobuf decoding and mapping", () => {
+    const bytes = MessageContent.encode(
+      MessageContent.create({
+        miniApp: {
+          appName: "Example App",
+          appStoreId: 1_234_567_890,
+          extensionBundleId: "codes.photon.Example.MessagesExtension",
+          layout: {
+            caption: "Caption",
+            imageSubtitle: "Image subtitle",
+            imageTitle: "Image title",
+            subcaption: "Subcaption",
+            summary: "Fallback summary",
+            trailingCaption: "Trailing",
+            trailingSubcaption: "Trailing detail",
+          },
+          live: true,
+          sessionId: "8D898034-407B-4FF5-91E8-9DC18911DCA9",
+          teamId: "P8XT6232SL",
+          url: "https://example.com/card?id=42",
+        },
+      })
+    ).finish();
+
+    expect(mapMessageContent(MessageContent.decode(bytes)).miniApp).toEqual({
+      appName: "Example App",
+      appStoreId: 1_234_567_890,
+      extensionBundleId: "codes.photon.Example.MessagesExtension",
+      layout: {
+        caption: "Caption",
+        imageSubtitle: "Image subtitle",
+        imageTitle: "Image title",
+        subcaption: "Subcaption",
+        summary: "Fallback summary",
+        trailingCaption: "Trailing",
+        trailingSubcaption: "Trailing detail",
+      },
+      live: true,
+      sessionId: "8D898034-407B-4FF5-91E8-9DC18911DCA9",
+      teamId: "P8XT6232SL",
+      url: "https://example.com/card?id=42",
+    });
   });
 
   it("drops group events whose oneof payload is absent", () => {

@@ -6,28 +6,36 @@
   },
   "tags": [
     {
-      "name": "AddressService"
+      "name": "AddressService",
+      "description": "All RPCs share the same `address` query rules:\n\n  - accept an E.164 phone number such as `+14155550123`\n  - accept a full email such as `alice@example.com`\n  - the server trims whitespace and lowercases email queries before lookup\n    or external availability checks\n  - empty or malformed inputs are rejected with `INVALID_ARGUMENT`"
     },
     {
-      "name": "AttachmentService"
+      "name": "AttachmentService",
+      "description": "Attachment metadata reads, uploads, and downloads. All transfers are\nend-to-end on this gRPC channel; no external blob store is involved."
     },
     {
-      "name": "ChatService"
+      "name": "ChatService",
+      "description": "Chat-level reads, mutations, and event streams."
     },
     {
-      "name": "EventService"
+      "name": "EventService",
+      "description": "Unified finite replay across every durable event domain:\nmessages, group state, polls, and chats.\n\nDrains everything newer than `after_sequence` and terminates with\n`CatchUpEventsComplete`, after which the caller hands off to the live\n`Subscribe*` streams without gaps.\n\nAll `sequence` values returned here share the same global event log\nas `SubscribeMessageEvents`, `SubscribeGroupEvents`, `SubscribePollEvents`,\nand `SubscribeChatEvents`."
     },
     {
-      "name": "GroupService"
+      "name": "GroupService",
+      "description": "Group-chat administration plus a durable event stream."
     },
     {
-      "name": "LocationService"
+      "name": "LocationService",
+      "description": "Find My friend-location queries and live updates.\nReads issue one-shot source queries; the watch stream forwards pushed\nobservations and is not server-polled on a timer."
     },
     {
-      "name": "MessageService"
+      "name": "MessageService",
+      "description": "Sends, mutates, reads, and observes messages.\n\nWrites are synchronous to the command path. Methods that return\n`MessageResponse` also perform the reads needed to return a fresh message\nsnapshot; methods that return `google.protobuf.Empty` do not add a projection\nread unless their individual contract says so.\n\nDurable message changes flow through `SubscribeMessageEvents`. For gap-free\nreconnect, drain history with `EventService.CatchUpEvents` before joining\nthe live subscription."
     },
     {
-      "name": "PollService"
+      "name": "PollService",
+      "description": "Apple Polls (iOS 18+) authoring and observation.\n\nEvery write returns the resulting `PollInfo` snapshot.\n\nDurable poll changes flow through `SubscribePollEvents`. For gap-free\nreconnect, pair it with `EventService.CatchUpEvents`."
     }
   ],
   "consumes": [
@@ -2125,6 +2133,9 @@
         },
         "expressiveSendStyleId": {
           "type": "string"
+        },
+        "miniApp": {
+          "$ref": "#/definitions/v1MiniAppContent"
         }
       },
       "description": "Rendered content of an inbound or persisted message, with attachments,\nmentions, and effects."
@@ -2285,6 +2296,45 @@
       },
       "description": "Stable iMessage app-card handle returned by mini-app send/update RPCs.\nPass the latest session back to the matching update RPC. The `session_id`\nremains stable across updates; `target_message_guid` identifies the original\nbubble being replaced in place."
     },
+    "v1MiniAppContent": {
+      "type": "object",
+      "properties": {
+        "teamId": {
+          "type": "string",
+          "description": "Apple Team ID parsed from `balloon_bundle_id`."
+        },
+        "extensionBundleId": {
+          "type": "string",
+          "description": "iMessage extension bundle identifier parsed from `balloon_bundle_id`."
+        },
+        "appName": {
+          "type": "string",
+          "description": "Display name embedded by the sending extension."
+        },
+        "url": {
+          "type": "string",
+          "description": "URL delivered to the extension when the recipient opens the card."
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Stable session identifier shared by updates to the same card."
+        },
+        "appStoreId": {
+          "type": "string",
+          "format": "int64",
+          "description": "App Store identifier when supplied by the sender."
+        },
+        "live": {
+          "type": "boolean",
+          "description": "Whether the payload carries `MSMessageLiveLayout` metadata."
+        },
+        "layout": {
+          "$ref": "#/definitions/v1MiniAppLayoutInfo",
+          "description": "Visible template fields decoded from the payload archive."
+        }
+      },
+      "description": "Public, decoded fields from an iMessage app-extension balloon. The opaque\nApple payload archive intentionally remains server-internal."
+    },
     "v1MiniAppLayout": {
       "type": "object",
       "properties": {
@@ -2323,6 +2373,40 @@
         }
       },
       "description": "Visible content of a customized mini-app card. Field names match Apple's\n`MSMessageTemplateLayout` public API so callers do not need to translate\nbetween our names and Apple's docs.\n\nSlot map:\n  * caption/subcaption render on the left;\n  * trailing_caption/trailing_subcaption render on the right;\n  * image_title/image_subtitle overlay the image.\n\nValidation enforced by the server:\n  * at least one of {caption, subcaption, trailing_caption,\n    trailing_subcaption, image} must be non-empty; otherwise the\n    recipient would see an empty bubble;\n  * `image` and `image_title` must be set together;\n  * `image_subtitle` requires `image`."
+    },
+    "v1MiniAppLayoutInfo": {
+      "type": "object",
+      "properties": {
+        "caption": {
+          "type": "string",
+          "description": "Top-left, bold. The most prominent text slot."
+        },
+        "subcaption": {
+          "type": "string",
+          "description": "Below `caption`, on the left."
+        },
+        "trailingCaption": {
+          "type": "string",
+          "description": "Top-right."
+        },
+        "trailingSubcaption": {
+          "type": "string",
+          "description": "Below `trailing_caption`, on the right."
+        },
+        "imageTitle": {
+          "type": "string",
+          "description": "Overlay text shown above the image."
+        },
+        "imageSubtitle": {
+          "type": "string",
+          "description": "Overlay text shown below `image_title`, above the image edge."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Fallback text shown on surfaces that cannot render the full card."
+        }
+      },
+      "description": "Visible fields decoded from an inbound `MSMessageTemplateLayout`. Apple\nstores card media as a separate attachment, so this observed layout does not\nduplicate image bytes."
     },
     "v1MultiServiceAddressInfo": {
       "type": "object",

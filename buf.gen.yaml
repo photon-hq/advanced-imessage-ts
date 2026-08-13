@@ -10,7 +10,7 @@ version: v2
 # prepublishOnly, run `bun run generate && bun run generate:http`, and commit
 # the regenerated files (CI's `verify:codegen` diffs them against the pin).
 inputs:
-  - module: buf.build/photon-hq/imessage:3a73262f18f2485e868bc708ef35f51a
+  - module: buf.build/photon-hq/imessage:295f823a6a8649c9ab5bfab017b64f82
 managed:
   enabled: true
   # Only used by the Go-based openapiv2 plugin to resolve import paths at

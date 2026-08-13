@@ -89,12 +89,51 @@ export interface StickerPlacement {
   readonly y: number;
 }
 
+/** Visible fields decoded from an inbound iMessage mini-app card. */
+export interface MiniAppLayoutInfo {
+  /** Top-left, bold. The most prominent text slot. */
+  readonly caption?: string;
+  /** Overlay text shown below `imageTitle`, above the image edge. */
+  readonly imageSubtitle?: string;
+  /** Overlay text shown above the image. */
+  readonly imageTitle?: string;
+  /** Below `caption`, on the left. */
+  readonly subcaption?: string;
+  /** Fallback text shown when the full card cannot be rendered. */
+  readonly summary?: string;
+  /** Top-right. */
+  readonly trailingCaption?: string;
+  /** Below `trailingCaption`, on the right. */
+  readonly trailingSubcaption?: string;
+}
+
+/** Public semantic data decoded from an inbound iMessage app-extension balloon. */
+export interface MiniAppContent {
+  /** Display name embedded by the sending extension. */
+  readonly appName?: string;
+  /** App Store identifier supplied by the sender. */
+  readonly appStoreId?: number;
+  /** iMessage extension bundle identifier parsed from the balloon id. */
+  readonly extensionBundleId: string;
+  /** Visible template fields decoded from the payload. */
+  readonly layout?: MiniAppLayoutInfo;
+  /** Whether the payload carries live-layout metadata. */
+  readonly live: boolean;
+  /** Stable session identifier shared by updates to the same card. */
+  readonly sessionId?: string;
+  /** Apple Team ID parsed from the balloon id. */
+  readonly teamId: string;
+  /** URL delivered to the extension when the recipient opens the card. */
+  readonly url?: string;
+}
+
 export interface MessageContent {
   readonly attachments: readonly AttachmentInfo[];
   readonly balloonBundleId?: string;
   readonly expressiveSendStyleId?: string;
   readonly formatting: readonly TextFormat[];
   readonly mentions: readonly MessageMention[];
+  readonly miniApp?: MiniAppContent;
   readonly text?: string;
 }
 
