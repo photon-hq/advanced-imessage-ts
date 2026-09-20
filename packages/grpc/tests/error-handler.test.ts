@@ -2,8 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { Metadata } from "@grpc/grpc-js";
 import {
   ConnectionError,
+  ErrorCode,
   IMessageError,
   NotFoundError,
+  RateLimitError,
   ValidationError,
 } from "@photon-ai/aim-core/internal";
 import { ClientError, Status } from "nice-grpc-common";
@@ -30,6 +32,21 @@ function makeClientError(
 }
 
 describe("fromGrpcError", () => {
+  it.each([
+    "burstRateExceeded",
+    "newContactThrottled",
+  ] as const)("exposes and preserves the server policy code %s", (code) => {
+    expect(ErrorCode[code]).toBe(code);
+    const error = fromGrpcError(
+      makeClientError(Status.RESOURCE_EXHAUSTED, "Policy rejected send", {
+        "error-code": code,
+      })
+    );
+    expect(error).toBeInstanceOf(RateLimitError);
+    expect(error.code).toBe(code);
+    expect(error.retryable).toBe(false);
+  });
+
   it("maps NOT_FOUND to NotFoundError and preserves canonical error-code", () => {
     const error = fromGrpcError(
       makeClientError(Status.NOT_FOUND, "Attachment does not exist", {

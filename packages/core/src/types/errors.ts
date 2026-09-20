@@ -19,6 +19,8 @@ export const ErrorCode = {
   contentDuplicateExceeded: "contentDuplicateExceeded",
   recipientCoolingDown: "recipientCoolingDown",
   recipientLocked: "recipientLocked",
+  burstRateExceeded: "burstRateExceeded",
+  newContactThrottled: "newContactThrottled",
   sendReceiveRatioExceeded: "sendReceiveRatioExceeded",
 
   // Duplicate
