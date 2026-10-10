@@ -133,4 +133,46 @@ describe("ChatsResource", () => {
       data,
     });
   });
+
+  it.each([
+    ["SMS", 2],
+    ["RCS", 3],
+  ] as const)("forwards %s as the createChat service", async (service, protoService) => {
+    let capturedRequest: Record<string, unknown> | undefined;
+    const resource = new ChatsResource({
+      async createChat(request: Record<string, unknown>) {
+        capturedRequest = request;
+        return {
+          chat: {
+            displayName: "",
+            guid: "any;-;+15555550123",
+            isArchived: false,
+            isFiltered: false,
+            isGroup: false,
+            participants: [],
+            service: protoService,
+          },
+        };
+      },
+    } as any);
+
+    await resource.create(["+15555550123"], { service });
+
+    expect(capturedRequest?.service).toBe(protoService);
+  });
+
+  it("rejects an unsupported createChat service before calling the server", async () => {
+    let called = false;
+    const resource = new ChatsResource({
+      async createChat() {
+        called = true;
+        return {};
+      },
+    } as any);
+
+    await expect(
+      resource.create(["+15555550123"], { service: "unknown" as any })
+    ).rejects.toThrow("service must be one of iMessage, SMS, or RCS.");
+    expect(called).toBe(false);
+  });
 });

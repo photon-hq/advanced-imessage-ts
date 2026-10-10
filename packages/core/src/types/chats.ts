@@ -26,6 +26,9 @@ export interface Chat {
   readonly unreadCount?: number;
 }
 
+/** A service that a chat can be created on. */
+export type CreateChatService = Exclude<ChatServiceType, "unknown">;
+
 export interface CreateChatOptions {
   /** Pre-rendered attributed body for the opening message, when supplied. */
   readonly attributedBody?: Uint8Array;
@@ -35,6 +38,8 @@ export interface CreateChatOptions {
   readonly effect?: MessageEffect;
   /** Optional opening text sent in the same server call that creates the chat. */
   readonly message?: string;
+  /** Service for the new chat and its opening message; defaults to `"iMessage"`. */
+  readonly service?: CreateChatService;
   /** Optional subject line for the opening message. */
   readonly subject?: string;
 }

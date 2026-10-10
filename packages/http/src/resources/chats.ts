@@ -1,4 +1,3 @@
-import { ChatServiceType as ProtoChatServiceType } from "@photon-ai/aim-core/generated/photon/imessage/v1/address_types";
 import type {
   Chat,
   ChatServiceClient,
@@ -7,6 +6,7 @@ import type {
 } from "@photon-ai/aim-core/internal";
 import {
   mapChat,
+  mapChatServiceTypeInput,
   mapMessage,
   normalizeChatGuid,
   toIMessageError,
@@ -76,7 +76,7 @@ export class ChatsResource {
       const response = await this._client.createChat({
         addresses,
         clientMessageId: options?.clientMessageId,
-        service: ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE,
+        service: mapChatServiceTypeInput(options?.service ?? "iMessage"),
         initialMessage:
           message === undefined
             ? undefined

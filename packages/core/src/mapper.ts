@@ -1,3 +1,4 @@
+import { ValidationError } from "./errors/imessage-error.ts";
 import {
   ChatServiceType as ProtoChatServiceType,
   type MultiServiceAddressInfo as ProtoMultiServiceAddressInfo,
@@ -56,7 +57,7 @@ import type {
   SingleServiceAddressInfo,
 } from "./types/addresses.ts";
 import type { AttachmentInfo, CompanionInfo } from "./types/attachments.ts";
-import type { Chat } from "./types/chats.ts";
+import type { Chat, CreateChatService } from "./types/chats.ts";
 import type {
   ChatServiceType,
   CompanionKind,
@@ -152,6 +153,29 @@ export function mapChatServiceType(
       return "RCS";
     default:
       return "unknown";
+  }
+}
+
+export function mapChatServiceTypeInput(
+  service: CreateChatService
+): ProtoChatServiceType {
+  switch (service) {
+    case "iMessage":
+      return ProtoChatServiceType.CHAT_SERVICE_TYPE_IMESSAGE;
+    case "SMS":
+      return ProtoChatServiceType.CHAT_SERVICE_TYPE_SMS;
+    case "RCS":
+      return ProtoChatServiceType.CHAT_SERVICE_TYPE_RCS;
+    default:
+      throw new ValidationError(
+        "service must be one of iMessage, SMS, or RCS.",
+        {
+          code: "invalidArgument",
+          context: { field: "service", value: String(service) },
+          grpcCode: 3,
+          retryable: false,
+        }
+      );
   }
 }
 
