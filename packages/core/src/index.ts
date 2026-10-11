@@ -34,6 +34,7 @@ export type {
   Chat,
   CreateChatOptions,
   CreateChatResult,
+  CreateChatService,
 } from "./types/chats.ts";
 // Common
 export type { IdempotencyOptions, RetryOptions } from "./types/common.ts";
