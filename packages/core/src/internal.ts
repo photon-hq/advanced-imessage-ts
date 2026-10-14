@@ -15,6 +15,7 @@ export * from "./service-clients.ts";
 export * from "./streaming/event-stream.ts";
 export * from "./types/addresses.ts";
 export * from "./types/attachments.ts";
+export * from "./types/backgrounds.ts";
 export * from "./types/chat-guid.ts";
 export * from "./types/chats.ts";
 export * from "./types/common.ts";

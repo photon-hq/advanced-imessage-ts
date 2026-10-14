@@ -57,6 +57,7 @@ const MUTATING_METHODS: ReadonlySet<string> = new Set([
   "/photon.imessage.v1.ChatService/MarkChatRead",
   "/photon.imessage.v1.ChatService/RemoveBackground",
   "/photon.imessage.v1.ChatService/SetBackground",
+  "/photon.imessage.v1.ChatService/SetPresetBackground",
   "/photon.imessage.v1.ChatService/SetTyping",
   "/photon.imessage.v1.ChatService/ShareContactInfo",
   "/photon.imessage.v1.GroupService/AddParticipants",

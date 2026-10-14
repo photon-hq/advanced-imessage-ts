@@ -282,6 +282,20 @@ rejects `image/gif`, `image/webp`, `image/avif`, `image/tiff`, `image/bmp`, and
 sent as normal attachments; the background pipeline is stricter because the
 server converts the input image into Apple's background package format.
 
+To use one of Messages' built-in backgrounds instead of an image, pass its
+name:
+
+```ts
+await im.chats.setBackground("any;-;alice@example.com", "skyDusk");
+```
+
+- Sky: `skyDusk`, `skyHaze`, `skySunset`, `skyClear`, `skySunrise`, `skyDawn`
+- Water: `waterLight`, `waterDark`
+- Aurora: `auroraGreen`, `auroraPurple`, `auroraPink`
+- Color: `colorMango`, `colorIce`, `colorPlum`, `colorDeepSea`,
+  `colorGreenApple`, `colorCherry`, `colorBubblegum`, `colorTangerine`,
+  `colorMagenta`, `colorLime`, `colorSilver`, `colorCarbon`, `colorStone`
+
 Multipart sends are atomic and can mix text, mentions, and uploaded
 attachments:
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { BackgroundPreset } from "@photon-ai/aim-core/generated/photon/imessage/v1/chat_types";
 import { ChatsResource } from "../src/v1/resources/chats.ts";
 
 describe("ChatsResource", () => {
@@ -132,5 +133,42 @@ describe("ChatsResource", () => {
       chatGuid: "any;+;group1",
       data,
     });
+  });
+
+  it("sets a built-in background preset by name", async () => {
+    let capturedRequest: Record<string, unknown> | undefined;
+    const resource = new ChatsResource({
+      async setPresetBackground(request: Record<string, unknown>) {
+        capturedRequest = request;
+        return {};
+      },
+    } as any);
+
+    await resource.setBackground(" any;+;group1 ", "skyDusk");
+
+    expect(capturedRequest).toEqual({
+      chatGuid: "any;+;group1",
+      preset: BackgroundPreset.BACKGROUND_PRESET_SKY_DUSK,
+    });
+  });
+
+  it("rejects an unknown background preset before calling transport", async () => {
+    let called = false;
+    const resource = new ChatsResource({
+      async setPresetBackground() {
+        called = true;
+        return {};
+      },
+    } as any);
+
+    await expect(
+      resource.setBackground("any;+;group1", "sky" as any)
+    ).rejects.toMatchObject({
+      code: "invalidArgument",
+      context: { field: "preset", value: "sky" },
+      name: "ValidationError",
+    });
+
+    expect(called).toBe(false);
   });
 });

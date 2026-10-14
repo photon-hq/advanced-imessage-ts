@@ -18,6 +18,181 @@ import { Message } from "./message_types.js";
 export const protobufPackage = "photon.imessage.v1";
 
 /**
+ * Built-in chat backgrounds offered by Messages: the Sky, Water, and Aurora
+ * looks plus the Color gradients.
+ */
+export enum BackgroundPreset {
+  BACKGROUND_PRESET_UNSPECIFIED = 0,
+  BACKGROUND_PRESET_SKY_DUSK = 1,
+  BACKGROUND_PRESET_SKY_HAZE = 2,
+  BACKGROUND_PRESET_SKY_SUNSET = 3,
+  BACKGROUND_PRESET_SKY_CLEAR = 4,
+  BACKGROUND_PRESET_SKY_SUNRISE = 5,
+  BACKGROUND_PRESET_SKY_DAWN = 6,
+  BACKGROUND_PRESET_WATER_LIGHT = 7,
+  BACKGROUND_PRESET_WATER_DARK = 8,
+  BACKGROUND_PRESET_AURORA_GREEN = 9,
+  BACKGROUND_PRESET_AURORA_PURPLE = 10,
+  BACKGROUND_PRESET_AURORA_PINK = 11,
+  BACKGROUND_PRESET_COLOR_MANGO = 12,
+  BACKGROUND_PRESET_COLOR_ICE = 13,
+  BACKGROUND_PRESET_COLOR_PLUM = 14,
+  BACKGROUND_PRESET_COLOR_DEEP_SEA = 15,
+  BACKGROUND_PRESET_COLOR_GREEN_APPLE = 16,
+  BACKGROUND_PRESET_COLOR_CHERRY = 17,
+  BACKGROUND_PRESET_COLOR_BUBBLEGUM = 18,
+  BACKGROUND_PRESET_COLOR_TANGERINE = 19,
+  BACKGROUND_PRESET_COLOR_MAGENTA = 20,
+  BACKGROUND_PRESET_COLOR_LIME = 21,
+  BACKGROUND_PRESET_COLOR_SILVER = 22,
+  BACKGROUND_PRESET_COLOR_CARBON = 23,
+  BACKGROUND_PRESET_COLOR_STONE = 24,
+  UNRECOGNIZED = -1,
+}
+
+export function backgroundPresetFromJSON(object: any): BackgroundPreset {
+  switch (object) {
+    case 0:
+    case "BACKGROUND_PRESET_UNSPECIFIED":
+      return BackgroundPreset.BACKGROUND_PRESET_UNSPECIFIED;
+    case 1:
+    case "BACKGROUND_PRESET_SKY_DUSK":
+      return BackgroundPreset.BACKGROUND_PRESET_SKY_DUSK;
+    case 2:
+    case "BACKGROUND_PRESET_SKY_HAZE":
+      return BackgroundPreset.BACKGROUND_PRESET_SKY_HAZE;
+    case 3:
+    case "BACKGROUND_PRESET_SKY_SUNSET":
+      return BackgroundPreset.BACKGROUND_PRESET_SKY_SUNSET;
+    case 4:
+    case "BACKGROUND_PRESET_SKY_CLEAR":
+      return BackgroundPreset.BACKGROUND_PRESET_SKY_CLEAR;
+    case 5:
+    case "BACKGROUND_PRESET_SKY_SUNRISE":
+      return BackgroundPreset.BACKGROUND_PRESET_SKY_SUNRISE;
+    case 6:
+    case "BACKGROUND_PRESET_SKY_DAWN":
+      return BackgroundPreset.BACKGROUND_PRESET_SKY_DAWN;
+    case 7:
+    case "BACKGROUND_PRESET_WATER_LIGHT":
+      return BackgroundPreset.BACKGROUND_PRESET_WATER_LIGHT;
+    case 8:
+    case "BACKGROUND_PRESET_WATER_DARK":
+      return BackgroundPreset.BACKGROUND_PRESET_WATER_DARK;
+    case 9:
+    case "BACKGROUND_PRESET_AURORA_GREEN":
+      return BackgroundPreset.BACKGROUND_PRESET_AURORA_GREEN;
+    case 10:
+    case "BACKGROUND_PRESET_AURORA_PURPLE":
+      return BackgroundPreset.BACKGROUND_PRESET_AURORA_PURPLE;
+    case 11:
+    case "BACKGROUND_PRESET_AURORA_PINK":
+      return BackgroundPreset.BACKGROUND_PRESET_AURORA_PINK;
+    case 12:
+    case "BACKGROUND_PRESET_COLOR_MANGO":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_MANGO;
+    case 13:
+    case "BACKGROUND_PRESET_COLOR_ICE":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_ICE;
+    case 14:
+    case "BACKGROUND_PRESET_COLOR_PLUM":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_PLUM;
+    case 15:
+    case "BACKGROUND_PRESET_COLOR_DEEP_SEA":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_DEEP_SEA;
+    case 16:
+    case "BACKGROUND_PRESET_COLOR_GREEN_APPLE":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_GREEN_APPLE;
+    case 17:
+    case "BACKGROUND_PRESET_COLOR_CHERRY":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_CHERRY;
+    case 18:
+    case "BACKGROUND_PRESET_COLOR_BUBBLEGUM":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_BUBBLEGUM;
+    case 19:
+    case "BACKGROUND_PRESET_COLOR_TANGERINE":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_TANGERINE;
+    case 20:
+    case "BACKGROUND_PRESET_COLOR_MAGENTA":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_MAGENTA;
+    case 21:
+    case "BACKGROUND_PRESET_COLOR_LIME":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_LIME;
+    case 22:
+    case "BACKGROUND_PRESET_COLOR_SILVER":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_SILVER;
+    case 23:
+    case "BACKGROUND_PRESET_COLOR_CARBON":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_CARBON;
+    case 24:
+    case "BACKGROUND_PRESET_COLOR_STONE":
+      return BackgroundPreset.BACKGROUND_PRESET_COLOR_STONE;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return BackgroundPreset.UNRECOGNIZED;
+  }
+}
+
+export function backgroundPresetToJSON(object: BackgroundPreset): string {
+  switch (object) {
+    case BackgroundPreset.BACKGROUND_PRESET_UNSPECIFIED:
+      return "BACKGROUND_PRESET_UNSPECIFIED";
+    case BackgroundPreset.BACKGROUND_PRESET_SKY_DUSK:
+      return "BACKGROUND_PRESET_SKY_DUSK";
+    case BackgroundPreset.BACKGROUND_PRESET_SKY_HAZE:
+      return "BACKGROUND_PRESET_SKY_HAZE";
+    case BackgroundPreset.BACKGROUND_PRESET_SKY_SUNSET:
+      return "BACKGROUND_PRESET_SKY_SUNSET";
+    case BackgroundPreset.BACKGROUND_PRESET_SKY_CLEAR:
+      return "BACKGROUND_PRESET_SKY_CLEAR";
+    case BackgroundPreset.BACKGROUND_PRESET_SKY_SUNRISE:
+      return "BACKGROUND_PRESET_SKY_SUNRISE";
+    case BackgroundPreset.BACKGROUND_PRESET_SKY_DAWN:
+      return "BACKGROUND_PRESET_SKY_DAWN";
+    case BackgroundPreset.BACKGROUND_PRESET_WATER_LIGHT:
+      return "BACKGROUND_PRESET_WATER_LIGHT";
+    case BackgroundPreset.BACKGROUND_PRESET_WATER_DARK:
+      return "BACKGROUND_PRESET_WATER_DARK";
+    case BackgroundPreset.BACKGROUND_PRESET_AURORA_GREEN:
+      return "BACKGROUND_PRESET_AURORA_GREEN";
+    case BackgroundPreset.BACKGROUND_PRESET_AURORA_PURPLE:
+      return "BACKGROUND_PRESET_AURORA_PURPLE";
+    case BackgroundPreset.BACKGROUND_PRESET_AURORA_PINK:
+      return "BACKGROUND_PRESET_AURORA_PINK";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_MANGO:
+      return "BACKGROUND_PRESET_COLOR_MANGO";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_ICE:
+      return "BACKGROUND_PRESET_COLOR_ICE";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_PLUM:
+      return "BACKGROUND_PRESET_COLOR_PLUM";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_DEEP_SEA:
+      return "BACKGROUND_PRESET_COLOR_DEEP_SEA";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_GREEN_APPLE:
+      return "BACKGROUND_PRESET_COLOR_GREEN_APPLE";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_CHERRY:
+      return "BACKGROUND_PRESET_COLOR_CHERRY";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_BUBBLEGUM:
+      return "BACKGROUND_PRESET_COLOR_BUBBLEGUM";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_TANGERINE:
+      return "BACKGROUND_PRESET_COLOR_TANGERINE";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_MAGENTA:
+      return "BACKGROUND_PRESET_COLOR_MAGENTA";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_LIME:
+      return "BACKGROUND_PRESET_COLOR_LIME";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_SILVER:
+      return "BACKGROUND_PRESET_COLOR_SILVER";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_CARBON:
+      return "BACKGROUND_PRESET_COLOR_CARBON";
+    case BackgroundPreset.BACKGROUND_PRESET_COLOR_STONE:
+      return "BACKGROUND_PRESET_COLOR_STONE";
+    case BackgroundPreset.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
+/**
  * Canonical projection of a row in chat.db's `chat` table joined with its
  * participants and (optionally) its most recent message.
  */

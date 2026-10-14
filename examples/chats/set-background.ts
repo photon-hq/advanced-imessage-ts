@@ -19,6 +19,9 @@ const tinyPng = Uint8Array.from([
 await im.chats.setBackground(chat, tinyPng);
 console.log("background set");
 
+await im.chats.setBackground(chat, "skyDusk");
+console.log("preset background set");
+
 await im.chats.removeBackground(chat);
 
 await im.close();

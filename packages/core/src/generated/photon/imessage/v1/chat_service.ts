@@ -9,7 +9,13 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 import type { CallContext, CallOptions } from "nice-grpc-common";
 import { Empty } from "../../../google/protobuf/empty.js";
 import { ChatServiceType, chatServiceTypeFromJSON, chatServiceTypeToJSON } from "./address_types.js";
-import { Chat, ChatChangeEvent } from "./chat_types.js";
+import {
+  BackgroundPreset,
+  backgroundPresetFromJSON,
+  backgroundPresetToJSON,
+  Chat,
+  ChatChangeEvent,
+} from "./chat_types.js";
 import { Message } from "./message_types.js";
 import { Heartbeat } from "./streaming.js";
 
@@ -41,6 +47,11 @@ export interface MarkChatReadRequest {
 export interface SetBackgroundRequest {
   chatGuid: string;
   data: Uint8Array;
+}
+
+export interface SetPresetBackgroundRequest {
+  chatGuid: string;
+  preset: BackgroundPreset;
 }
 
 export interface RemoveBackgroundRequest {
@@ -553,6 +564,86 @@ export const SetBackgroundRequest: MessageFns<SetBackgroundRequest> = {
     const message = createBaseSetBackgroundRequest();
     message.chatGuid = object.chatGuid ?? "";
     message.data = object.data ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseSetPresetBackgroundRequest(): SetPresetBackgroundRequest {
+  return { chatGuid: "", preset: 0 };
+}
+
+export const SetPresetBackgroundRequest: MessageFns<SetPresetBackgroundRequest> = {
+  encode(message: SetPresetBackgroundRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.chatGuid !== "") {
+      writer.uint32(10).string(message.chatGuid);
+    }
+    if (message.preset !== 0) {
+      writer.uint32(16).int32(message.preset);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetPresetBackgroundRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetPresetBackgroundRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.chatGuid = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.preset = reader.int32() as any;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetPresetBackgroundRequest {
+    return {
+      chatGuid: isSet(object.chatGuid)
+        ? globalThis.String(object.chatGuid)
+        : isSet(object.chat_guid)
+        ? globalThis.String(object.chat_guid)
+        : "",
+      preset: isSet(object.preset) ? backgroundPresetFromJSON(object.preset) : 0,
+    };
+  },
+
+  toJSON(message: SetPresetBackgroundRequest): unknown {
+    const obj: any = {};
+    if (message.chatGuid !== "") {
+      obj.chatGuid = message.chatGuid;
+    }
+    if (message.preset !== 0) {
+      obj.preset = backgroundPresetToJSON(message.preset);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetPresetBackgroundRequest>): SetPresetBackgroundRequest {
+    return SetPresetBackgroundRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SetPresetBackgroundRequest>): SetPresetBackgroundRequest {
+    const message = createBaseSetPresetBackgroundRequest();
+    message.chatGuid = object.chatGuid ?? "";
+    message.preset = object.preset ?? 0;
     return message;
   },
 };
@@ -1411,6 +1502,60 @@ export const ChatServiceDefinition = {
         },
       },
     },
+    /**
+     * Applies one of Messages' built-in backgrounds. For a custom image, use
+     * `SetBackground`.
+     */
+    setPresetBackground: {
+      name: "SetPresetBackground",
+      requestType: SetPresetBackgroundRequest as typeof SetPresetBackgroundRequest,
+      requestStream: false,
+      responseType: Empty as typeof Empty,
+      responseStream: false,
+      options: {
+        _unknownFields: {
+          578365826: [
+            new Uint8Array([
+              34,
+              58,
+              1,
+              42,
+              34,
+              29,
+              47,
+              118,
+              49,
+              47,
+              99,
+              104,
+              97,
+              116,
+              115,
+              58,
+              115,
+              101,
+              116,
+              80,
+              114,
+              101,
+              115,
+              101,
+              116,
+              66,
+              97,
+              99,
+              107,
+              103,
+              114,
+              111,
+              117,
+              110,
+              100,
+            ]) as Uint8Array,
+          ],
+        },
+      },
+    },
     removeBackground: {
       name: "RemoveBackground",
       requestType: RemoveBackgroundRequest as typeof RemoveBackgroundRequest,
@@ -1666,6 +1811,14 @@ export interface ChatServiceImplementation<CallContextExt = {}> {
    * `bytes` representation).
    */
   setBackground(request: SetBackgroundRequest, context: CallContext & CallContextExt): Promise<DeepPartial<Empty>>;
+  /**
+   * Applies one of Messages' built-in backgrounds. For a custom image, use
+   * `SetBackground`.
+   */
+  setPresetBackground(
+    request: SetPresetBackgroundRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<Empty>>;
   removeBackground(
     request: RemoveBackgroundRequest,
     context: CallContext & CallContextExt,
@@ -1712,6 +1865,14 @@ export interface ChatServiceClient<CallOptionsExt = {}> {
    * `bytes` representation).
    */
   setBackground(request: DeepPartial<SetBackgroundRequest>, options?: CallOptions & CallOptionsExt): Promise<Empty>;
+  /**
+   * Applies one of Messages' built-in backgrounds. For a custom image, use
+   * `SetBackground`.
+   */
+  setPresetBackground(
+    request: DeepPartial<SetPresetBackgroundRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<Empty>;
   removeBackground(
     request: DeepPartial<RemoveBackgroundRequest>,
     options?: CallOptions & CallOptionsExt,

@@ -394,6 +394,40 @@
         ]
       }
     },
+    "/v1/chats:setPresetBackground": {
+      "post": {
+        "summary": "Applies one of Messages' built-in backgrounds. For a custom image, use\n`SetBackground`.",
+        "operationId": "ChatService_SetPresetBackground",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "type": "object",
+              "properties": {}
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1SetPresetBackgroundRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ChatService"
+        ]
+      }
+    },
     "/v1/chats:setTyping": {
       "post": {
         "summary": "Transient typing-indicator write. No persisted state.",
@@ -1562,6 +1596,38 @@
         }
       },
       "description": "Reference to an attachment by either its server-local on-disk path or\nits GUID."
+    },
+    "v1BackgroundPreset": {
+      "type": "string",
+      "enum": [
+        "BACKGROUND_PRESET_UNSPECIFIED",
+        "BACKGROUND_PRESET_SKY_DUSK",
+        "BACKGROUND_PRESET_SKY_HAZE",
+        "BACKGROUND_PRESET_SKY_SUNSET",
+        "BACKGROUND_PRESET_SKY_CLEAR",
+        "BACKGROUND_PRESET_SKY_SUNRISE",
+        "BACKGROUND_PRESET_SKY_DAWN",
+        "BACKGROUND_PRESET_WATER_LIGHT",
+        "BACKGROUND_PRESET_WATER_DARK",
+        "BACKGROUND_PRESET_AURORA_GREEN",
+        "BACKGROUND_PRESET_AURORA_PURPLE",
+        "BACKGROUND_PRESET_AURORA_PINK",
+        "BACKGROUND_PRESET_COLOR_MANGO",
+        "BACKGROUND_PRESET_COLOR_ICE",
+        "BACKGROUND_PRESET_COLOR_PLUM",
+        "BACKGROUND_PRESET_COLOR_DEEP_SEA",
+        "BACKGROUND_PRESET_COLOR_GREEN_APPLE",
+        "BACKGROUND_PRESET_COLOR_CHERRY",
+        "BACKGROUND_PRESET_COLOR_BUBBLEGUM",
+        "BACKGROUND_PRESET_COLOR_TANGERINE",
+        "BACKGROUND_PRESET_COLOR_MAGENTA",
+        "BACKGROUND_PRESET_COLOR_LIME",
+        "BACKGROUND_PRESET_COLOR_SILVER",
+        "BACKGROUND_PRESET_COLOR_CARBON",
+        "BACKGROUND_PRESET_COLOR_STONE"
+      ],
+      "default": "BACKGROUND_PRESET_UNSPECIFIED",
+      "description": "Built-in chat backgrounds offered by Messages: the Sky, Water, and Aurora\nlooks plus the Color gradients."
     },
     "v1Chat": {
       "type": "object",
@@ -2794,6 +2860,17 @@
         },
         "clientMessageId": {
           "type": "string"
+        }
+      }
+    },
+    "v1SetPresetBackgroundRequest": {
+      "type": "object",
+      "properties": {
+        "chatGuid": {
+          "type": "string"
+        },
+        "preset": {
+          "$ref": "#/definitions/v1BackgroundPreset"
         }
       }
     },
