@@ -67,6 +67,7 @@ import {
   chatServiceMarkChatRead,
   chatServiceRemoveBackground,
   chatServiceSetBackground,
+  chatServiceSetPresetBackground,
   chatServiceSetTyping,
   chatServiceShareContactInfo,
   groupServiceAddParticipants,
@@ -200,6 +201,7 @@ const CHAT_OPS: Record<string, Op> = {
   markChatRead: body(chatServiceMarkChatRead),
   removeBackground: body(chatServiceRemoveBackground),
   setBackground: body(chatServiceSetBackground),
+  setPresetBackground: body(chatServiceSetPresetBackground),
   setTyping: body(chatServiceSetTyping),
   shareContactInfo: body(chatServiceShareContactInfo),
 };

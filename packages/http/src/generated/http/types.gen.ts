@@ -72,6 +72,12 @@ export type V1AttachmentRef = {
 };
 
 /**
+ * Built-in chat backgrounds offered by Messages: the Sky, Water, and Aurora
+ * looks plus the Color gradients.
+ */
+export type V1BackgroundPreset = 'BACKGROUND_PRESET_UNSPECIFIED' | 'BACKGROUND_PRESET_SKY_DUSK' | 'BACKGROUND_PRESET_SKY_HAZE' | 'BACKGROUND_PRESET_SKY_SUNSET' | 'BACKGROUND_PRESET_SKY_CLEAR' | 'BACKGROUND_PRESET_SKY_SUNRISE' | 'BACKGROUND_PRESET_SKY_DAWN' | 'BACKGROUND_PRESET_WATER_LIGHT' | 'BACKGROUND_PRESET_WATER_DARK' | 'BACKGROUND_PRESET_AURORA_GREEN' | 'BACKGROUND_PRESET_AURORA_PURPLE' | 'BACKGROUND_PRESET_AURORA_PINK' | 'BACKGROUND_PRESET_COLOR_MANGO' | 'BACKGROUND_PRESET_COLOR_ICE' | 'BACKGROUND_PRESET_COLOR_PLUM' | 'BACKGROUND_PRESET_COLOR_DEEP_SEA' | 'BACKGROUND_PRESET_COLOR_GREEN_APPLE' | 'BACKGROUND_PRESET_COLOR_CHERRY' | 'BACKGROUND_PRESET_COLOR_BUBBLEGUM' | 'BACKGROUND_PRESET_COLOR_TANGERINE' | 'BACKGROUND_PRESET_COLOR_MAGENTA' | 'BACKGROUND_PRESET_COLOR_LIME' | 'BACKGROUND_PRESET_COLOR_SILVER' | 'BACKGROUND_PRESET_COLOR_CARBON' | 'BACKGROUND_PRESET_COLOR_STONE';
+
+/**
  * Canonical projection of a row in chat.db's `chat` table joined with its
  * participants and (optionally) its most recent message.
  */
@@ -873,6 +879,11 @@ export type V1SetIconRequest = {
     clientMessageId?: string;
 };
 
+export type V1SetPresetBackgroundRequest = {
+    chatGuid?: string;
+    preset?: V1BackgroundPreset;
+};
+
 export type V1SetReactionRequest = {
     target?: V1MessageTarget;
     reaction?: V1MessageReaction;
@@ -1306,6 +1317,33 @@ export type ChatServiceSetBackgroundResponses = {
 };
 
 export type ChatServiceSetBackgroundResponse = ChatServiceSetBackgroundResponses[keyof ChatServiceSetBackgroundResponses];
+
+export type ChatServiceSetPresetBackgroundData = {
+    body: V1SetPresetBackgroundRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/chats:setPresetBackground';
+};
+
+export type ChatServiceSetPresetBackgroundErrors = {
+    /**
+     * An unexpected error response.
+     */
+    default: RpcStatus;
+};
+
+export type ChatServiceSetPresetBackgroundError = ChatServiceSetPresetBackgroundErrors[keyof ChatServiceSetPresetBackgroundErrors];
+
+export type ChatServiceSetPresetBackgroundResponses = {
+    /**
+     * A successful response.
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ChatServiceSetPresetBackgroundResponse = ChatServiceSetPresetBackgroundResponses[keyof ChatServiceSetPresetBackgroundResponses];
 
 export type ChatServiceSetTypingData = {
     body: V1SetTypingRequest;

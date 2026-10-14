@@ -1,5 +1,6 @@
 import { ChatServiceType as ProtoChatServiceType } from "@photon-ai/aim-core/generated/photon/imessage/v1/address_types";
 import type {
+  BackgroundPreset,
   Chat,
   ChatServiceClient,
   CreateChatOptions,
@@ -10,6 +11,7 @@ import {
   mapMessage,
   normalizeChatGuid,
   toIMessageError,
+  toProtoBackgroundPreset,
   unwrap,
   ValidationError,
 } from "@photon-ai/aim-core/internal";
@@ -42,7 +44,8 @@ function normalizeInitialMessageText(
  * - `count(options)` returns the number of visible chats, optionally including
  *   archived chats.
  * - `hasBackground(chat)` checks whether a chat has a custom background.
- * - `setBackground(chat, data)` replaces the chat background image.
+ * - `setBackground(chat, background)` replaces the chat background with image
+ *   bytes or a built-in preset.
  * - `removeBackground(chat)` clears the chat background image.
  * - `markRead(chat)` marks every unread message in the chat as read.
  * - `shareContactInfo(chat)` sends the local user's contact card to the chat.
@@ -146,17 +149,26 @@ export class ChatsResource {
   }
 
   /**
-   * Replace `chat`'s background with the supplied image bytes.
+   * Replace `chat`'s background with image bytes or a built-in preset.
    *
    * @param chat - An `any;-;...` or `any;+;...` chat guid. In practice, pass
    *               `chat.guid`.
+   * @param background - Image bytes, or a preset name such as `"skyDusk"`.
    */
-  async setBackground(chat: string, data: Uint8Array): Promise<void> {
+  async setBackground(
+    chat: string,
+    background: Uint8Array | BackgroundPreset
+  ): Promise<void> {
     try {
-      await this._client.setBackground({
-        chatGuid: normalizeChatGuid(chat),
-        data,
-      });
+      const chatGuid = normalizeChatGuid(chat);
+      if (typeof background === "string") {
+        await this._client.setPresetBackground({
+          chatGuid,
+          preset: toProtoBackgroundPreset(background),
+        });
+      } else {
+        await this._client.setBackground({ chatGuid, data: background });
+      }
     } catch (err) {
       throw toIMessageError(err);
     }

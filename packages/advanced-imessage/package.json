@@ -49,7 +49,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "prepublishOnly": "rm -rf proto && PATH=../../node_modules/.bin:$PATH buf export buf.build/photon-hq/imessage:295f823a6a8649c9ab5bfab017b64f82 -o proto && bun run --cwd ../.. verify:codegen && bun run build && cp ../../README.md ../../LICENSE ."
+    "prepublishOnly": "rm -rf proto && PATH=../../node_modules/.bin:$PATH buf export buf.build/photon-hq/imessage:d271d841bb604a8ea53556dfb1a77ac4 -o proto && bun run --cwd ../.. verify:codegen && bun run build && cp ../../README.md ../../LICENSE ."
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0"

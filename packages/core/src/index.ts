@@ -30,6 +30,7 @@ export type {
   DownloadAttachmentChunk,
   UploadAttachmentResult,
 } from "./types/attachments.ts";
+export type { BackgroundPreset } from "./types/backgrounds.ts";
 export type {
   Chat,
   CreateChatOptions,
