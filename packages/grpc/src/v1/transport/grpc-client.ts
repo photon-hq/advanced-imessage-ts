@@ -221,13 +221,19 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
 
   // --- Client factory with middleware ---
   //
-  // Middleware is added outermost-first: the first .use() call runs first
-  // in the call chain. Desired execution order:
+  // Each .use() wraps the previous middleware, so build from the RPC outwards.
+  // Execution order:
   //   idempotency → retry → timeout → auth → trailingMetadataCapture → RPC
-  let factory = createClientFactory();
+  // Capture trailers before retry inspects the error. Keep idempotency outside
+  // retries, while auth and timeout run afresh for each attempt.
+  let factory = createClientFactory().use(trailingMetadataCaptureMiddleware());
 
-  if (options.autoIdempotency) {
-    factory = factory.use(idempotencyMiddleware());
+  if (options.token) {
+    factory = factory.use(authMiddleware(options.token));
+  }
+
+  if (options.timeout) {
+    factory = factory.use(timeoutMiddleware(options.timeout));
   }
 
   if (options.retry) {
@@ -235,17 +241,9 @@ export function createGrpcClients(options: GrpcClientOptions): GrpcClients {
     factory = factory.use(retryMiddleware(retryOpts));
   }
 
-  if (options.timeout) {
-    factory = factory.use(timeoutMiddleware(options.timeout));
+  if (options.autoIdempotency) {
+    factory = factory.use(idempotencyMiddleware());
   }
-
-  if (options.token) {
-    factory = factory.use(authMiddleware(options.token));
-  }
-
-  // Always capture trailing metadata — nice-grpc strips it from errors,
-  // but our error handler and retry middleware depend on it.
-  factory = factory.use(trailingMetadataCaptureMiddleware());
 
   // --- Create clients ---
   // ts-proto definitions are natively compatible with nice-grpc, no casts needed.
