@@ -95,9 +95,12 @@ export class LocationsResource {
   }
 
   /** Watch updates for every shared friend, or one friend when `address` is set. */
-  watch(address?: string): TypedEventStream<SharedFriendLocationUpdated> {
+  watch(
+    address?: string,
+    options?: { onHeartbeat?: HeartbeatHandler }
+  ): TypedEventStream<SharedFriendLocationUpdated> {
     const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
+    const onHeartbeat = options?.onHeartbeat ?? this._onHeartbeat;
     const rpcStream = this._streamClient.watchSharedFriendLocations(
       { address },
       { signal: abort.signal }
@@ -106,6 +109,9 @@ export class LocationsResource {
     async function* mapUpdates(): AsyncGenerator<SharedFriendLocationUpdated> {
       try {
         for await (const frame of rpcStream) {
+          if (abort.signal.aborted) {
+            return;
+          }
           if (!frame.locationUpdated) {
             if (frame.heartbeat) {
               onHeartbeat?.();

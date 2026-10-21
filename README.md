@@ -400,6 +400,50 @@ call as the result of that write, not a later event.
 HTTP response stream). Streams support `for await`, `.on(...)`,
 `.filter(...)`, `.map(...)`, `.take(...)`, `.close()`, and `await using`.
 
+### gRPC heartbeats
+
+Set `onHeartbeat` on a subscription to track that stream separately:
+
+```ts
+let lastMessageHeartbeatAt: number | undefined;
+const messages = im.messages.subscribeEvents({
+  onHeartbeat: () => {
+    lastMessageHeartbeatAt = Date.now();
+  },
+});
+
+try {
+  for await (const event of messages) {
+    await handleMessage(event);
+  }
+} finally {
+  await messages.close();
+}
+```
+
+The same option is available on `chats`, `groups`, and `polls`
+`subscribeEvents(...)`. For locations, use
+`im.locations.watch(address, { onHeartbeat })`.
+
+A subscription callback replaces the client-level `onHeartbeat` for that
+subscription; it does not call both. Without it, the existing client callback
+still runs. If neither is set, heartbeat frames are ignored as before. Hooks
+are local callbacks and are not sent to the server.
+
+Each callback belongs to one subscription. When reconnecting, close the old
+subscription before opening its replacement. Use separate closures to retain your own
+project, line, stream and connection-generation identity. Closing the stream
+aborts its RPC and suppresses callbacks from late frames.
+
+Heartbeats are consumed when the iterator reads frames. A quiet stream can
+receive them without messages, but a slow or blocked event handler can delay
+reading the next heartbeat. A heartbeat is **not** a delivery acknowledgement
+or proof that message processing has finished. Do not use a sibling stream's
+heartbeat, or ordinary message silence, to decide this stream is healthy or
+needs a restart. No watchdog, timeout or reconnect is added by this option.
+Keep hooks synchronous and do not throw; a thrown error fails that stream.
+Returned promises are not awaited.
+
 ## Other Resources
 
 ```ts

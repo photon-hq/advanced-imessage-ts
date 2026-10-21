@@ -62,11 +62,10 @@ export interface ClientOptions {
    */
   readonly channelOptions?: GrpcChannelOptions;
   /**
-   * Called once for every server heartbeat frame on any `subscribeEvents` /
-   * `watch` stream. The server emits heartbeats on a fixed cadence even when
-   * idle, so this is a liveness signal: drive a stall watchdog from it to
-   * detect a half-open connection and re-establish the stream. Without it,
-   * heartbeat frames are silently dropped.
+   * Default callback for server heartbeat frames consumed by `subscribeEvents`
+   * / `watch`. A subscription's `onHeartbeat` overrides this callback.
+   * This client-wide fallback cannot identify which stream is progressing.
+   * Callbacks run as frames are pulled, not independently of event processing.
    */
   readonly onHeartbeat?: HeartbeatHandler;
   /** Retries retryable unary RPC failures; streaming RPCs are never retried automatically. */
@@ -144,7 +143,11 @@ export interface ChatsResource {
   ): Promise<void>;
   setTyping(chat: string, isTyping: boolean): Promise<void>;
   shareContactInfo(chat: string): Promise<void>;
-  subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent>;
+  subscribeEvents(filter?: {
+    chat?: string;
+    /** Overrides the client heartbeat callback for this subscription only. */
+    onHeartbeat?: HeartbeatHandler;
+  }): TypedEventStream<ChatEvent>;
 }
 
 /**
@@ -197,7 +200,11 @@ export interface GroupsResource {
     data: Uint8Array,
     options?: IdempotencyOptions
   ): Promise<void>;
-  subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent>;
+  subscribeEvents(filter?: {
+    chat?: string;
+    /** Overrides the client heartbeat callback for this subscription only. */
+    onHeartbeat?: HeartbeatHandler;
+  }): TypedEventStream<GroupEvent>;
 }
 
 /**
@@ -216,7 +223,13 @@ export interface LocationsResource {
     address: string,
     options?: IdempotencyOptions
   ): Promise<LocationRequestReceipt>;
-  watch(address?: string): TypedEventStream<SharedFriendLocationUpdated>;
+  watch(
+    address?: string,
+    options?: {
+      /** Overrides the client heartbeat callback for this subscription only. */
+      onHeartbeat?: HeartbeatHandler;
+    }
+  ): TypedEventStream<SharedFriendLocationUpdated>;
 }
 
 /**
@@ -312,7 +325,11 @@ export interface MessagesResource {
     isSet: boolean,
     options?: { readonly clientMessageId?: string; readonly partIndex?: number }
   ): Promise<Message>;
-  subscribeEvents(filter?: { chat?: string }): TypedEventStream<MessageEvent>;
+  subscribeEvents(filter?: {
+    chat?: string;
+    /** Overrides the client heartbeat callback for this subscription only. */
+    onHeartbeat?: HeartbeatHandler;
+  }): TypedEventStream<MessageEvent>;
   unsend(
     chat: string,
     message: string,
@@ -351,6 +368,8 @@ export interface PollsResource {
   get(pollMessage: string): Promise<Poll>;
   subscribeEvents(filter?: {
     pollMessage?: string;
+    /** Overrides the client heartbeat callback for this subscription only. */
+    onHeartbeat?: HeartbeatHandler;
   }): TypedEventStream<PollEvent>;
   unvote(pollMessage: string, options?: IdempotencyOptions): Promise<Poll>;
   vote(

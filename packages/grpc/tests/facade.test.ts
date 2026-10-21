@@ -111,6 +111,22 @@ describe("createGrpcClient façade — working transport", () => {
     expect(seen).toEqual(["e-1", "e-2"]);
   });
 
+  it("forwards the subscription heartbeat callback without serializing it", async () => {
+    const client = createGrpcClient({ address: "localhost:50051", token: "t" });
+    const onHeartbeat = () => undefined;
+    const stream = client.messages.subscribeEvents({ onHeartbeat });
+    for await (const _event of stream) {
+      break;
+    }
+    expect(calls.at(-1)).toEqual({
+      resource: "messages",
+      method: "subscribeEvents",
+      args: [{ onHeartbeat }],
+    });
+    await stream.close();
+    await client.close();
+  });
+
   it("forwards close() to the inner stream", async () => {
     closed = false;
     const client = createGrpcClient({ address: "localhost:50051", token: "t" });

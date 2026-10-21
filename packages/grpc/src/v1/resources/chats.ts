@@ -258,9 +258,12 @@ export class ChatsResource {
    *
    * Pass `filter.chat` to scope the stream to a single chat.
    */
-  subscribeEvents(filter?: { chat?: string }): TypedEventStream<ChatEvent> {
+  subscribeEvents(filter?: {
+    chat?: string;
+    onHeartbeat?: HeartbeatHandler;
+  }): TypedEventStream<ChatEvent> {
     const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
+    const onHeartbeat = filter?.onHeartbeat ?? this._onHeartbeat;
     const rpcStream = this._streamClient.subscribeChatEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
@@ -271,6 +274,9 @@ export class ChatsResource {
     async function* mapEvents(): AsyncGenerator<ChatEvent> {
       try {
         for await (const frame of rpcStream) {
+          if (abort.signal.aborted) {
+            return;
+          }
           if (frame.sequence === undefined || !frame.chatChanged) {
             if (frame.heartbeat) {
               onHeartbeat?.();
