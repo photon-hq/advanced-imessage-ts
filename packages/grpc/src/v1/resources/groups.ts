@@ -284,9 +284,12 @@ export class GroupsResource {
    *
    * Pass `filter.chat` to scope the stream to a single group.
    */
-  subscribeEvents(filter?: { chat?: string }): TypedEventStream<GroupEvent> {
+  subscribeEvents(filter?: {
+    chat?: string;
+    onHeartbeat?: HeartbeatHandler;
+  }): TypedEventStream<GroupEvent> {
     const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
+    const onHeartbeat = filter?.onHeartbeat ?? this._onHeartbeat;
     const rpcStream = this._streamClient.subscribeGroupEvents(
       {
         chatGuid: filter?.chat ? normalizeChatGuid(filter.chat) : undefined,
@@ -297,6 +300,9 @@ export class GroupsResource {
     async function* mapEvents(): AsyncGenerator<GroupEvent> {
       try {
         for await (const frame of rpcStream) {
+          if (abort.signal.aborted) {
+            return;
+          }
           if (frame.sequence === undefined || !frame.groupChanged) {
             if (frame.heartbeat) {
               onHeartbeat?.();

@@ -33,7 +33,8 @@ plugins:
       - useExactTypes=false
       - esModuleInterop=true
       - importSuffix=.js
-  - remote: buf.build/grpc-ecosystem/openapiv2
+  - remote: buf.build/grpc-ecosystem/openapiv2:v2.32.0
+    revision: 1
     out: gen/openapi
     opt:
       - allow_merge=true

@@ -159,9 +159,10 @@ export class PollsResource {
    */
   subscribeEvents(filter?: {
     pollMessage?: string;
+    onHeartbeat?: HeartbeatHandler;
   }): TypedEventStream<PollEvent> {
     const abort = new AbortController();
-    const onHeartbeat = this._onHeartbeat;
+    const onHeartbeat = filter?.onHeartbeat ?? this._onHeartbeat;
     const rpcStream = this._streamClient.subscribePollEvents(
       {
         pollMessageGuid: filter?.pollMessage,
@@ -172,6 +173,9 @@ export class PollsResource {
     async function* mapEvents(): AsyncGenerator<PollEvent> {
       try {
         for await (const frame of rpcStream) {
+          if (abort.signal.aborted) {
+            return;
+          }
           if (frame.sequence === undefined || !frame.pollChanged) {
             if (frame.heartbeat) {
               onHeartbeat?.();
