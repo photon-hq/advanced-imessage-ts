@@ -44,7 +44,7 @@ class ReleaseDocsTests(unittest.TestCase):
             diff = release_docs.release_diff("v0.2.0", "v0.1.0", directory)
             self.assertIn("-first release", diff)
             self.assertTrue(diff.endswith(release_docs.TRUNCATED))
-            self.assertEqual(len(diff), release_docs.DIFF_LIMIT + len(release_docs.TRUNCATED))
+            self.assertEqual(len(diff), 100_000 + len(release_docs.TRUNCATED))
 
     def test_main_writes_release_context_and_only_active_codeowners(self):
         with tempfile.TemporaryDirectory() as directory:
