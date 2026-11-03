@@ -61,6 +61,8 @@ jobs:
           REVIEWERS: ${{ steps.context.outputs.reviewers }}
         run: |
           IFS=',' read -ra reviewers <<< "$REVIEWERS"
-          args=()
-          for reviewer in "${reviewers[@]}"; do args+=(--add-reviewer "$reviewer"); done
-          gh pr edit "$PR_URL" --repo photon-hq/docs "${args[@]}"
+          for reviewer in "${reviewers[@]}"; do
+            if ! gh pr edit "$PR_URL" --repo photon-hq/docs --add-reviewer "$reviewer"; then
+              echo "::warning::Could not request review from $reviewer"
+            fi
+          done

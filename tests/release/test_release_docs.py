@@ -67,6 +67,7 @@ class ReleaseDocsTests(unittest.TestCase):
             ),
             ("* @org/sdk-team # Former owner: @alice\n", "org/sdk-team"),
             ("# Former owner: @alice\n", ""),
+            ("packages/@alice/** @bob\n", "bob"),
         ]:
             with self.subTest(owners=owners), tempfile.TemporaryDirectory() as directory:
                 root = pathlib.Path(directory)
