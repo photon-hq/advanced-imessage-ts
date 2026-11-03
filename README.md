@@ -581,9 +581,9 @@ packs both archives but does not publish, attest, create Releases/tags, update
 dist-tags or run the docs updater. Dry runs also work from an issue branch.
 
 Before rollout, an administrator must configure `staging` and `production`,
-restrict production to `main`, and require production reviewers. Confirm npm's
+restrict both to `main`, and name the required production reviewers. Confirm npm's
 trusted publisher still authorizes this repository's `release.yaml` workflow
-and its staging/production environments, plus Actions artifact attestations and
+and both environments for `npm publish` and `npm dist-tag`, plus attestations and
 tag/Release permissions. No npm token fallback is used. Keep legacy labels and
 secrets until the first successful stage and approved promotion; ensure no old
 release run remains active when merging. Existing docs App/Anthropic access is

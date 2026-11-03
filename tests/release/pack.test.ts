@@ -1,6 +1,7 @@
 import { expect, it } from "bun:test";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -116,6 +117,62 @@ it("packs only the public package at both versions without changing workspace ma
     rmSync(temporary, { recursive: true, force: true });
   }
 }, 30_000);
+
+it.each([
+  { channel: "staging", condition: "types", suffix: "-staging.123456789.1" },
+  { channel: "staging", condition: "default", suffix: "-staging.123456789.1" },
+  { channel: "production", condition: "types", suffix: "" },
+  { channel: "production", condition: "default", suffix: "" },
+])("rejects a missing $condition export target for $channel", ({
+  channel,
+  condition,
+  suffix,
+}) => {
+  const fixture = mkdtempSync(
+    join(tmpdir(), "advanced-imessage-missing-export-")
+  );
+  const fixtureSource = join(fixture, "packages/advanced-imessage");
+  const manifest = JSON.parse(
+    readFileSync(join(source, "package.json"), "utf8")
+  );
+  const target: string = manifest.exports["./grpc"][condition];
+  try {
+    mkdirSync(join(fixture, "scripts"), { recursive: true });
+    mkdirSync(fixtureSource, { recursive: true });
+    cpSync(join(root, "scripts/pack.ts"), join(fixture, "scripts/pack.ts"));
+    for (const path of [
+      ...manifest.files,
+      "README.md",
+      "LICENSE",
+      "package.json",
+    ]) {
+      cpSync(join(source, path), join(fixtureSource, path), {
+        recursive: true,
+      });
+    }
+    rmSync(join(fixtureSource, target));
+    const result = spawnSync(process.execPath, ["scripts/pack.ts"], {
+      cwd: fixture,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        RELEASE_CHANNEL: channel,
+        RELEASE_VERSION: "2.4.1",
+        RELEASE_SUFFIX: suffix,
+        PACK_DESTINATION: join(fixture, "packed"),
+      },
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `The packed archive is missing export target: ${target}`
+    );
+    expect(readFileSync(join(fixtureSource, "package.json"), "utf8")).toBe(
+      readFileSync(join(source, "package.json"), "utf8")
+    );
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
 
 it.each([
   { RELEASE_VERSION: "" },
