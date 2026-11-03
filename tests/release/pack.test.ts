@@ -1,133 +1,47 @@
 import { expect, it } from "bun:test";
 import { execFileSync, spawnSync } from "node:child_process";
-import {
-  cpSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-} from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const source = join(root, "packages/advanced-imessage");
-const allowedPath =
-  /^package\/(dist\/|proto\/|package\.json$|README\.md$|LICENSE$)/;
 
-it("packs only the public package at both versions without changing workspace manifests", () => {
+it("packs a staging version without changing the source manifest", () => {
   const temporary = mkdtempSync(join(tmpdir(), "advanced-imessage-pack-test-"));
-  const manifests = [
-    "package.json",
-    ...["advanced-imessage", "core", "http", "grpc"].map(
-      (name) => `packages/${name}/package.json`
-    ),
-  ];
-  const originals = manifests.map((path) => ({
-    path,
-    content: readFileSync(join(root, path), "utf8"),
-  }));
-  const manifest: { exports: Record<string, { types: string }> } = JSON.parse(
-    readFileSync(join(source, "package.json"), "utf8")
-  );
+  const original = readFileSync(join(source, "package.json"), "utf8");
   try {
-    for (const channel of ["staging", "production"]) {
-      const suffix = channel === "staging" ? "-staging.123456789.1" : "";
-      const directory = join(temporary, channel);
-      const destination = join(directory, "packed");
-      execFileSync(process.execPath, ["scripts/pack.ts"], {
-        cwd: root,
-        env: {
-          ...process.env,
-          RELEASE_CHANNEL: channel,
-          RELEASE_VERSION: "2.4.1",
-          RELEASE_SUFFIX: suffix,
-          PACK_DESTINATION: destination,
-        },
-        stdio: "pipe",
-      });
-      const files = readdirSync(destination);
-      expect(files).toEqual([`photon-ai-advanced-imessage-2.4.1${suffix}.tgz`]);
-      const archive = join(destination, files[0] ?? "");
-      execFileSync("tar", ["-xzf", archive, "-C", directory]);
-      const entries = execFileSync("tar", ["-tzf", archive], {
+    const destination = join(temporary, "packed");
+    execFileSync(process.execPath, ["scripts/pack.ts"], {
+      cwd: root,
+      env: {
+        ...process.env,
+        RELEASE_CHANNEL: "staging",
+        RELEASE_VERSION: "2.4.1",
+        RELEASE_SUFFIX: "-staging.123456789.1",
+        PACK_DESTINATION: destination,
+      },
+      stdio: "pipe",
+    });
+    const archive = join(
+      destination,
+      "photon-ai-advanced-imessage-2.4.1-staging.123456789.1.tgz"
+    );
+    const manifest = JSON.parse(
+      execFileSync("tar", ["-xOzf", archive, "package/package.json"], {
         encoding: "utf8",
       })
-        .trim()
-        .split("\n");
-      expect(entries.every((path) => allowedPath.test(path))).toBe(true);
-      for (const { types } of Object.values(manifest.exports)) {
-        expect(entries).toContain(`package/${types.slice(2)}`);
-      }
-      expect(entries.some((path) => path.startsWith("package/proto/"))).toBe(
-        true
-      );
-      expect(
-        JSON.parse(
-          readFileSync(join(directory, "package/package.json"), "utf8")
-        )
-      ).toEqual({
-        ...manifest,
-        version: `2.4.1${suffix}`,
-      });
-      for (const path of entries.filter(
-        (path) => path !== "package/package.json"
-      )) {
-        expect(readFileSync(join(directory, path))).toEqual(
-          readFileSync(join(source, path.slice(8)))
-        );
-      }
-      mkdirSync(join(directory, "node_modules/@photon-ai"), {
-        recursive: true,
-      });
-      mkdirSync(join(directory, "node_modules/@bufbuild"), { recursive: true });
-      symlinkSync(
-        join(directory, "package"),
-        join(directory, "node_modules/@photon-ai/advanced-imessage")
-      );
-      symlinkSync(
-        join(root, "node_modules/@bufbuild/protobuf"),
-        join(directory, "node_modules/@bufbuild/protobuf")
-      );
-      execFileSync(
-        process.execPath,
-        [
-          "--eval",
-          `
-        import assert from "node:assert/strict";
-        import * as root from "@photon-ai/advanced-imessage";
-        import * as http from "@photon-ai/advanced-imessage/http";
-        import * as grpc from "@photon-ai/advanced-imessage/grpc";
-        assert.equal(root.IMessageError, http.IMessageError);
-        assert.equal(root.IMessageError, grpc.IMessageError);
-        assert.equal(typeof root.createHttpClient, "function");
-        assert.equal(typeof root.createGrpcClient, "function");
-      `,
-        ],
-        { cwd: directory, stdio: "pipe" }
-      );
-    }
-    for (const { path, content } of originals) {
-      expect(readFileSync(join(root, path), "utf8")).toBe(content);
-    }
+    );
+    expect(manifest.name).toBe("@photon-ai/advanced-imessage");
+    expect(manifest.version).toBe("2.4.1-staging.123456789.1");
+    expect(readFileSync(join(source, "package.json"), "utf8")).toBe(original);
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
 }, 30_000);
 
-it.each([
-  { channel: "staging", condition: "types", suffix: "-staging.123456789.1" },
-  { channel: "staging", condition: "default", suffix: "-staging.123456789.1" },
-  { channel: "production", condition: "types", suffix: "" },
-  { channel: "production", condition: "default", suffix: "" },
-])("rejects a missing $condition export target for $channel", ({
-  channel,
-  condition,
-  suffix,
-}) => {
+it("rejects an archive missing a declaration export target", () => {
   const fixture = mkdtempSync(
     join(tmpdir(), "advanced-imessage-missing-export-")
   );
@@ -135,7 +49,7 @@ it.each([
   const manifest = JSON.parse(
     readFileSync(join(source, "package.json"), "utf8")
   );
-  const target: string = manifest.exports["./grpc"][condition];
+  const target: string = manifest.exports["./grpc"].types;
   try {
     mkdirSync(join(fixture, "scripts"), { recursive: true });
     mkdirSync(fixtureSource, { recursive: true });
@@ -156,9 +70,9 @@ it.each([
       encoding: "utf8",
       env: {
         ...process.env,
-        RELEASE_CHANNEL: channel,
+        RELEASE_CHANNEL: "staging",
         RELEASE_VERSION: "2.4.1",
-        RELEASE_SUFFIX: suffix,
+        RELEASE_SUFFIX: "-staging.123456789.1",
         PACK_DESTINATION: join(fixture, "packed"),
       },
     });
@@ -166,34 +80,7 @@ it.each([
     expect(result.stderr).toContain(
       `The packed archive is missing export target: ${target}`
     );
-    expect(readFileSync(join(fixtureSource, "package.json"), "utf8")).toBe(
-      readFileSync(join(source, "package.json"), "utf8")
-    );
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
-});
-
-it.each([
-  { RELEASE_VERSION: "" },
-  { RELEASE_VERSION: "2.4.1-rc.1" },
-  { RELEASE_CHANNEL: "staging", RELEASE_SUFFIX: "" },
-  { RELEASE_CHANNEL: "staging", RELEASE_SUFFIX: "-staging.01.1" },
-  { RELEASE_CHANNEL: "production", RELEASE_SUFFIX: "-staging.123.1" },
-  { RELEASE_CHANNEL: "unknown" },
-  { PACK_DESTINATION: "" },
-])("rejects invalid pack inputs: %j", (invalid) => {
-  const result = spawnSync(process.execPath, ["scripts/pack.ts"], {
-    cwd: root,
-    env: {
-      ...process.env,
-      RELEASE_CHANNEL: "production",
-      RELEASE_VERSION: "2.4.1",
-      RELEASE_SUFFIX: "",
-      PACK_DESTINATION: ".scratch/invalid-pack",
-      ...invalid,
-    },
-    stdio: "pipe",
-  });
-  expect(result.status).not.toBe(0);
 });

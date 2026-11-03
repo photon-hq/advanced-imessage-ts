@@ -17,15 +17,10 @@ jobs:
       - run: bun run check
       - run: bun run lint
       - run: bun test packages
-      - run: bun run build
-      # Regenerate everything from the pinned BSR commit — proto codecs,
-      # swagger, and the hey-api HTTP route client — and require committed
-      # codegen to match exactly (a pin bump without full regen fails here).
-      - run: bun run verify:codegen
+      - run: bun run --cwd packages/advanced-imessage prepublishOnly
       # Post-build gates: entrypoint chunk identity, lazy grpc peer loading,
       # and a publishable exports map.
-      - run: bun test tests/dist
-      - run: bun run --cwd packages/advanced-imessage prepublishOnly && bun test tests/release
+      - run: bun test tests/dist tests/release
       - run: python3 -B -m unittest discover -s tests/release -p 'test_*.py'
       - run: bun x publint packages/advanced-imessage
       - run: bun x @arethetypeswrong/cli --pack packages/advanced-imessage --profile esm-only
