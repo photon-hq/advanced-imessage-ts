@@ -3,10 +3,64 @@ name: Update Docs on Release
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      APP_ID:
+        required: true
+      APP_PRIVATE_KEY:
+        required: true
 
 jobs:
   update-docs:
-    uses: photon-hq/buildspace/.github/workflows/update-docs.yaml@main
-    with:
-      docs-path: advanced-kits/imessage
-    secrets: inherit
+    if: github.event_name != 'release' || !github.event.release.prerelease
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Collect stable release context
+        id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.version != '' && format('v{0}', inputs.version) || github.event.release.tag_name }}
+        run: python3 -B scripts/release_docs.py
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        id: app
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: photon-hq
+          repositories: docs
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: photon-hq/buildspace/.github/blocks/update-docs@c1fb06e4ae457a8e053642a914bd37b8f5ce9e1b
+        id: docs
+        with:
+          version: ${{ steps.context.outputs.version }}
+          release-tag: ${{ steps.context.outputs.release_tag }}
+          release-notes: ${{ steps.context.outputs.release_notes }}
+          changes-diff: ${{ steps.context.outputs.changes_diff }}
+          docs-path: advanced-kits/imessage
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github-token: ${{ steps.app.outputs.token }}
+      - name: Request source reviewers
+        if: steps.docs.outputs.pr-url != '' && steps.context.outputs.reviewers != ''
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PR_URL: ${{ steps.docs.outputs.pr-url }}
+          REVIEWERS: ${{ steps.context.outputs.reviewers }}
+        run: |
+          IFS=',' read -ra reviewers <<< "$REVIEWERS"
+          args=()
+          for reviewer in "${reviewers[@]}"; do args+=(--add-reviewer "$reviewer"); done
+          gh pr edit "$PR_URL" --repo photon-hq/docs "${args[@]}" || true
