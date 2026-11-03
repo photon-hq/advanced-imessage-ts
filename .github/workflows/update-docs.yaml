@@ -63,4 +63,4 @@ jobs:
           IFS=',' read -ra reviewers <<< "$REVIEWERS"
           args=()
           for reviewer in "${reviewers[@]}"; do args+=(--add-reviewer "$reviewer"); done
-          gh pr edit "$PR_URL" --repo photon-hq/docs "${args[@]}" || true
+          gh pr edit "$PR_URL" --repo photon-hq/docs "${args[@]}"

@@ -48,8 +48,11 @@ def main() -> None:
     reviewers = set()
     for path in [".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"]:
         if git("ls-tree", "--name-only", tag, "--", path):
-            owners = re.findall(r"@([a-zA-Z0-9_/-]+)", git("show", f"refs/tags/{tag}:{path}"))
-            reviewers = {owner for owner in owners if "/" not in owner}
+            owners = "\n".join(
+                line.split("#", 1)[0]
+                for line in git("show", f"refs/tags/{tag}:{path}").splitlines()
+            )
+            reviewers = set(re.findall(r"@([a-zA-Z0-9_/-]+)", owners))
             break
     context = {
         "version": tag[1:], "release_tag": tag, "release_notes": release["body"] or "",

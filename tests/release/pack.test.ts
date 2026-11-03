@@ -29,7 +29,7 @@ it("packs only the public package at both versions without changing workspace ma
     path,
     content: readFileSync(join(root, path), "utf8"),
   }));
-  const manifest = JSON.parse(
+  const manifest: { exports: Record<string, { types: string }> } = JSON.parse(
     readFileSync(join(source, "package.json"), "utf8")
   );
   try {
@@ -58,6 +58,9 @@ it("packs only the public package at both versions without changing workspace ma
         .trim()
         .split("\n");
       expect(entries.every((path) => allowedPath.test(path))).toBe(true);
+      for (const { types } of Object.values(manifest.exports)) {
+        expect(entries).toContain(`package/${types.slice(2)}`);
+      }
       expect(entries.some((path) => path.startsWith("package/proto/"))).toBe(
         true
       );
