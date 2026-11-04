@@ -341,6 +341,11 @@ export interface Message {
   dateExpressiveSendPlayed?: Date | undefined;
   sender?: SingleServiceAddressInfo | undefined;
   isFromMe: boolean;
+  /**
+   * Verified sender signing identity, stable across addresses and push tokens.
+   * Absent when unverified. Not a permanent hardware ID or a trust decision.
+   */
+  senderDeviceId?: string | undefined;
   isSent: boolean;
   isDelivered: boolean;
   /** Monterey+. Delivered without firing a recipient notification. */
@@ -530,20 +535,44 @@ export interface MessageUnsent {
 export interface MessageReactionAdded {
   messageGuid: string;
   targetPartIndex?: number | undefined;
-  reaction: MessageReaction | undefined;
+  reaction:
+    | MessageReaction
+    | undefined;
+  /**
+   * GUID of this change's own source message row (the reaction row), never
+   * the target in `message_guid`. Absent when the server cannot name the
+   * source, including servers that predate this field.
+   */
+  sourceMessageGuid?: string | undefined;
 }
 
 export interface MessageReactionRemoved {
   messageGuid: string;
   targetPartIndex?: number | undefined;
-  reaction: MessageReaction | undefined;
+  reaction:
+    | MessageReaction
+    | undefined;
+  /**
+   * GUID of this change's own source message row (the reaction removal
+   * row), never the target in `message_guid`. Absent when the server cannot
+   * name the source, including servers that predate this field.
+   */
+  sourceMessageGuid?: string | undefined;
 }
 
 export interface StickerPlaced {
   messageGuid: string;
   targetPartIndex?: number | undefined;
   sticker?: AttachmentInfo | undefined;
-  placement?: StickerPlacement | undefined;
+  placement?:
+    | StickerPlacement
+    | undefined;
+  /**
+   * GUID of this change's own source message row (the sticker row), never
+   * the target in `message_guid`. Absent when the server cannot name the
+   * source, including servers that predate this field.
+   */
+  sourceMessageGuid?: string | undefined;
 }
 
 /** A discrete state transition observed for a message. */
@@ -2229,6 +2258,7 @@ function createBaseMessage(): Message {
     dateExpressiveSendPlayed: undefined,
     sender: undefined,
     isFromMe: false,
+    senderDeviceId: undefined,
     isSent: false,
     isDelivered: false,
     isDeliveredQuietly: false,
@@ -2304,6 +2334,9 @@ export const Message: MessageFns<Message> = {
     }
     if (message.isFromMe !== false) {
       writer.uint32(168).bool(message.isFromMe);
+    }
+    if (message.senderDeviceId !== undefined) {
+      writer.uint32(178).string(message.senderDeviceId);
     }
     if (message.isSent !== false) {
       writer.uint32(240).bool(message.isSent);
@@ -2514,6 +2547,14 @@ export const Message: MessageFns<Message> = {
           }
 
           message.isFromMe = reader.bool();
+          continue;
+        }
+        case 22: {
+          if (tag !== 178) {
+            break;
+          }
+
+          message.senderDeviceId = reader.string();
           continue;
         }
         case 30: {
@@ -2851,6 +2892,11 @@ export const Message: MessageFns<Message> = {
         : isSet(object.is_from_me)
         ? globalThis.Boolean(object.is_from_me)
         : false,
+      senderDeviceId: isSet(object.senderDeviceId)
+        ? globalThis.String(object.senderDeviceId)
+        : isSet(object.sender_device_id)
+        ? globalThis.String(object.sender_device_id)
+        : undefined,
       isSent: isSet(object.isSent)
         ? globalThis.Boolean(object.isSent)
         : isSet(object.is_sent)
@@ -3063,6 +3109,9 @@ export const Message: MessageFns<Message> = {
     if (message.isFromMe !== false) {
       obj.isFromMe = message.isFromMe;
     }
+    if (message.senderDeviceId !== undefined) {
+      obj.senderDeviceId = message.senderDeviceId;
+    }
     if (message.isSent !== false) {
       obj.isSent = message.isSent;
     }
@@ -3192,6 +3241,7 @@ export const Message: MessageFns<Message> = {
       ? SingleServiceAddressInfo.fromPartial(object.sender)
       : undefined;
     message.isFromMe = object.isFromMe ?? false;
+    message.senderDeviceId = object.senderDeviceId ?? undefined;
     message.isSent = object.isSent ?? false;
     message.isDelivered = object.isDelivered ?? false;
     message.isDeliveredQuietly = object.isDeliveredQuietly ?? false;
@@ -3644,7 +3694,7 @@ export const MessageUnsent: MessageFns<MessageUnsent> = {
 };
 
 function createBaseMessageReactionAdded(): MessageReactionAdded {
-  return { messageGuid: "", targetPartIndex: undefined, reaction: undefined };
+  return { messageGuid: "", targetPartIndex: undefined, reaction: undefined, sourceMessageGuid: undefined };
 }
 
 export const MessageReactionAdded: MessageFns<MessageReactionAdded> = {
@@ -3657,6 +3707,9 @@ export const MessageReactionAdded: MessageFns<MessageReactionAdded> = {
     }
     if (message.reaction !== undefined) {
       MessageReaction.encode(message.reaction, writer.uint32(26).fork()).join();
+    }
+    if (message.sourceMessageGuid !== undefined) {
+      writer.uint32(34).string(message.sourceMessageGuid);
     }
     return writer;
   },
@@ -3692,6 +3745,14 @@ export const MessageReactionAdded: MessageFns<MessageReactionAdded> = {
           message.reaction = MessageReaction.decode(reader, reader.uint32());
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.sourceMessageGuid = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3714,6 +3775,11 @@ export const MessageReactionAdded: MessageFns<MessageReactionAdded> = {
         ? globalThis.Number(object.target_part_index)
         : undefined,
       reaction: isSet(object.reaction) ? MessageReaction.fromJSON(object.reaction) : undefined,
+      sourceMessageGuid: isSet(object.sourceMessageGuid)
+        ? globalThis.String(object.sourceMessageGuid)
+        : isSet(object.source_message_guid)
+        ? globalThis.String(object.source_message_guid)
+        : undefined,
     };
   },
 
@@ -3728,6 +3794,9 @@ export const MessageReactionAdded: MessageFns<MessageReactionAdded> = {
     if (message.reaction !== undefined) {
       obj.reaction = MessageReaction.toJSON(message.reaction);
     }
+    if (message.sourceMessageGuid !== undefined) {
+      obj.sourceMessageGuid = message.sourceMessageGuid;
+    }
     return obj;
   },
 
@@ -3741,12 +3810,13 @@ export const MessageReactionAdded: MessageFns<MessageReactionAdded> = {
     message.reaction = (object.reaction !== undefined && object.reaction !== null)
       ? MessageReaction.fromPartial(object.reaction)
       : undefined;
+    message.sourceMessageGuid = object.sourceMessageGuid ?? undefined;
     return message;
   },
 };
 
 function createBaseMessageReactionRemoved(): MessageReactionRemoved {
-  return { messageGuid: "", targetPartIndex: undefined, reaction: undefined };
+  return { messageGuid: "", targetPartIndex: undefined, reaction: undefined, sourceMessageGuid: undefined };
 }
 
 export const MessageReactionRemoved: MessageFns<MessageReactionRemoved> = {
@@ -3759,6 +3829,9 @@ export const MessageReactionRemoved: MessageFns<MessageReactionRemoved> = {
     }
     if (message.reaction !== undefined) {
       MessageReaction.encode(message.reaction, writer.uint32(26).fork()).join();
+    }
+    if (message.sourceMessageGuid !== undefined) {
+      writer.uint32(34).string(message.sourceMessageGuid);
     }
     return writer;
   },
@@ -3794,6 +3867,14 @@ export const MessageReactionRemoved: MessageFns<MessageReactionRemoved> = {
           message.reaction = MessageReaction.decode(reader, reader.uint32());
           continue;
         }
+        case 4: {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.sourceMessageGuid = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3816,6 +3897,11 @@ export const MessageReactionRemoved: MessageFns<MessageReactionRemoved> = {
         ? globalThis.Number(object.target_part_index)
         : undefined,
       reaction: isSet(object.reaction) ? MessageReaction.fromJSON(object.reaction) : undefined,
+      sourceMessageGuid: isSet(object.sourceMessageGuid)
+        ? globalThis.String(object.sourceMessageGuid)
+        : isSet(object.source_message_guid)
+        ? globalThis.String(object.source_message_guid)
+        : undefined,
     };
   },
 
@@ -3830,6 +3916,9 @@ export const MessageReactionRemoved: MessageFns<MessageReactionRemoved> = {
     if (message.reaction !== undefined) {
       obj.reaction = MessageReaction.toJSON(message.reaction);
     }
+    if (message.sourceMessageGuid !== undefined) {
+      obj.sourceMessageGuid = message.sourceMessageGuid;
+    }
     return obj;
   },
 
@@ -3843,12 +3932,19 @@ export const MessageReactionRemoved: MessageFns<MessageReactionRemoved> = {
     message.reaction = (object.reaction !== undefined && object.reaction !== null)
       ? MessageReaction.fromPartial(object.reaction)
       : undefined;
+    message.sourceMessageGuid = object.sourceMessageGuid ?? undefined;
     return message;
   },
 };
 
 function createBaseStickerPlaced(): StickerPlaced {
-  return { messageGuid: "", targetPartIndex: undefined, sticker: undefined, placement: undefined };
+  return {
+    messageGuid: "",
+    targetPartIndex: undefined,
+    sticker: undefined,
+    placement: undefined,
+    sourceMessageGuid: undefined,
+  };
 }
 
 export const StickerPlaced: MessageFns<StickerPlaced> = {
@@ -3864,6 +3960,9 @@ export const StickerPlaced: MessageFns<StickerPlaced> = {
     }
     if (message.placement !== undefined) {
       StickerPlacement.encode(message.placement, writer.uint32(34).fork()).join();
+    }
+    if (message.sourceMessageGuid !== undefined) {
+      writer.uint32(42).string(message.sourceMessageGuid);
     }
     return writer;
   },
@@ -3907,6 +4006,14 @@ export const StickerPlaced: MessageFns<StickerPlaced> = {
           message.placement = StickerPlacement.decode(reader, reader.uint32());
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.sourceMessageGuid = reader.string();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -3930,6 +4037,11 @@ export const StickerPlaced: MessageFns<StickerPlaced> = {
         : undefined,
       sticker: isSet(object.sticker) ? AttachmentInfo.fromJSON(object.sticker) : undefined,
       placement: isSet(object.placement) ? StickerPlacement.fromJSON(object.placement) : undefined,
+      sourceMessageGuid: isSet(object.sourceMessageGuid)
+        ? globalThis.String(object.sourceMessageGuid)
+        : isSet(object.source_message_guid)
+        ? globalThis.String(object.source_message_guid)
+        : undefined,
     };
   },
 
@@ -3947,6 +4059,9 @@ export const StickerPlaced: MessageFns<StickerPlaced> = {
     if (message.placement !== undefined) {
       obj.placement = StickerPlacement.toJSON(message.placement);
     }
+    if (message.sourceMessageGuid !== undefined) {
+      obj.sourceMessageGuid = message.sourceMessageGuid;
+    }
     return obj;
   },
 
@@ -3963,6 +4078,7 @@ export const StickerPlaced: MessageFns<StickerPlaced> = {
     message.placement = (object.placement !== undefined && object.placement !== null)
       ? StickerPlacement.fromPartial(object.placement)
       : undefined;
+    message.sourceMessageGuid = object.sourceMessageGuid ?? undefined;
     return message;
   },
 };

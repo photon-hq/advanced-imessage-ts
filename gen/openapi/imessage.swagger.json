@@ -1990,6 +1990,10 @@
         "isFromMe": {
           "type": "boolean"
         },
+        "senderDeviceId": {
+          "type": "string",
+          "description": "Verified sender signing identity, stable across addresses and push tokens.\nAbsent when unverified. Not a permanent hardware ID or a trust decision."
+        },
         "isSent": {
           "type": "boolean"
         },
