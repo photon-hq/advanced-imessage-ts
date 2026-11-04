@@ -20,7 +20,7 @@
     "node": ">=18.17"
   },
   "scripts": {
-    "generate": "PATH=./node_modules/.bin:$PATH buf generate",
+    "generate": "PATH=./node_modules/.bin:$PATH buf generate && bun run scripts/soften-int64.mjs",
     "generate:http": "openapi-ts -i gen/openapi/imessage.swagger.json -o packages/http/src/generated/http -c @hey-api/client-fetch",
     "verify:codegen": "bun run generate && bun run generate:http && git diff --exit-code -- gen packages/core/src/generated packages/http/src/generated",
     "build": "bun run generate && bun run --cwd packages/advanced-imessage build",
