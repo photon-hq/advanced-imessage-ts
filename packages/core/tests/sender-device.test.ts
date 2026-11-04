@@ -7,7 +7,7 @@ import { CatchUpEventsResponse } from "../src/generated/photon/imessage/v1/event
 import { Message } from "../src/generated/photon/imessage/v1/message_types.ts";
 import { mapMessage } from "../src/mapper.ts";
 
-const senderDeviceId = `pho_device_v1_${"a".repeat(43)}`;
+const senderDeviceId = `pho_device_v1_${"a".repeat(64)}`;
 
 test.each([
   senderDeviceId,

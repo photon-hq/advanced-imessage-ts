@@ -350,7 +350,8 @@ const inChat = await im.messages.listInChat(chatGuid, {
 `pageSize`, when provided, must be between `1` and `100`.
 
 Incoming iMessages can include `message.senderDeviceId`, an opaque identifier
-with the `pho_device_v1_` prefix. The same verified signing identity has the
+with the `pho_device_v1_` prefix followed by 64 lowercase SHA-256 hex digits.
+Treat the complete value as opaque. The same verified signing identity has the
 same ID across sender addresses and Projects, including after a push token
 change. A signing identity change produces a new ID; this is not a permanent
 hardware identifier or a trust decision. Keep authorization within your Project.
