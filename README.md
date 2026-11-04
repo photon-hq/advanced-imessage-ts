@@ -580,14 +580,19 @@ The same workflow defaults manual dispatches to **dry-run**, which verifies and
 packs both archives but does not publish, attest, create Releases/tags, update
 dist-tags or run the docs updater. Dry runs also work from an issue branch.
 
-Before rollout, an administrator must configure `staging` and `production`,
-restrict both to `main`, and name the required production reviewers. Confirm npm's
-trusted publisher still authorizes this repository's `release.yaml` workflow
-and both environments for `npm publish` and `npm dist-tag`, plus attestations and
-tag/Release permissions. No npm token fallback is used. Keep legacy labels and
-secrets until the first successful stage and approved promotion; ensure no old
-release run remains active when merging. Existing docs App/Anthropic access is
-still required. No repository settings are changed by these workflows.
+Staging needs no pre-created environment; its publisher already requires main.
+Before merging, confirm npm's trusted publisher authorizes this repository's
+`release.yaml` workflow and both environments for `npm publish` and `npm dist-tag`,
+plus attestations and tag/Release permissions. No npm token fallback is used.
+Before production promotion, configure `production` with required reviewers and
+a main-only branch policy. Existing docs App/Anthropic access is still required.
+These workflows do not configure environment protection rules.
+
+PR release labels are not required; remove them from the migration PR. After
+this migration reaches main, let legacy publishing runs finish and check for
+independent label consumers before deleting obsolete repository labels. Label
+cleanup does not require a production promotion. Retain legacy secrets only
+while an active consumer or the documented rollback needs them.
 
 To roll back automation, revert this migration and align the public package's
 manifest version with the newest stable release before restoring the old
