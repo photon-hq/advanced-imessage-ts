@@ -584,15 +584,19 @@ Staging needs no pre-created environment; its publisher already requires main.
 Before merging, confirm npm's trusted publisher authorizes this repository's
 `release.yaml` workflow and both environments for `npm publish` and `npm dist-tag`,
 plus attestations and tag/Release permissions. No npm token fallback is used.
-Before production promotion, configure `production` with required reviewers and
-a main-only branch policy. Existing docs App/Anthropic access is still required.
-These workflows do not configure environment protection rules.
+Before the first production promotion, have a repository administrator run
+Buildspace's [environment setup command](https://github.com/photon-hq/buildspace/blob/913e9cef8e8bd00775b28ac3e2a759ccfc796eea/README.md#package-stage-and-promote)
+to configure required production reviewers and main-only environments.
+Existing docs App/Anthropic access is still required. These workflows do not
+configure environment protection rules.
 
-PR release labels are not required; remove them from the migration PR. After
-this migration reaches main, let legacy publishing runs finish and check for
-independent label consumers before deleting obsolete repository labels. Label
-cleanup does not require a production promotion. Retain legacy secrets only
-while an active consumer or the documented rollback needs them.
+These workflows do not read PR release labels. Before removing a label from
+this migration PR, let queued and active legacy runs that read it finish and
+check for independent consumers. After this migration reaches main, retire
+obsolete repository labels only after those checks and after disabling or
+updating automation that recreates them. Label cleanup does not require a
+production promotion. Retain legacy secrets while an active consumer or the
+documented rollback needs them.
 
 To roll back automation, revert this migration and align the public package's
 manifest version with the newest stable release before restoring the old
