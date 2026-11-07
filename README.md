@@ -359,9 +359,9 @@ The field is absent when the server cannot verify an identity, including older
 messages and unsupported formats. Do not substitute the sender address for it.
 
 This replaces the historical `pho_device_v1_` format: the same signing identity
-keeps its hash, but its complete ID string changes. Plan for cached IDs and
-previously stored events to retain the old format, and for both formats to appear
-during rollback. Coordinate that transition with consumers before rollout.
+keeps its hash, but its complete ID string changes. Cached IDs and previously
+stored events may keep the old format, and both formats may appear during the
+transition.
 
 ## Inbound events
 
