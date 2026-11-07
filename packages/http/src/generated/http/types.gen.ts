@@ -258,6 +258,11 @@ export type V1Message = {
     dateExpressiveSendPlayed?: string;
     sender?: V1SingleServiceAddressInfo;
     isFromMe?: boolean;
+    /**
+     * Verified sender signing identity, stable across addresses and push tokens.
+     * Absent when unverified. Not a permanent hardware ID or a trust decision.
+     */
+    senderDeviceId?: string;
     isSent?: boolean;
     isDelivered?: boolean;
     /**
