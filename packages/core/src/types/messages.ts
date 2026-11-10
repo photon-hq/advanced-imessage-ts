@@ -198,6 +198,7 @@ export interface Message {
   readonly replyTargetGuid?: string;
   readonly sendErrorCode: number;
   readonly sender?: SingleServiceAddressInfo;
+  readonly senderDeviceId?: string;
   readonly shareDirection?: number;
   readonly shareStatus?: number;
   readonly subject?: string;

@@ -409,6 +409,7 @@ export function mapMessage(proto: ProtoMessage): Message {
     sender: proto.sender
       ? mapSingleServiceAddressInfo(proto.sender)
       : undefined,
+    senderDeviceId: proto.senderDeviceId,
     shareDirection: proto.shareDirection,
     shareStatus: proto.shareStatus,
     subject: proto.subject,
