@@ -594,13 +594,17 @@ The same workflow defaults manual dispatches to **dry-run**, which verifies and
 packs both archives but does not publish, attest, create Releases/tags, update
 dist-tags or run the docs updater. Dry runs also work from an issue branch.
 
-Staging needs no pre-created environment; its publisher already requires main.
-Before merging, confirm npm's trusted publisher authorizes this repository's
-`release.yaml` workflow and both environments for `npm publish` and `npm dist-tag`,
-plus attestations and tag/Release permissions. No npm token fallback is used.
-Before the first production promotion, have a repository administrator run
-Buildspace's [environment setup command](https://github.com/photon-hq/buildspace/blob/913e9cef8e8bd00775b28ac3e2a759ccfc796eea/README.md#package-stage-and-promote)
-to configure required production reviewers and main-only environments.
+Before merging, configure and verify main-only staging and npm's trusted
+publisher for this repository's `release.yaml` workflow and `staging`
+environment. Enable both publication and **Allow npm dist-tag**, and confirm
+attestation and tag/Release permissions. No npm token fallback is used.
+Configure the `production` trusted publisher shortly before the first promotion;
+a new publisher expires without a successful publish within two days. Delete
+and recreate an expired configuration rather than retrying it unchanged.
+Have a repository administrator use Buildspace's
+[environment setup command](https://github.com/photon-hq/buildspace/blob/cfaaa6a4c8870bc21ced10f732fbbc0f4d23384d/README.md#package-stage-and-promote)
+for main-only environments, and verify required production reviewers before
+promotion. An environment's existence alone does not prove it is protected.
 Existing docs App/Anthropic access is still required. These workflows do not
 configure environment protection rules.
 
