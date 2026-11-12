@@ -572,3 +572,51 @@ OpenAPI spec (`gen/openapi/imessage.swagger.json`). After a build,
 across entrypoints and no static `nice-grpc` in the index/http graphs.
 CI also bundles the SDK for workerd and boots it (`tests/workerd`), so a
 Workers-hostile dependency cannot land unnoticed.
+
+### Releases
+
+Main stages only `@photon-ai/advanced-imessage` on npmjs under `staging` after
+the exact commit's CI succeeds. Its existing publish hook exports the pinned
+protos, verifies codegen, bundles the private workspaces and copies the docs.
+The packer copies that payload to temporary directories for staging and stable
+versions; it never changes workspace manifests or publishes private packages.
+Buildspace computes versions from stable `vX.Y.Z` tags and merged PR Conventional
+Commits, with optional `Release-As: X.Y.Z`; it no longer commits version bumps.
+
+In Actions, dispatch **Release** from `main` with operation **promote** and the
+staging version to release (blank uses npm's current `staging` tag). Inspect the
+verified candidate summary, then approve the `production` environment. Promotion
+publishes the stored, attested stable archive under `latest` without rebuilding.
+The docs updater receives that exact version and compares stable tags only.
+Manual external stable Releases still update docs; prereleases do not.
+
+The same workflow defaults manual dispatches to **dry-run**, which verifies and
+packs both archives but does not publish, attest, create Releases/tags, update
+dist-tags or run the docs updater. Dry runs also work from an issue branch.
+
+Before merging, configure and verify main-only staging and npm's trusted
+publisher for this repository's `release.yaml` workflow and `staging`
+environment. Enable both publication and **Allow npm dist-tag**, and confirm
+attestation and tag/Release permissions. No npm token fallback is used.
+Configure the `production` trusted publisher shortly before the first promotion;
+a new publisher expires without a successful publish within two days. Delete
+and recreate an expired configuration rather than retrying it unchanged.
+Have a repository administrator use Buildspace's
+[environment setup command](https://github.com/photon-hq/buildspace/blob/cfaaa6a4c8870bc21ced10f732fbbc0f4d23384d/README.md#package-stage-and-promote)
+for main-only environments, and verify required production reviewers before
+promotion. An environment's existence alone does not prove it is protected.
+Existing docs App/Anthropic access is still required. These workflows do not
+configure environment protection rules.
+
+These workflows do not read PR release labels. Before removing a label from
+this migration PR, let queued and active legacy runs that read it finish and
+check for independent consumers. After this migration reaches main, retire
+obsolete repository labels only after those checks and after disabling or
+updating automation that recreates them. Label cleanup does not require a
+production promotion. Retain legacy secrets while an active consumer or the
+documented rollback needs them.
+
+To roll back automation, revert this migration and align the public package's
+manifest version with the newest stable release before restoring the old
+publisher. Never overwrite a published version. For a bad SDK release, revert
+the source change, stage a higher version and approve that new candidate.
