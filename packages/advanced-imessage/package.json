@@ -3,7 +3,7 @@
   "version": "2.5.0",
   "description": "TypeScript SDK for Advanced iMessage API",
   "author": "Photon",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/photon-hq/advanced-imessage-ts.git",

@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "Monorepo for the Advanced iMessage TypeScript SDK",
   "author": "Photon",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/photon-hq/advanced-imessage-ts.git"
