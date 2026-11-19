@@ -78,7 +78,7 @@ export const MessageEffect = {
   slam:         "com.apple.MobileSMS.expressivesend.impact",
   confetti:     "com.apple.messages.effect.CKConfettiEffect",
   fireworks:    "com.apple.messages.effect.CKFireworksEffect",
-  balloons:     "com.apple.messages.effect.CKBalloonEffect",
+  balloons:     "com.apple.messages.effect.CKHappyBirthdayEffect",
   // ...
 } as const;
 export type MessageEffect = (typeof MessageEffect)[keyof typeof MessageEffect];
