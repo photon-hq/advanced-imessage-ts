@@ -58,6 +58,24 @@ function reachableExternals(entry: string): Set<string> {
 }
 
 describe("dist smoke", () => {
+  it("exposes occasion effects through the existing entrypoints", async () => {
+    for (const entry of ["index.js", "http.js", "grpc.js"]) {
+      const { MessageEffect } = await import(join(DIST, entry));
+      expect(MessageEffect.happyBirthday).toBe(
+        "com.apple.messages.effect.CKHappyBirthdayEffect"
+      );
+      expect(MessageEffect.graduation).toBe(
+        "com.apple.messages.effect.CKConfettiEffect"
+      );
+      expect(MessageEffect.wedding).toBe(
+        "com.apple.messages.effect.CKHeartEffect"
+      );
+      expect(MessageEffect.merryChristmas).toBe(
+        "com.apple.messages.effect.CKSparklesEffect"
+      );
+    }
+  });
+
   it("keeps one error-class identity across all three entrypoints", async () => {
     const root = await import(join(DIST, "index.js"));
     const http = await import(join(DIST, "http.js"));

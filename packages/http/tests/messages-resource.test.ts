@@ -56,6 +56,25 @@ function makeMiniAppCardSession(messageGuid = "card-message-1") {
 }
 
 describe("MessagesResource", () => {
+  it("sends an occasion effect without replacing the message text", async () => {
+    let capturedRequest: Record<string, unknown> | undefined;
+    const resource = new MessagesResource({
+      async sendTextMessage(request: Record<string, unknown>) {
+        capturedRequest = request;
+        return { message: makeMessage("preset-1") };
+      },
+    } as unknown as ConstructorParameters<typeof MessagesResource>[0]);
+
+    await resource.sendText(chatGuidValue, "Your order is ready", {
+      effect: MessageEffect.graduation,
+    });
+
+    expect(capturedRequest?.text).toBe("Your order is ready");
+    expect(capturedRequest?.effectId).toBe(
+      "com.apple.messages.effect.CKConfettiEffect"
+    );
+  });
+
   it("includes sticker width when placing a sticker", async () => {
     let capturedRequest: Record<string, unknown> | undefined;
     const resource = new MessagesResource({
