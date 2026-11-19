@@ -3,21 +3,72 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Verify and pack only, publish staging, or promote a stored candidate
+        type: choice
+        options: [dry-run, stage, promote]
+        default: dry-run
+      staging-version:
+        description: Staging version to promote; blank uses the current staging tag
+        type: string
+        default: ""
 
 jobs:
-  # NOTE(monorepo): since the core/http/grpc split, the publishable package
-  # lives in packages/advanced-imessage (the repo root is a private workspace
-  # manifest), so the shared workflow must bump and publish from that
-  # directory via working-directory.
-  release:
-    uses: photon-hq/buildspace/.github/workflows/typescript-service-release.yaml@main
+  stage:
+    if: github.event_name == 'push' || inputs.operation == 'dry-run' || inputs.operation == 'stage'
+    uses: photon-hq/buildspace/.github/workflows/package-stage.yml@cfaaa6a4c8870bc21ced10f732fbbc0f4d23384d
     permissions:
       contents: write
       pull-requests: read
       id-token: write
       packages: write
+      actions: read
+      attestations: write
     with:
-      service-name: advanced-imessage
-      use-oidc: true
-      working-directory: packages/advanced-imessage
-    secrets: inherit
+      package: "@photon-ai/advanced-imessage"
+      registry: https://registry.npmjs.org
+      environment: staging
+      bun-version: latest
+      install: bun install --frozen-lockfile
+      ci-workflow: ci.yaml
+      verify: |
+        bun run check
+        bun run lint
+        bun test packages
+        bun run --cwd packages/advanced-imessage prepublishOnly
+        bun test tests/dist tests/release
+        python3 -B -m unittest discover -s tests/release -p 'test_*.py'
+        bun x publint packages/advanced-imessage
+        bun x @arethetypeswrong/cli --pack packages/advanced-imessage --profile esm-only
+      pack: bun scripts/pack.ts
+      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'dry-run' }}
+
+  promote:
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'promote' && github.ref == 'refs/heads/main'
+    uses: photon-hq/buildspace/.github/workflows/package-promote.yml@cfaaa6a4c8870bc21ced10f732fbbc0f4d23384d
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+      attestations: read
+      id-token: write
+    with:
+      package: "@photon-ai/advanced-imessage"
+      registry: https://registry.npmjs.org
+      environment: production
+      staging-version: ${{ inputs.staging-version }}
+
+  update-docs:
+    needs: promote
+    if: needs.promote.result == 'success' && needs.promote.outputs.pending == 'true'
+    uses: ./.github/workflows/update-docs.yaml
+    permissions:
+      contents: read
+    with:
+      version: ${{ needs.promote.outputs.version }}
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
