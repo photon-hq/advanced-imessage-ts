@@ -195,6 +195,21 @@ await im.messages.sendText(chatGuid, "reply to part 2", {
 });
 ```
 
+### Effects by occasion
+
+Choose an occasion through the existing `MessageEffect` API:
+
+```ts
+await im.messages.sendText(chatGuid, "You earned it!", {
+  effect: MessageEffect.graduation,
+});
+```
+
+Each occasion has one constant, such as `happyBirthday`, `wedding`, `promotion`,
+`merryChristmas` or `happyDiwali`, and selects an existing animation without changing
+message text. See the [occasion-to-animation table](docs/message-effects.md) for
+all occasions and the distinction between native associations and product mappings.
+
 ## Send Attachments
 
 Attachments are sent by uploaded attachment GUID.
